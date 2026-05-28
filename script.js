@@ -132,10 +132,26 @@ function flap() {
   bird.velocity = bird.lift;
 }
 
+function flap() {
+  if (gameOver) {
+    location.reload();
+    return;
+  }
+  bird.velocity = bird.lift;
+}
+
+// desktop keyboard
 window.addEventListener("keydown", e => {
   if (e.code === "Space") flap();
 });
 
+// desktop click
 window.addEventListener("click", flap);
+
+// mobile touch
+window.addEventListener("touchstart", e => {
+  e.preventDefault();
+  flap();
+}, { passive: false });
 
 gameLoop();
