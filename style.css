@@ -1,0 +1,21 @@
+body {
+  margin: 0;
+  overflow: hidden;
+  background: #70c5ce;
+  font-family: Arial, sans-serif;
+}
+
+canvas {
+  display: block;
+}
+
+#startText {
+  position: absolute;
+  width: 100%;
+  text-align: center;
+  top: 80px;
+  font-size: 32px;
+  color: white;
+  font-weight: bold;
+  text-shadow: 2px 2px 4px black;
+}
