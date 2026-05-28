@@ -1,3 +1,6 @@
+const birdImg = new Image();
+birdImg.src = "monkeyapple.png";
+
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
@@ -35,10 +38,13 @@ setInterval(() => {
 }, 1800);
 
 function drawBird() {
-  ctx.fillStyle = "yellow";
-  ctx.beginPath();
-  ctx.arc(bird.x, bird.y, bird.width / 2, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.drawImage(
+    birdImg,
+    bird.x - bird.width / 2,
+    bird.y - bird.height / 2,
+    bird.width,
+    bird.height
+  );
 }
 
 function drawPipes() {
