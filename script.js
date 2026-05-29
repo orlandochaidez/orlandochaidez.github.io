@@ -38,13 +38,10 @@ setInterval(() => {
 }, 1800);
 
 function drawBird() {
-  ctx.drawImage(
-    birdImg,
-    bird.x - bird.width / 2,
-    bird.y - bird.height / 2,
-    bird.width,
-    bird.height
-  );
+  ctx.fillStyle = "yellow";
+  ctx.beginPath();
+  ctx.arc(bird.x, bird.y, bird.width / 2, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 function drawPipes() {
