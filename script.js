@@ -20,7 +20,7 @@ let score = 0;
 let gameOver = false;
 
 function createPipe() {
-  const gap = 230;
+  const gap = 180;
   const topHeight = Math.random() * (canvas.height - gap - 200) + 50;
 
   pipes.push({
@@ -33,7 +33,7 @@ function createPipe() {
 
 setInterval(() => {
   if (!gameOver) createPipe();
-}, 900);
+}, 1500);
 
 function drawBird() {
   ctx.fillStyle = "yellow";
