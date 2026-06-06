@@ -33,7 +33,7 @@ function createPipe() {
 
 setInterval(() => {
   if (!gameOver) createPipe();
-}, 1800);
+}, 1300);
 
 function drawBird() {
   ctx.fillStyle = "yellow";
