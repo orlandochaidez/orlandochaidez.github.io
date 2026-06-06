@@ -20,7 +20,7 @@ let score = 0;
 let gameOver = false;
 
 function createPipe() {
-  const gap = 180;
+  const gap = 230;
   const topHeight = Math.random() * (canvas.height - gap - 200) + 50;
 
   pipes.push({
