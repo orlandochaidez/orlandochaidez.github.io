@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<title>Blocky Blaster V2 — Depth Test</title>
+<title>OG Blaster — Classic FPS</title>
 <meta name="description" content="A colorful Doom-style raycaster FPS with blocky Minecraft-esque textures. Free browser game, no downloads.">
 <style>
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0b1020;color:#fff;display:flex;justify-content:center}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0a0505;color:#f5f5f5;display:flex;justify-content:center}
   .wrap{width:min(980px,100%);padding:16px 14px 24px}
   header{display:flex;justify-content:space-between;align-items:center;gap:10px}
   h1{font-size:26px;margin:0}
@@ -40,7 +40,7 @@
 </head>
 <body>
 <div class="wrap">
-  <header><h1>🧱🔫 Blocky Blaster <span style="color:#ffcc00">V2 — Depth Test</span></h1><a class="back" href="../index.html">← All games</a></header>
+  <header><h1>💀🔫 OG Blaster</h1><a class="back" href="../index.html">← All games</a></header>
 
   <div class="hud">
     <div class="stat"><small>HEALTH</small><b id="hpText">100</b><div class="bar"><i id="hpBar"></i></div></div>
@@ -58,8 +58,8 @@
       <button class="fire" id="fireBtn">FIRE</button>
     </div>
     <div class="overlay" id="overlay">
-      <h2>🧱 Blocky Blaster V2</h2>
-      <p><b>Depth test version:</b> strong distance fog, dark wall seams, north/south wall shading, shadowed wall bottoms, and a perspective checker floor — so the wall right in front of you pops from the same-color wall far away.</p>
+      <h2>💀 OG Blaster</h2>
+      <p><b>Classic OG build:</b> no more blocky cubes. Dark tech-base and hell-brick corridors, smooth detailed wall textures, and real monsters — soldiers, horned imps, pink brutes, and floating eye-orbs — each with its own shape, not just a colored box.</p>
       <p><b>Desktop:</b> WASD / arrows to move · mouse to look (click game to lock mouse) · click or Space to shoot · Shift to run<br>
       <b>Mobile:</b> left joystick to move · drag right side to look · FIRE button</p>
       <p>Clear each wave. You heal +25 and get ammo between waves. Don’t let them touch you!</p>
@@ -71,7 +71,7 @@
     <button class="barbtn" id="restartBtn">Restart</button>
     <button class="barbtn secondary" id="lockBtn">Lock mouse / Look</button>
   </div>
-  <p class="hint">V2 depth changes: far walls get dark + blue-fogged, side-facing walls are half as bright as front-facing ones, every block has a black seam and its own tint, wall bottoms are shadowed, and the floor is a real perspective checkerboard (grass vs tan dirt) so it never blends with the walls.</p>
+  <p class="hint">OG build: 4 different monsters — soldier (balanced), horned imp (fast), pink brute (tanky, big mouth), floating eye-orb (round, flies at face height). Wave 1 spawns right in front of you, monsters pathfind through the maze to reach you, every monster has a bright outline + name + health bar, and the minimap (top-right) shows pale walls, yellow you, and colored monster dots.</p>
 </div>
 
 <script>
@@ -80,69 +80,163 @@
   const W=cv.width, H=cv.height;
   const $=id=>document.getElementById(id);
 
-  // ---------- Procedural blocky textures (original, Minecraft-esque) ----------
-  function makeTex(paint){
-    const c=document.createElement('canvas'); c.width=c.height=64; const g=c.getContext('2d'); paint(g); return c;
+  // ---------- Detailed OG textures (128px, smooth — NOT blocky cubes) ----------
+  function makeTex(paint, size=128){
+    const c=document.createElement('canvas'); c.width=c.height=size; const g=c.getContext('2d'); paint(g,size); return c;
   }
-  function noise(g, base, spots, n=260, alpha=.18){
-    g.fillStyle=base; g.fillRect(0,0,64,64);
-    for(let i=0;i<n;i++){ g.fillStyle=spots[Math.floor(Math.random()*spots.length)]; g.globalAlpha=alpha+Math.random()*.18; const s=2+Math.random()*5; g.fillRect(Math.floor(Math.random()*16)*4, Math.floor(Math.random()*16)*4, s, s); }
+  function grain(g,size,base,specks,n=900){
+    g.fillStyle=base; g.fillRect(0,0,size,size);
+    for(let i=0;i<n;i++){ g.fillStyle=specks[i%specks.length]; g.globalAlpha=.05+Math.random()*.16; g.fillRect(Math.random()*size, Math.random()*size, 1+Math.random()*3, 1+Math.random()*3); }
     g.globalAlpha=1;
-    // chunky pixel grid + strong block border so every single block reads as its own cube
-    g.strokeStyle='rgba(0,0,0,.30)'; for(let i=0;i<=64;i+=4){ g.beginPath();g.moveTo(i,0);g.lineTo(i,64);g.stroke(); g.beginPath();g.moveTo(0,i);g.lineTo(64,i);g.stroke(); }
-    g.strokeStyle='rgba(0,0,0,.75)'; g.lineWidth=4; g.strokeRect(0,0,64,64);
-    g.strokeStyle='rgba(255,255,255,.35)'; g.lineWidth=1; g.strokeRect(3,3,58,58);
+  }
+  function cracks(g,size,n=9){
+    g.strokeStyle='rgba(0,0,0,.35)'; g.lineWidth=1;
+    for(let i=0;i<n;i++){ let x=Math.random()*size,y=Math.random()*size; g.beginPath(); g.moveTo(x,y); for(let s=0;s<5;s++){ x+=(Math.random()-.5)*22; y+=Math.random()*18; g.lineTo(x,y); } g.stroke(); }
   }
   const TEX = {
-    1: makeTex(g=>{ // dirt block with a thin grass top (mostly brown so it never blends with leaves/floor)
-      noise(g,'#8a5a2b',['#6f4420','#a06a35','#5a371a','#c08444'],320,.25);
-      g.fillStyle='#57b52a'; g.fillRect(2,2,60,13);
-      g.fillStyle='#3e8f1c'; for(let x=2;x<62;x+=4) g.fillRect(x,13,4,5+((x*11)%3)*2);
-      g.fillStyle='#2f6d12'; g.fillRect(2,2,60,3);
+    1: makeTex((g,s)=>{ // dark brown hell-brick wall (replaces grass block)
+      grain(g,s,'#5a3423',['#3d2317','#74492e','#2a180f','#8a5a37']);
+      g.fillStyle='rgba(0,0,0,.45)'; for(let y=0;y<s;y+=32) g.fillRect(0,y,s,3);
+      for(let y=0;y<s;y+=32){ const off=(y/32)%2?32:0; for(let x=off;x<s;x+=64) g.fillRect(x,y,3,32); }
+      g.fillStyle='rgba(255,190,120,.10)'; for(let y=3;y<s;y+=32) g.fillRect(0,y,s,2);
+      cracks(g,s,7);
     }),
-    2: makeTex(g=>{ // stone bricks
-      noise(g,'#9aa0a8',['#7e8590','#b8bec7','#6b7280'],120,.15);
-      g.strokeStyle='#565d68'; g.lineWidth=3; g.strokeRect(1,1,62,30); g.strokeRect(1,33,62,30);
-      g.beginPath(); g.moveTo(32,1); g.lineTo(32,32); g.moveTo(16,33); g.lineTo(16,63); g.moveTo(48,33); g.lineTo(48,63); g.stroke();
+    2: makeTex((g,s)=>{ // grey tech / stone panel with rivets and vent
+      grain(g,s,'#6f7680',['#565d66','#8b939e','#454b54']);
+      g.strokeStyle='#3c424b'; g.lineWidth=4; g.strokeRect(4,4,s-8,s-8);
+      g.strokeStyle='rgba(255,255,255,.18)'; g.lineWidth=1; g.strokeRect(7,7,s-14,s-14);
+      g.fillStyle='#2e343d'; g.fillRect(s*.22,s*.58,s*.56,s*.26);
+      g.fillStyle='#171b21'; for(let i=0;i<5;i++) g.fillRect(s*.26+i*s*.1,s*.62,5,s*.18);
+      g.fillStyle='#c7ced8'; [[12,12],[s-16,12],[12,s-16],[s-16,s-16]].forEach(([x,y])=>{ g.beginPath(); g.arc(x,y,4,0,7); g.fill(); g.fillStyle='#565d66'; g.beginPath(); g.arc(x,y,2,0,7); g.fill(); g.fillStyle='#c7ced8'; });
+      cracks(g,s,4);
     }),
-    3: makeTex(g=>{ // oak planks
-      noise(g,'#b08948',['#97753a','#c9a05c','#856632'],140,.15);
-      g.fillStyle='rgba(70,45,15,.65)'; for(let y=15;y<64;y+=16) g.fillRect(0,y,64,3);
-      for(let y=0;y<64;y+=16){ g.fillRect((y*3)%64,y,3,16); }
-      g.fillStyle='#5d4020'; [[6,6],[56,10],[10,54],[54,50]].forEach(([x,y])=>g.fillRect(x,y,4,4));
+    3: makeTex((g,s)=>{ // rusted metal wall with hazard stripe (replaces planks)
+      grain(g,s,'#7a4a21',['#5d3717','#96602c','#3f270f','#b07a3a']);
+      g.fillStyle='rgba(0,0,0,.22)'; for(let x=0;x<s;x+=16) g.fillRect(x,0,2,s);
+      const grad=g.createLinearGradient(0,s-26,0,s); grad.addColorStop(0,'#c9a227'); grad.addColorStop(1,'#8a6d10'); g.fillStyle=grad; g.fillRect(0,s-26,s,26);
+      g.fillStyle='#151515'; for(let x=-20;x<s;x+=32){ g.beginPath(); g.moveTo(x,s); g.lineTo(x+16,s-26); g.lineTo(x+28,s-26); g.lineTo(x+12,s); g.fill(); }
+      g.fillStyle='#3aa655'; g.beginPath(); g.arc(s/2,s*.34,13,0,7); g.fill(); g.fillStyle='#0b2e16'; g.beginPath(); g.arc(s/2,s*.34,8,0,7); g.fill(); g.fillStyle='#7dff9a'; g.beginPath(); g.arc(s/2-2,s*.34-2,3,0,7); g.fill();
     }),
-    4: makeTex(g=>{ // leaves — deep forest green, much darker than the bright floor checker
-      noise(g,'#14532d',['#052e16','#166534','#22c55e','#052e16'],460,.4);
+    4: makeTex((g,s)=>{ // dark marble / obsidian with red veins (replaces leaves)
+      grain(g,s,'#241826',['#150d18','#352540','#0d0710','#4a3560'],700);
+      g.strokeStyle='rgba(255,45,70,.55)'; g.lineWidth=2;
+      for(let i=0;i<5;i++){ let x=Math.random()*s; g.beginPath(); g.moveTo(x,0); g.bezierCurveTo(x+18,s*.33,x-18,s*.66,x+8,s); g.stroke(); }
+      g.strokeStyle='rgba(255,120,140,.25)'; g.lineWidth=1; for(let i=0;i<4;i++){ let x=Math.random()*s; g.beginPath(); g.moveTo(x,0); g.lineTo(x+(Math.random()-.5)*30,s); g.stroke(); }
     }),
-    5: makeTex(g=>{ // gold block
-      noise(g,'#ffd60a',['#ffb703','#ffe45e','#e0a800'],160,.2);
-      g.strokeStyle='#b07d00'; g.lineWidth=4; g.strokeRect(3,3,58,58); g.strokeRect(12,12,40,40);
+    5: makeTex((g,s)=>{ // UAC-style tech door / gold trim wall (keeps border readability)
+      grain(g,s,'#4c5563',['#39414d','#626c7c','#2c333f']);
+      g.strokeStyle='#d4a017'; g.lineWidth=5; g.strokeRect(6,6,s-12,s-12);
+      g.strokeStyle='#22262e'; g.lineWidth=3; g.strokeRect(18,18,s-36,s-36);
+      g.fillStyle='#171a20'; g.fillRect(s/2-5,18,10,s-36);
+      g.fillStyle='#37e08b'; g.fillRect(s/2-14,26,28,8); g.fillStyle='#123d26'; g.fillRect(s/2-14,36,28,3);
+      g.fillStyle='#9aa6b5'; [[24,24],[s-24,24],[24,s-24],[s-24,s-24]].forEach(([x,y])=>{ g.beginPath(); g.arc(x,y,4,0,7); g.fill(); });
     }),
-    6: makeTex(g=>{ // colorful brick
-      noise(g,'#ef476f',['#d90452','#ff7096','#c9184a'],180,.2);
-      g.strokeStyle='rgba(255,255,255,.55)'; g.lineWidth=3; g.strokeRect(1,1,62,30); g.strokeRect(1,33,62,30);
+    6: makeTex((g,s)=>{ // red hell stone
+      grain(g,s,'#7d1f1f',['#5c1414','#9c2b21','#420d0d','#b8432f']);
+      cracks(g,s,12);
+      g.fillStyle='rgba(255,120,70,.14)'; for(let i=0;i<26;i++) g.fillRect(Math.random()*s,Math.random()*s,8,3);
+      g.strokeStyle='rgba(0,0,0,.4)'; g.lineWidth=2; for(let y=0;y<s;y+=42){ g.beginPath(); g.moveTo(0,y); g.lineTo(s,y); g.stroke(); }
     }),
-    7: makeTex(g=>{ // diamond ore
-      noise(g,'#8d99ae',['#6c757d','#a8b2c1','#596275'],220,.2);
-      g.fillStyle='#4de8ff'; [[10,14],[38,8],[24,34],[48,42],[8,48]].forEach(([x,y])=>{ g.fillRect(x,y,10,6); g.fillRect(x+2,y-3,6,12); });
-      g.fillStyle='#d9fbff'; [[12,15],[40,9],[26,35]].forEach(([x,y])=>g.fillRect(x,y,4,3));
+    7: makeTex((g,s)=>{ // blue tech energy wall
+      grain(g,s,'#173a5e',['#102a45','#1f4d7a','#0a1c30','#2f6aa0']);
+      g.strokeStyle='#39c2ff'; g.lineWidth=3; g.strokeRect(10,10,s-20,s-20);
+      g.strokeStyle='rgba(57,194,255,.45)'; g.lineWidth=1; g.strokeRect(18,18,s-36,s-36);
+      g.fillStyle='#39c2ff'; g.fillRect(22,s/2-3,s-44,6);
+      g.fillStyle='#bff1ff'; g.fillRect(22,s/2-1,44,2);
+      g.fillStyle='#ffcc00'; g.beginPath(); g.arc(s-28,28,6,0,7); g.fill();
     }),
-    8: makeTex(g=>{ // rainbow party block
-      const cols=['#ff595e','#ff924c','#ffcc00','#8ac926','#4cc9f0','#b388ff'];
-      for(let y=0;y<8;y++) for(let x=0;x<8;x++){ g.fillStyle=cols[(x+y)%cols.length]; g.fillRect(x*8,y*8,8,8); }
-      g.strokeStyle='rgba(0,0,0,.18)'; for(let i=0;i<=64;i+=8){ g.beginPath();g.moveTo(i,0);g.lineTo(i,64);g.stroke(); g.beginPath();g.moveTo(0,i);g.lineTo(64,i);g.stroke(); }
+    8: makeTex((g,s)=>{ // fleshy / organic accent wall (center plaza marker)
+      grain(g,s,'#8e3b57',['#6e2942','#a9516d','#521d31','#c4738c'],800);
+      g.strokeStyle='rgba(60,10,26,.55)'; g.lineWidth=3;
+      for(let i=0;i<6;i++){ g.beginPath(); g.arc(Math.random()*s,Math.random()*s,12+Math.random()*20,0,7); g.stroke(); }
+      g.fillStyle='rgba(255,180,200,.20)'; for(let i=0;i<20;i++){ g.beginPath(); g.arc(Math.random()*s,Math.random()*s,3+Math.random()*5,0,7); g.fill(); }
     }),
   };
-  function enemyTex(body, face, eye='#111'){
-    return makeTex(g=>{
-      noise(g,body,[face,'rgba(0,0,0,.25)','rgba(255,255,255,.25)'],180,.25);
-      g.fillStyle='#fff'; g.fillRect(12,22,14,14); g.fillRect(38,22,14,14);
-      g.fillStyle=eye; g.fillRect(17,27,6,6); g.fillRect(43,27,6,6);
-      g.fillStyle='#111'; g.fillRect(22,46,20,5); g.fillRect(22,46,4,10); g.fillRect(38,46,4,10);
-      g.strokeStyle='rgba(0,0,0,.35)'; g.lineWidth=3; g.strokeRect(1,1,62,62);
-    });
+  // ---------- Distinct monster sprites (128x128, shaped silhouettes — not boxes) ----------
+  function spriteTex(draw){ return makeTex(g=>{ g.clearRect(0,0,128,128); draw(g); },128); }
+  function shadeCircle(g,x,y,r,base,hi){
+    const gr=g.createRadialGradient(x-r*.35,y-r*.4,r*.1,x,y,r); gr.addColorStop(0,hi); gr.addColorStop(.65,base); gr.addColorStop(1,'rgba(0,0,0,.55)');
+    g.fillStyle=gr; g.beginPath(); g.arc(x,y,r,0,7); g.fill();
   }
-  const ETEX=[ enemyTex('#35d435','#1f9d1f'), enemyTex('#b388ff','#7b2ff7'), enemyTex('#ff924c','#e85d04'), enemyTex('#4cc9f0','#0077b6') ];
+  const ETEX=[
+    // 0 — ZOMBIE SOLDIER: humanoid, green-grey uniform, helmet-less head, gun arm
+    spriteTex(g=>{
+      g.fillStyle='#3f4a3a'; g.fillRect(38,62,52,46); // torso uniform
+      g.fillStyle='#2f382c'; g.fillRect(42,108,16,20); g.fillRect(70,108,16,20); // legs
+      g.fillStyle='#1c1f22'; g.fillRect(38,104,54,7); // belt
+      g.fillStyle='#c9a227'; g.fillRect(58,103,12,9);
+      g.fillStyle='#55624d'; g.fillRect(12,66,26,12); g.fillRect(90,66,26,12); // arms
+      g.fillStyle='#151515'; g.fillRect(102,60,22,10); // gun
+      shadeCircle(g,64,38,22,'#8a9a7b','#c9d6b8'); // head
+      g.fillStyle='#2b3324'; g.fillRect(42,18,44,9); // hair/helmet band
+      g.fillStyle='#ff2222'; g.fillRect(52,36,7,5); g.fillRect(70,36,7,5); // red eyes
+      g.fillStyle='#101010'; g.fillRect(56,50,16,4); // mouth
+      g.fillStyle='rgba(140,0,0,.8)'; g.fillRect(46,72,10,18); g.fillRect(76,86,8,12); // blood
+    }),
+    // 1 — HORNED IMP: brown demon, horns, spikes, claws, tail-ish silhouette
+    spriteTex(g=>{
+      g.fillStyle='#6e3b1e'; g.beginPath(); g.moveTo(34,128); g.quadraticCurveTo(20,84,38,58); g.lineTo(90,58); g.quadraticCurveTo(108,84,94,128); g.closePath(); g.fill(); // body
+      g.fillStyle='#8a4f27'; g.beginPath(); g.ellipse(64,92,22,28,0,0,7); g.fill(); // belly/chest
+      g.fillStyle='#e8dcc3'; // horns
+      g.beginPath(); g.moveTo(42,26); g.quadraticCurveTo(22,18,18,2); g.quadraticCurveTo(34,8,48,16); g.closePath(); g.fill();
+      g.beginPath(); g.moveTo(86,26); g.quadraticCurveTo(106,18,110,2); g.quadraticCurveTo(94,8,80,16); g.closePath(); g.fill();
+      shadeCircle(g,64,40,24,'#7a4522','#b87a45'); // head
+      g.fillStyle='#ffd21f'; g.fillRect(48,38,10,6); g.fillRect(70,38,10,6); // yellow eyes
+      g.fillStyle='#0a0a0a'; g.fillRect(51,39,4,4); g.fillRect(73,39,4,4);
+      g.fillStyle='#fff'; for(let i=0;i<5;i++){ g.beginPath(); g.moveTo(50+i*6,56); g.lineTo(53+i*6,64); g.lineTo(56+i*6,56); g.fill(); } // fangs
+      g.fillStyle='#0a0a0a'; g.fillRect(48,54,32,5);
+      g.fillStyle='#e8dcc3'; for(let i=0;i<4;i++){ g.fillRect(40+i*14,60,4,10); } // back spikes hint
+      g.fillStyle='#5d3018'; g.fillRect(6,70,28,11); g.fillRect(94,70,28,11); // arms
+      g.fillStyle='#f5ecd7'; [[8,82],[16,84],[24,82],[102,82],[110,84],[118,82]].forEach(([x,y])=>{ g.beginPath(); g.moveTo(x,y); g.lineTo(x+3,y+9); g.lineTo(x+6,y); g.fill(); }); // claws
+    }),
+    // 2 — PINK BRUTE: huge mouth, horns, bulky pink body (wide silhouette)
+    spriteTex(g=>{
+      shadeCircle(g,64,68,52,'#e88ca0','#ffc2d1'); // big round body/head merged
+      g.fillStyle='rgba(0,0,0,.18)'; g.beginPath(); g.ellipse(64,112,34,12,0,0,7); g.fill();
+      g.fillStyle='#f7e8c9'; // horns
+      g.beginPath(); g.moveTo(22,42); g.quadraticCurveTo(4,30,8,12); g.quadraticCurveTo(24,20,34,32); g.closePath(); g.fill();
+      g.beginPath(); g.moveTo(106,42); g.quadraticCurveTo(124,30,120,12); g.quadraticCurveTo(104,20,94,32); g.closePath(); g.fill();
+      g.fillStyle='#fff'; g.beginPath(); g.arc(46,50,9,0,7); g.fill(); g.beginPath(); g.arc(82,50,9,0,7); g.fill();
+      g.fillStyle='#8a1020'; g.beginPath(); g.arc(46,50,4,0,7); g.fill(); g.beginPath(); g.arc(82,50,4,0,7); g.fill();
+      g.fillStyle='#2a0208'; g.beginPath(); g.ellipse(64,88,34,20,0,0,7); g.fill(); // giant mouth
+      g.fillStyle='#fff'; for(let i=0;i<7;i++){ const x=36+i*8; g.beginPath(); g.moveTo(x,74); g.lineTo(x+4,88); g.lineTo(x+8,74); g.fill(); g.beginPath(); g.moveTo(x,102); g.lineTo(x+4,90); g.lineTo(x+8,102); g.fill(); } // teeth top+bottom
+      g.fillStyle='#5c0a14'; g.beginPath(); g.ellipse(64,94,16,7,0,0,7); g.fill(); // tongue/depth
+      g.fillStyle='#d96b83'; g.fillRect(2,78,16,26); g.fillRect(110,78,16,26); // stubby arms
+    }),
+    // 3 — FLOATING EYE ORB: round flying orb, one giant eye, teeth ring, small wings/spikes
+    spriteTex(g=>{
+      g.fillStyle='#7a1f2b'; // side spikes / fins
+      for(let i=0;i<6;i++){ const a=i/6*Math.PI*2; const x=64+Math.cos(a)*48, y=64+Math.sin(a)*48; g.beginPath(); g.moveTo(x,y); g.lineTo(64+Math.cos(a)*62,64+Math.sin(a)*62); g.lineTo(64+Math.cos(a+.5)*44,64+Math.sin(a+.5)*44); g.fill(); }
+      shadeCircle(g,64,64,46,'#b02a37','#e85d68'); // orb body
+      g.fillStyle='#fff'; g.beginPath(); g.arc(64,56,27,0,7); g.fill(); // giant eyeball
+      g.strokeStyle='rgba(176,42,55,.6)'; g.lineWidth=1; for(let i=0;i<7;i++){ g.beginPath(); g.moveTo(64,56); g.lineTo(64+Math.cos(i)*24,56+Math.sin(i*1.7)*24); g.stroke(); }
+      g.fillStyle='#1a6fb5'; g.beginPath(); g.arc(64,56,14,0,7); g.fill(); // iris
+      g.fillStyle='#000'; g.beginPath(); g.arc(64,56,7,0,7); g.fill();
+      g.fillStyle='#fff'; g.beginPath(); g.arc(59,50,3,0,7); g.fill();
+      g.fillStyle='#1a0505'; g.beginPath(); g.ellipse(64,92,26,11,0,0,7); g.fill(); // mouth under eye
+      g.fillStyle='#fff'; for(let i=0;i<6;i++){ const x=42+i*8; g.beginPath(); g.moveTo(x,84); g.lineTo(x+4,94); g.lineTo(x+8,84); g.fill(); }
+      g.fillStyle='rgba(255,190,80,.9)'; g.beginPath(); g.arc(30,34,5,0,7); g.fill(); g.beginPath(); g.arc(98,34,5,0,7); g.fill(); // small horns/glows
+    }),
+  ];
+
+  // Pre-tinted sprite variants (respect the monster silhouette alpha — no boxy overlays)
+  function tinted(tex, color){
+    const c=document.createElement('canvas'); c.width=c.height=128; const g=c.getContext('2d');
+    g.drawImage(tex,0,0); g.globalCompositeOperation='source-atop'; g.fillStyle=color; g.fillRect(0,0,128,128); return c;
+  }
+  // Bake a bright halo/keyline around each monster silhouette (respecting its real shape)
+  function haloTex(tex){
+    const sil=document.createElement('canvas'); sil.width=sil.height=128; const sg=sil.getContext('2d');
+    sg.drawImage(tex,0,0); sg.globalCompositeOperation='source-atop'; sg.fillStyle='#ffe95a'; sg.fillRect(0,0,128,128);
+    const c=document.createElement('canvas'); c.width=c.height=128; const g=c.getContext('2d');
+    [[-3,0],[3,0],[0,-3],[0,3],[-2,-2],[2,-2],[-2,2],[2,2]].forEach(([dx,dy])=>g.drawImage(sil,dx,dy));
+    g.drawImage(tex,0,0); return c;
+  }
+  const ETEX_RENDER = ETEX.map(haloTex);
+  const ETEX_DARK = ETEX_RENDER.map(tex=>tinted(tex,'rgba(6,8,28,0.72)'));
+  const ETEX_WHITE = ETEX_RENDER.map(tex=>tinted(tex,'rgba(255,255,255,0.9)'));
+  const TYPE_COLORS=['#aaff00','#ff9f1c','#ff5da2','#4de8ff'];
+  const TYPE_NAMES=['SOLDIER','IMP','BRUTE','EYE ORB'];
 
   // ---------- Map ----------
   // 1 grass/dirt 2 stone 3 planks 4 leaves 5 gold 6 pink brick 7 diamond 8 rainbow
@@ -154,7 +248,7 @@
     [5,0,2,0,0,0,3,0,0,0,0,3,0,0,0,2,0,5],
     [5,0,2,0,6,0,0,0,1,1,0,0,0,6,0,2,0,5],
     [5,0,0,0,6,0,7,0,1,1,0,7,0,6,0,0,0,5],
-    [5,0,3,0,0,0,0,0,0,0,0,0,0,0,0,3,0,5],
+    [5,0,3,0,0,0,0,0,0,0,0,0,0,0,3,0,5],
     [5,0,0,0,1,0,0,4,4,4,4,0,0,1,0,0,0,5],
     [5,0,2,0,1,0,0,4,4,4,4,0,0,1,0,2,0,5],
     [5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5],
@@ -173,25 +267,51 @@
   let P, enemies, keys={}, running=false, last=0, muzzle=0, bob=0, shootCd=0;
   let joyVec={x:0,y:0}, lookTouch=null;
   function reset(){
-    P={x:2.5,y:15.5,a:-Math.PI/2,hp:100,ammo:30,score:0,wave:0,kills:0};
+    P={x:12.5,y:10.5,a:Math.PI,hp:100,ammo:30,score:0,wave:0,kills:0};
     enemies=[]; nextWave();
   }
+  // BFS on the grid so monsters can actually navigate the maze to reach you (no more getting stuck behind walls)
+  function bfsPath(sx,sy,tx,ty){
+    const key=(x,y)=>x+','+y, prev=new Map(), q=[[sx,sy]]; prev.set(key(sx,sy),null);
+    while(q.length){
+      const [x,y]=q.shift();
+      if(x===tx&&y===ty){ const path=[]; let k=key(x,y), cur=[x,y]; while(cur){ path.push(cur); cur=prev.get(k); if(cur) k=key(cur[0],cur[1]); } return path.reverse(); }
+      for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+        const nx=x+dx, ny=y+dy, k=key(nx,ny);
+        if(prev.has(k)||solid(nx+.5,ny+.5)) continue;
+        prev.set(k,[x,y]); q.push([nx,ny]);
+      }
+    }
+    return null;
+  }
   function spawnPos(){
-    for(let t=0;t<60;t++){
+    const pcx=Math.floor(P.x), pcy=Math.floor(P.y);
+    for(let t=0;t<80;t++){
       const x=1.5+Math.random()*(MW-3), y=1.5+Math.random()*(MH-3);
       if(solid(x,y)) continue;
-      const d=Math.hypot(x-P.x,y-P.y); if(d<5) continue;
+      const d=Math.hypot(x-P.x,y-P.y); if(d<4||d>11) continue;
+      if(!bfsPath(Math.floor(x),Math.floor(y),pcx,pcy)) continue; // only spawn where a real path to you exists
       return {x,y};
     }
-    return {x:9,y:3};
+    return {x:8.5,y:10.5};
   }
   function nextWave(){
     P.wave++;
     const n=3+P.wave*2;
     enemies=[];
+    const TYPES=[
+      {hp:2, speed:.95, scale:1.0, dmg:9,  name:'Soldier'},
+      {hp:1, speed:1.55, scale:.92, dmg:7,  name:'Imp'},
+      {hp:5, speed:.62, scale:1.28, dmg:16, name:'Brute'},
+      {hp:2, speed:1.1, scale:.88, dmg:10, name:'Eye Orb'},
+    ];
+    const FIRST=[{x:9.5,y:10.5,type:1},{x:8.5,y:10.5,type:0},{x:6.5,y:10.5,type:2},{x:5.5,y:10.5,type:3},{x:7.5,y:11.5,type:0}];
     for(let i=0;i<n;i++){
-      const p=spawnPos();
-      enemies.push({x:p.x,y:p.y,hp:2+Math.floor(P.wave/2),maxhp:2+Math.floor(P.wave/2),type:i%ETEX.length,speed:.85+Math.random()*.35+P.wave*.04,atkCd:0,hit:0,dead:false});
+      const forced = P.wave===1 && FIRST[i];
+      const p= forced ? {x:forced.x,y:forced.y} : spawnPos();
+      const type= forced ? forced.type : i%ETEX.length, base=TYPES[type];
+      const hp=base.hp+Math.floor(P.wave/2);
+      enemies.push({x:p.x,y:p.y,hp,maxhp:hp,type,scale:base.scale,dmg:base.dmg,speed:base.speed*(0.9+Math.random()*.25)+P.wave*.03,atkCd:0,hit:0,dead:false});
     }
     if(P.wave>1){ P.hp=Math.min(100,P.hp+25); P.ammo+=18; toastWave(); }
     hud();
@@ -225,15 +345,13 @@
     return {dist:dist*Math.cos(a-P.a), raw:dist, hit, side, u, cellX, cellY};
   }
   function render(){
-    // Colorful sky
+    // Dark tech ceiling with red warning glow strips (OG indoor base feel)
     const sky=ctx.createLinearGradient(0,0,0,H/2);
-    sky.addColorStop(0,'#39a7ff'); sky.addColorStop(.7,'#aee9ff'); sky.addColorStop(1,'#e8fbff');
+    sky.addColorStop(0,'#0b0708'); sky.addColorStop(.75,'#1c1114'); sky.addColorStop(1,'#2a1718');
     ctx.fillStyle=sky; ctx.fillRect(0,0,W,H/2);
-    // blocky sun + clouds
-    ctx.fillStyle='#fff200'; ctx.fillRect(W*.78,H*.08,44,44); ctx.fillStyle='#ffe95a'; ctx.fillRect(W*.78+6,H*.08+6,32,32);
-    ctx.fillStyle='rgba(255,255,255,.92)';
-    const t=performance.now()/60;
-    for(let i=0;i<5;i++){ const cx=((i*260+t*.3)%(W+220))-110, cy=28+(i%3)*26; ctx.fillRect(cx,cy,92,18); ctx.fillRect(cx+18,cy-12,54,14); }
+    ctx.fillStyle='rgba(120,20,25,.28)';
+    for(let i=0;i<7;i++){ const x=((i*170 - (performance.now()/40 % 170)) + W) % (W+80) -40; ctx.fillRect(x,H*.12,54,5); }
+    ctx.fillStyle='rgba(255,70,70,.16)'; ctx.fillRect(0,H/2-16,W,4);
     // --- Perspective checkerboard floor (real floor-casting, gives strong motion/depth) ---
     // Alternate bright grass green with warm tan dirt so floor tiles NEVER match the wall greens.
     const fovF=Math.PI/3;
@@ -252,9 +370,9 @@
       for(let x=0;x<W;x+=8){
         const tile=(Math.floor(wx)+Math.floor(wy))&1;
         // base checker: 0 = #69c24a grass, 1 = #d9b26a tan path-dirt
-        let rC = tile? 217:105, gC = tile? 178:194, bC = tile? 106:74;
+        let rC = tile? 122:64, gC = tile? 116:72, bC = tile? 104:88; // light warm concrete vs blue-steel floor tiles
         // distance shading + sky-blue fog
-        rC = rC*shadeF + 174*fogF*(1-shadeF+.35); gC = gC*shadeF + 233*fogF*(1-shadeF+.35); bC = bC*shadeF + 255*fogF*(1-shadeF+.35);
+        rC = rC*shadeF + 90*fogF*(1-shadeF+.35); gC = gC*shadeF + 18*fogF*(1-shadeF+.35); bC = bC*shadeF + 22*fogF*(1-shadeF+.35); // fade to dark red-black
         ctx.fillStyle=`rgb(${rC|0},${gC|0},${bC|0})`;
         ctx.fillRect(x,y,8,4);
         wx+=stepX*8; wy+=stepY*8;
@@ -273,7 +391,7 @@
       const wallH=Math.min(H*1.7, (H*.95)/Math.max(.05,r.dist));
       const y0=(H-wallH)/2;
       const tex=TEX[r.hit];
-      const sx=Math.max(0,Math.min(63,Math.floor(r.u*64)));
+      const sx=Math.max(0,Math.min(127,Math.floor(r.u*128)));
       // V2 DEPTH: 1) strong distance falloff — near = full bright, far = darkened hard
       const distShade=Math.max(.22, 1-(r.dist-0.6)/9.5);
       // 2) face shading — one wall direction is MUCH darker, so corners/turns read instantly
@@ -284,12 +402,12 @@
       const blockTint=0.82 + (hash%100)/100*0.30; // 0.82 .. 1.12
       let shade=distShade*sideShade*blockTint;
       ctx.globalAlpha=1;
-      ctx.drawImage(tex,sx,0,1,64,col,y0,2,wallH);
+      ctx.drawImage(tex,sx,0,1,128,col,y0,2,wallH);
       if(shade<1){ ctx.fillStyle=`rgba(8,12,38,${Math.min(.86,(1-shade))})`; ctx.fillRect(col,y0,2,wallH); }
       if(shade>1){ ctx.fillStyle=`rgba(255,255,255,${Math.min(.22,shade-1)})`; ctx.fillRect(col,y0,2,wallH); }
-      // 4) sky-blue distance fog on far walls (atmospheric perspective)
-      const fog=Math.max(0, Math.min(.62,(r.dist-4)/13));
-      if(fog>0){ ctx.fillStyle=`rgba(174,233,255,${fog})`; ctx.fillRect(col,y0,2,wallH); }
+      // 4) dark smoky distance fog on far walls (atmospheric perspective)
+      const fog=Math.max(0, Math.min(.60,(r.dist-4)/13));
+      if(fog>0){ ctx.fillStyle=`rgba(16,6,8,${fog})`; ctx.fillRect(col,y0,2,wallH); }
       // 5) top light + bottom shadow (ambient occlusion) baked onto every wall slice
       ctx.fillStyle='rgba(255,255,255,.16)'; ctx.fillRect(col,y0,2,Math.max(2,wallH*.10));
       ctx.fillStyle='rgba(0,0,0,.38)'; ctx.fillRect(col,y0+wallH*.78,2,wallH*.22);
@@ -313,31 +431,50 @@
       let da=s.ang-P.a; while(da>Math.PI)da-=Math.PI*2; while(da<-Math.PI)da+=Math.PI*2;
       if(Math.abs(da)>Math.PI/2.4) continue;
       const screenX=(.5+da/(Math.PI/3))*W;
-      const size=Math.min(H*1.15,(H*.82)/Math.max(.15,s.dist));
-      const x0=screenX-size/2, y0=(H-size)/2 + size*.06;
+      const size=Math.min(H*1.25,(H*.82)/Math.max(.15,s.dist))*(s.e.scale||1);
+      const fly = s.e.type===3 ? -size*.16 : 0; // eye-orb hovers above the floor
+      const x0=screenX-size/2, y0=(H-size)/2 + size*.06 + fly;
       // drop shadow on the floor so monsters feel planted, not floating
-      ctx.fillStyle=`rgba(0,0,0,${Math.max(.12,.42-s.dist*.025)})`;
-      ctx.beginPath(); ctx.ellipse(screenX, y0+size*.98, size*.38, size*.10, 0, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle=`rgba(0,0,0,${(s.e.type===3?.22:.42)-s.dist*.015})`;
+      ctx.beginPath(); ctx.ellipse(screenX, (H-size)/2+size*1.04, size*.38, size*.10, 0, 0, Math.PI*2); ctx.fill();
       // draw in strips so walls occlude correctly
       const strip=6;
-      const spriteShade=Math.max(.25, 1-(s.dist-0.6)/10);
+      const spriteShade=Math.max(.58, 1-(s.dist-0.6)/16);
       for(let x=x0;x<x0+size;x+=strip){
         const col=Math.floor(x); if(col<0||col>=W) continue;
         if(s.dist>zbuf[col]+.08) continue;
-        const u=((x-x0)/size)*64;
-        ctx.drawImage(ETEX[s.e.type],u,0,Math.max(1,strip/size*64),64,x,y0,strip,size);
-        if(spriteShade<1){ ctx.fillStyle=`rgba(8,12,38,${(1-spriteShade)*.8})`; ctx.fillRect(x,y0,strip,size); }
-        if(s.e.hit>performance.now()){ ctx.fillStyle='rgba(255,255,255,.45)'; ctx.fillRect(x,y0,strip,size); }
+        const u=((x-x0)/size)*128;
+        ctx.drawImage(ETEX_RENDER[s.e.type],u,0,Math.max(1,strip/size*128),128,x,y0,strip,size);
+        if(spriteShade<1){ ctx.globalAlpha=(1-spriteShade)*.55; ctx.drawImage(ETEX_DARK[s.e.type],u,0,Math.max(1,strip/size*128),128,x,y0,strip,size); ctx.globalAlpha=1; }
+        if(s.e.hit>performance.now()){ ctx.globalAlpha=.55; ctx.drawImage(ETEX_WHITE[s.e.type],u,0,Math.max(1,strip/size*128),128,x,y0,strip,size); ctx.globalAlpha=1; }
       }
-      // black outline around monster
-      ctx.strokeStyle='rgba(0,0,0,.65)'; ctx.lineWidth=3; ctx.strokeRect(x0,y0,size,size);
-      // health pip above enemy when damaged
-      if(s.e.hp<s.e.maxhp && s.dist<10){
-        ctx.fillStyle='rgba(0,0,0,.55)'; ctx.fillRect(screenX-24,y0-14,48,7);
-        ctx.fillStyle='#35c759'; ctx.fillRect(screenX-23,y0-13,46*(s.e.hp/s.e.maxhp),5);
+      // (no rectangular outline — monsters keep their own silhouette)
+      // ALWAYS-visible marker + health bar + name so a monster can never blend in unseen
+      if(s.dist<16){
+        const my=y0-22, pulse=3+Math.sin(performance.now()/220)*2;
+        ctx.fillStyle=TYPE_COLORS[s.e.type]; ctx.strokeStyle='#000'; ctx.lineWidth=2;
+        ctx.beginPath(); ctx.moveTo(screenX,my+pulse); ctx.lineTo(screenX-8,my-9+pulse); ctx.lineTo(screenX+8,my-9+pulse); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.fillStyle='rgba(0,0,0,.68)'; ctx.fillRect(screenX-27,y0-15,54,8);
+        ctx.fillStyle= s.e.hp/s.e.maxhp>.5 ? '#35c759' : s.e.hp/s.e.maxhp>.25 ? '#ffcc00' : '#ff3838';
+        ctx.fillRect(screenX-26,y0-14,52*Math.max(0,s.e.hp/s.e.maxhp),6);
+        if(size>46){
+          ctx.font='900 11px system-ui'; ctx.textAlign='center';
+          ctx.lineWidth=3; ctx.strokeStyle='#000'; ctx.strokeText(TYPE_NAMES[s.e.type],screenX,y0-20);
+          ctx.fillStyle='#fff'; ctx.fillText(TYPE_NAMES[s.e.type],screenX,y0-20);
+        }
       }
     }
     drawWeapon();
+    // --- Minimap: pale walls, yellow you, bright monster dots (type colors) ---
+    (()=>{ const mx=W-156,my=12,cs=8;
+      ctx.fillStyle='rgba(0,0,0,.66)'; ctx.fillRect(mx-4,my-4,MW*cs+8,MH*cs+22);
+      for(let gy=0;gy<MH;gy++) for(let gx=0;gx<MW;gx++){ ctx.fillStyle=MAP[gy][gx]?'#cfd8e6':'rgba(255,255,255,.07)'; ctx.fillRect(mx+gx*cs,my+gy*cs,cs-1,cs-1); }
+      ctx.strokeStyle='#ffe95a'; ctx.fillStyle='#ffe95a'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(mx+P.x*cs,my+P.y*cs); ctx.lineTo(mx+(P.x+Math.cos(P.a)*1.4)*cs,my+(P.y+Math.sin(P.a)*1.4)*cs); ctx.stroke();
+      ctx.beginPath(); ctx.arc(mx+P.x*cs,my+P.y*cs,4,0,7); ctx.fill();
+      for(const e of enemies){ if(e.dead) continue; ctx.fillStyle=TYPE_COLORS[e.type]; ctx.strokeStyle='#fff'; ctx.lineWidth=1; ctx.beginPath(); ctx.arc(mx+e.x*cs,my+e.y*cs,4,0,7); ctx.fill(); ctx.stroke(); }
+      ctx.fillStyle='#fff'; ctx.font='900 10px system-ui'; ctx.textAlign='left'; ctx.fillText('MAP',mx,my+MH*cs+14);
+    })();
     // vignette — darkens edges, pushes focus to the center and adds depth
     const vg=ctx.createRadialGradient(W/2,H/2,H*.32,W/2,H/2,H*.78);
     vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,20,.42)');
@@ -352,10 +489,10 @@
     // blocky blaster (original pixel-art-ish shapes)
     ctx.save(); ctx.translate(cx,base+bobY);
     ctx.fillStyle='#2b2f36'; ctx.fillRect(-28,-118,56,118);
-    ctx.fillStyle='#4cc9f0'; ctx.fillRect(-20,-110,40,28); // glowing cube core
-    ctx.fillStyle='#ffcc00'; ctx.fillRect(-28,-84,56,12);
+    ctx.fillStyle='#8a1f1f'; ctx.fillRect(-20,-110,40,28); // pump / heat vents
+    ctx.fillStyle='#6b4a2a'; ctx.fillRect(-28,-84,56,12); // wooden pump grip
     ctx.fillStyle='#ff595e'; ctx.fillRect(-8,-142,16,28);
-    ctx.fillStyle='#8ac926'; ctx.fillRect(-34,-96,8,52); ctx.fillRect(26,-96,8,52);
+    ctx.fillStyle='#3a3f47'; ctx.fillRect(-34,-96,8,52); ctx.fillRect(26,-96,8,52);
     ctx.fillStyle='#111'; ctx.fillRect(-5,-132,10,14);
     if(muzzle>performance.now()){
       ctx.fillStyle='#fff200'; ctx.beginPath(); ctx.arc(0,-150,18+Math.random()*10,0,Math.PI*2); ctx.fill();
@@ -385,7 +522,7 @@
     }
     if(best){
       best.hp--; best.hit=performance.now()+90;
-      if(best.hp<=0){ best.dead=true; P.score+=100; P.kills++; }
+      if(best.hp<=0){ best.dead=true; P.score+= (best.type===2?250:best.type===1?75:100); P.kills++; }
       else P.score+=10;
     }
     hud();
@@ -408,14 +545,24 @@
     if(canMove(P.x,P.y+my)) P.y+=my;
     // Enemies chase
     const now=performance.now();
-    for(const e of enemies){ if(e.dead) continue;
+    for(let ei=0;ei<enemies.length;ei++){ const e=enemies[ei]; if(e.dead) continue;
       const dx=P.x-e.x, dy=P.y-e.y, dist=Math.hypot(dx,dy);
       if(dist>1.05){
-        const vx=dx/dist*e.speed*dt, vy=dy/dist*e.speed*dt;
-        if(!solid(e.x+vx,e.y)) e.x+=vx;
-        if(!solid(e.x,e.y+vy)) e.y+=vy;
+        // re-path a few times a second (staggered per monster), then walk cell-center to cell-center
+        if(!e.nextRepath || now>e.nextRepath){
+          e.nextRepath=now+420+(ei%5)*70;
+          const path=bfsPath(Math.floor(e.x),Math.floor(e.y),Math.floor(P.x),Math.floor(P.y));
+          e.path=path; e.pathI=path&&path.length>1?1:0;
+        }
+        let tx=P.x, ty=P.y;
+        if(e.path && e.path[e.pathI]){ tx=e.path[e.pathI][0]+.5; ty=e.path[e.pathI][1]+.5; if(Math.hypot(tx-e.x,ty-e.y)<.18 && e.pathI<e.path.length-1) e.pathI++; }
+        const mdx=tx-e.x, mdy=ty-e.y, md=Math.hypot(mdx,mdy)||1;
+        const vx=mdx/md*e.speed*dt, vy=mdy/md*e.speed*dt;
+        if(!solid(e.x+vx+Math.sign(vx)*.22,e.y)) e.x+=vx;
+        if(!solid(e.x,e.y+vy+Math.sign(vy)*.22)) e.y+=vy;
+        if(solid(e.x,e.y)){ e.x-=vx; e.y-=vy; e.nextRepath=0; } // never clip into a wall
       } else if(now>e.atkCd){
-        e.atkCd=now+800; P.hp-=9; $('flash').style.opacity=1; setTimeout(()=>$('flash').style.opacity=0,130); hud();
+        e.atkCd=now+800; P.hp-=(e.dmg||9); $('flash').style.opacity=1; setTimeout(()=>$('flash').style.opacity=0,130); hud();
         if(P.hp<=0){ gameOver(); return; }
       }
     }
@@ -464,8 +611,10 @@
   cv.addEventListener('touchend',e=>{ lookTouch=null; },{passive:true});
 
   // Idle preview behind start overlay
-  P={x:2.5,y:15.5,a:-Math.PI/2,hp:100,ammo:30,score:0,wave:1,kills:0}; enemies=[];
+  P={x:12.5,y:10.5,a:Math.PI,hp:100,ammo:30,score:0,wave:1,kills:0}; enemies=[{x:9.5,y:10.5,hp:2,maxhp:2,type:1,scale:.92,dmg:7,dead:false},{x:8.5,y:10.5,hp:2,maxhp:2,type:0,scale:1,dmg:9,dead:false},{x:6.5,y:10.5,hp:5,maxhp:5,type:2,scale:1.28,dmg:16,dead:false}];
   render();
+  // Test hook: open with ?autostart=1 to jump straight into gameplay (used for screenshots/QA)
+  if(new URLSearchParams(location.search).get('autostart')==='1'){ setTimeout(()=>{ try{start();}catch(e){ console.error(e); } },150); }
 })();
 </script>
 </body>
