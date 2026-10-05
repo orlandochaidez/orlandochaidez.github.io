@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pong</title>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0f1115;color:#f5f5f5;display:flex;justify-content:center}
+  .wrap{width:min(720px,100%);padding:18px 16px 24px}
+  header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px}
+  h1{font-size:28px;margin:0;letter-spacing:.5px}
+  a.back{color:#9ecbff;text-decoration:none;font-weight:700;font-size:14px}
+  .score{display:flex;justify-content:center;gap:28px;font-weight:900;font-size:28px;margin:8px 0}
+  .score small{display:block;font-size:11px;letter-spacing:1px;color:#aaa;text-align:center}
+  canvas{width:100%;aspect-ratio:4/3;background:#161a22;border:2px solid #2a2f3a;border-radius:14px;display:block;touch-action:none}
+  .bar{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+  button{flex:1;min-width:120px;border:0;border-radius:10px;padding:13px;font-weight:800;font-size:16px;cursor:pointer;background:#fff;color:#111}
+  button.secondary{background:#232733;color:#fff;border:1px solid #3a4050}
+  .hint{color:#9aa3b2;font-size:13px;line-height:1.5;text-align:center;margin-top:10px}
+  select{background:#232733;color:#fff;border:1px solid #3a4050;border-radius:10px;padding:12px;font-weight:700}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><h1>🏓 Pong</h1><a class="back" href="../index.html">← All games</a></header>
+  <div class="score"><div><small>YOU</small><span id="pScore">0</span></div><div style="color:#666">:</div><div><small>CPU</small><span id="cScore">0</span></div></div>
+  <canvas id="game" width="640" height="480"></canvas>
+  <div class="bar">
+    <button id="startBtn">Start / Restart</button>
+    <button class="secondary" id="pauseBtn">Pause</button>
+    <select id="diff" aria-label="Difficulty">
+      <option value="0.055">Easy</option>
+      <option value="0.085" selected>Normal</option>
+      <option value="0.12">Hard</option>
+    </select>
+  </div>
+  <p class="hint">Move with your mouse, finger, or ↑ / ↓ keys. First to 7 wins. Ball speeds up every hit.<br>On mobile just drag on the court.</p>
+</div>
+<script>
+(() => {
+  const cv=document.getElementById('game'), ctx=cv.getContext('2d');
+  const W=cv.width,H=cv.height;
+  const paddle={w:12,h:86, playerX:14, cpuX:W-26, speed:7};
+  let py=H/2-paddle.h/2, cy=H/2-paddle.h/2;
+  let ball, pScore=0, cScore=0, running=false, paused=false, keys={};
+  const WIN=7;
+  function resetBall(dir= Math.random()<.5?-1:1){
+    ball={x:W/2,y:H/2,r:9,vx:5.2*dir,vy:(Math.random()*3+1)*(Math.random()<.5?-1:1)};
+  }
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle='#161a22'; ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle='rgba(255,255,255,.35)'; ctx.setLineDash([10,14]);
+    ctx.beginPath(); ctx.moveTo(W/2,0); ctx.lineTo(W/2,H); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); ctx.arc(W/2,H/2,58,0,Math.PI*2); ctx.stroke();
+    ctx.fillStyle='#fff';
+    ctx.fillRect(paddle.playerX,py,paddle.w,paddle.h);
+    ctx.fillRect(paddle.cpuX,cy,paddle.w,paddle.h);
+    ctx.beginPath(); ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2); ctx.fill();
+    if(!running){
+      ctx.fillStyle='rgba(0,0,0,.55)'; ctx.fillRect(0,0,W,H);
+      ctx.fillStyle='#fff'; ctx.textAlign='center';
+      ctx.font='900 34px system-ui'; ctx.fillText(pScore>=WIN?'You win! 🏆':cScore>=WIN?'CPU wins': 'PONG', W/2, H/2-10);
+      ctx.font='600 17px system-ui'; ctx.fillText('Press Start / Restart', W/2, H/2+24);
+    } else if(paused){
+      ctx.fillStyle='rgba(0,0,0,.5)'; ctx.fillRect(0,0,W,H);
+      ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.font='900 30px system-ui'; ctx.fillText('Paused',W/2,H/2);
+    }
+  }
+  function step(){
+    if(running && !paused){
+      if(keys.up) py-=paddle.speed; if(keys.down) py+=paddle.speed;
+      py=Math.max(0,Math.min(H-paddle.h,py));
+      // CPU AI: track ball with difficulty speed, slight lag when ball moves away
+      const cpuSpeed = parseFloat(document.getElementById('diff').value)*H;
+      const target = ball.y - paddle.h/2;
+      const maxMove = ball.vx>0 ? cpuSpeed*0.14 : cpuSpeed*0.07;
+      cy += Math.max(-maxMove, Math.min(maxMove, target-cy));
+      cy=Math.max(0,Math.min(H-paddle.h,cy));
+      ball.x+=ball.vx; ball.y+=ball.vy;
+      if(ball.y-ball.r<=0||ball.y+ball.r>=H) ball.vy*=-1, ball.y=Math.max(ball.r,Math.min(H-ball.r,ball.y));
+      // player paddle
+      if(ball.vx<0 && ball.x-ball.r<=paddle.playerX+paddle.w && ball.x-ball.r>=paddle.playerX && ball.y>=py && ball.y<=py+paddle.h){
+        const rel=(ball.y-(py+paddle.h/2))/(paddle.h/2);
+        ball.vx=Math.abs(ball.vx)*1.05; ball.vy=rel*6; ball.x=paddle.playerX+paddle.w+ball.r;
+      }
+      // cpu paddle
+      if(ball.vx>0 && ball.x+ball.r>=paddle.cpuX && ball.x+ball.r<=paddle.cpuX+paddle.w && ball.y>=cy && ball.y<=cy+paddle.h){
+        const rel=(ball.y-(cy+paddle.h/2))/(paddle.h/2);
+        ball.vx=-Math.abs(ball.vx)*1.05; ball.vy=rel*6; ball.x=paddle.cpuX-ball.r;
+      }
+      if(ball.x<-20){ cScore++; update(); if(cScore>=WIN) running=false; else resetBall(1); }
+      if(ball.x>W+20){ pScore++; update(); if(pScore>=WIN) running=false; else resetBall(-1); }
+    }
+    draw(); requestAnimationFrame(step);
+  }
+  function update(){ document.getElementById('pScore').textContent=pScore; document.getElementById('cScore').textContent=cScore; }
+  function pointerY(e){
+    const r=cv.getBoundingClientRect();
+    const y=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
+    return y*(H/r.height);
+  }
+  cv.addEventListener('mousemove',e=>{ py=pointerY(e)-paddle.h/2; });
+  cv.addEventListener('touchstart',e=>{ py=pointerY(e)-paddle.h/2; e.preventDefault(); },{passive:false});
+  cv.addEventListener('touchmove',e=>{ py=pointerY(e)-paddle.h/2; e.preventDefault(); },{passive:false});
+  addEventListener('keydown',e=>{ if(e.key==='ArrowUp')keys.up=true; if(e.key==='ArrowDown')keys.down=true; if(['ArrowUp','ArrowDown'].includes(e.key))e.preventDefault(); });
+  addEventListener('keyup',e=>{ if(e.key==='ArrowUp')keys.up=false; if(e.key==='ArrowDown')keys.down=false; });
+  document.getElementById('startBtn').onclick=()=>{ pScore=0;cScore=0;update(); resetBall(); running=true; paused=false; };
+  document.getElementById('pauseBtn').onclick=()=>{ if(running) paused=!paused; };
+  resetBall(); step();
+})();
+</script>
+</body>
+</html>
