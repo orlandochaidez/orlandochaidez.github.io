@@ -2,55 +2,38 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Click the monkey to enter 🐵</title>
-<meta name="description" content="Click the monkey to enter the arcade.">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arcade — Free Games</title>
 <style>
-  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html,body{height:100%}
-  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0f1115;color:#fff;
-    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;text-align:center;
-    background:radial-gradient(900px 500px at 50% 20%, #24304a 0%, #0f1115 62%);}
-  h1{margin:0;font-size:clamp(26px,5vw,42px);letter-spacing:.3px}
-  p{margin:0;color:#9aa3b2}
-  a.enter{display:block;line-height:0;border-radius:22px;transition:transform .15s ease, box-shadow .15s ease}
-  a.enter:hover,a.enter:focus-visible{transform:scale(1.03) rotate(-.4deg);box-shadow:0 18px 50px rgba(0,0,0,.55);outline:none}
-  a.enter:active{transform:scale(.985)}
-  img.monkey{width:min(420px,82vw);height:auto;border-radius:22px;border:3px solid rgba(255,255,255,.22);display:block;background:#1b2030}
-  .fallback{display:none;width:min(420px,82vw);aspect-ratio:1;border-radius:22px;border:3px dashed rgba(255,255,255,.35);
-    align-items:center;justify-content:center;font-size:150px;background:#1b2030;line-height:1}
-  .cta{font-weight:900;font-size:19px;background:#ffcc00;color:#221a00;padding:13px 24px;border-radius:999px;text-decoration:none}
-  .note{font-size:12px;color:#66707f;max-width:520px;line-height:1.5}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0f1115;color:#f5f5f5}
+  .wrap{max-width:760px;margin:0 auto;padding:28px 18px 40px}
+  h1{font-size:38px;margin:0 0 6px;text-align:center}
+  p.sub{color:#9aa3b2;text-align:center;margin:0 0 24px;line-height:1.5}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px}
+  a.card{display:block;background:#171a22;border:1px solid #2a2f3a;border-radius:16px;padding:22px 16px;text-decoration:none;color:#fff;text-align:center;transition:.15s}
+  a.card:hover{transform:translateY(-3px);border-color:#4a5265}
+  .em{font-size:46px;display:block;margin-bottom:8px}
+  .name{font-weight:900;font-size:19px}
+  .desc{color:#9aa3b2;font-size:13px;margin-top:6px;line-height:1.45}
+  footer{text-align:center;color:#666;font-size:12px;margin-top:28px}
 </style>
 </head>
 <body>
-  <h1>🐵 Click the monkey to enter</h1>
-
-  <!-- Clicking the monkey now takes you to the arcade menu (arcade/) instead of straight into Flappy. -->
-  <a class="enter" href="arcade/" aria-label="Enter the arcade">
-    <img class="monkey" id="monkeyImg" src="/monkey.png" alt="Monkey — click to enter the arcade">
-    <span class="fallback" id="monkeyFallback" aria-hidden="true">🐵</span>
-  </a>
-
-  <a class="cta" href="arcade/">Enter the Arcade →</a>
-  <p>Flappy, OG Blaster, Lemonade Stand, Pong, Snake, Brick Breaker &amp; more.</p>
-
-
-
-<script>
-(() => {
-  // If monkey.png isn't the real filename, try a few common names before showing the emoji placeholder.
-  const img=document.getElementById('monkeyImg'), fb=document.getElementById('monkeyFallback');
-  const tries=['monkey.png','monkey.jpg','monkey.jpeg','monkey.webp','Monkey.png','Monkey.jpg','monkey-pic.png','monkeypic.png','monkey.PNG'];
-  let i=0;
-  img.addEventListener('error', () => {
-    i++;
-    if(i<tries.length){ img.src=tries[i]; }
-    else { img.style.display='none'; fb.style.display='flex'; }
-  });
-  // If the current src already failed before this listener attached, re-kick it.
-  if(img.complete && img.naturalWidth===0 && img.src) { const s=img.src; img.src=''; img.src=s; }
-})();
-</script>
+<div class="wrap">
+  <h1>🕹️ Arcade</h1>
+  <p class="sub">Simple, clean classics — no downloads, no accounts.<br>Works on phone and computer.</p>
+  <div class="grid">
+    <a class="card" href="lemonade-stand/index.html"><span class="em">🍋</span><div class="name">Lemonade Stand</div><div class="desc">Buy supplies, set your recipe &amp; price, beat the weather over a 25-day season.</div></a>
+    <a class="card" href="pong/index.html"><span class="em">🏓</span><div class="name">Pong</div><div class="desc">The original. You vs the computer, first to 7.</div></a>
+    <a class="card" href="snake/index.html"><span class="em">🐍</span><div class="name">Snake</div><div class="desc">Eat apples, grow longer, don’t bite yourself.</div></a>
+    <a class="card" href="brick-breaker/index.html"><span class="em">🧱</span><div class="name">Brick Breaker</div><div class="desc">Smash every brick, keep the ball alive, level up.</div></a>
+    <a class="card" href="blocky-blaster/index.html"><span class="em">🔫</span><div class="name">Blocky Blaster</div><div class="desc">Colorful cube-world FPS. Blast the cube monsters, survive the waves.</div></a>
+    <a class="card" href="blocky-blaster-v2/index.html"><span class="em">🧪</span><div class="name">Blocky Blaster V2 — Depth Test</div><div class="desc">Test build: distance fog, wall shadows/seams, checker floor for depth.</div></a>
+    <a class="card" href="og-blaster/index.html"><span class="em">💀</span><div class="name">OG Blaster</div><div class="desc">Classic dark FPS: tech + hell walls, soldiers, imps, brutes &amp; eye-orbs. Pathfinding monsters + minimap.</div></a>
+    <a class="card" href="flappy/index.html"><span class="em">🐤</span><div class="name">Flappy</div><div class="desc">Tap, click, or Space to flap through the pipes. One point each.</div></a>
+  </div>
+  <footer>All games run 100% in your browser. High scores save on your device.</footer>
+</div>
 </body>
-</html> 
+</html>
