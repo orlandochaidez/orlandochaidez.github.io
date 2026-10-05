@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Snake — Clean Arcade</title>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0f1115;color:#f5f5f5;display:flex;justify-content:center}
+  .wrap{width:min(560px,100%);padding:18px 16px 24px}
+  header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  h1{font-size:28px;margin:0}
+  a.back{color:#9ecbff;text-decoration:none;font-weight:700;font-size:14px}
+  .score{display:flex;justify-content:center;gap:28px;font-weight:900;font-size:24px;margin:8px 0}
+  .score small{display:block;font-size:11px;letter-spacing:1px;color:#aaa;text-align:center}
+  canvas{width:100%;aspect-ratio:1;background:#101820;border:2px solid #2a6b46;border-radius:14px;display:block;touch-action:none}
+  .bar{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+  button{flex:1;min-width:120px;border:0;border-radius:10px;padding:13px;font-weight:800;font-size:16px;cursor:pointer;background:#35c759;color:#07130a}
+  button.secondary{background:#232733;color:#fff;border:1px solid #3a4050}
+  .pad{display:grid;grid-template-columns:64px 64px 64px;gap:8px;justify-content:center;margin:14px auto 0;width:max-content}
+  .pad button{min-width:0;height:56px;font-size:22px;background:#232733;color:#fff;border:1px solid #3a4050}
+  .pad .spacer{visibility:hidden}
+  .hint{color:#9aa3b2;font-size:13px;line-height:1.5;text-align:center;margin-top:10px}
+  @media(min-width:700px){.pad{display:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><h1>🐍 Snake</h1><a class="back" href="../index.html">← All games</a></header>
+  <div class="score"><div><small>SCORE</small><span id="score">0</span></div><div><small>BEST</small><span id="best">0</span></div></div>
+  <canvas id="game" width="480" height="480"></canvas>
+  <div class="bar">
+    <button id="startBtn">Start / Restart</button>
+    <button class="secondary" id="pauseBtn">Pause</button>
+  </div>
+  <div class="pad" aria-label="Direction pad">
+    <span class="spacer"></span><button data-dir="up">↑</button><span class="spacer"></span>
+    <button data-dir="left">←</button><button data-dir="down">↓</button><button data-dir="right">→</button>
+  </div>
+  <p class="hint">Arrow keys / WASD, swipe, or use the pad. Eat the apple 🍎 to grow. Don’t hit the walls or yourself. Speeds up as you eat.</p>
+</div>
+<script>
+(() => {
+  const cv=document.getElementById('game'), ctx=cv.getContext('2d');
+  const N=24, S=cv.width/N;
+  let snake, dir, next, food, score, best=+localStorage.getItem('snake-best')||0, timer=null, running=false, paused=false, delay=135;
+  document.getElementById('best').textContent=best;
+  function placeFood(){
+    while(true){ const f={x:Math.floor(Math.random()*N),y:Math.floor(Math.random()*N)}; if(!snake.some(p=>p.x===f.x&&p.y===f.y)){food=f;return;} }
+  }
+  function reset(){
+    snake=[{x:11,y:12},{x:10,y:12},{x:9,y:12}]; dir={x:1,y:0}; next=dir; score=0; delay=135;
+    document.getElementById('score').textContent=score; placeFood();
+  }
+  function draw(msg){
+    ctx.fillStyle='#101820'; ctx.fillRect(0,0,cv.width,cv.height);
+    ctx.strokeStyle='rgba(255,255,255,.05)';
+    for(let i=1;i<N;i++){ ctx.beginPath();ctx.moveTo(i*S,0);ctx.lineTo(i*S,cv.height);ctx.stroke(); ctx.beginPath();ctx.moveTo(0,i*S);ctx.lineTo(cv.width,i*S);ctx.stroke(); }
+    ctx.font=`${S-2}px system-ui`; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('🍎', food.x*S+S/2, food.y*S+S/2+1);
+    snake.forEach((p,i)=>{
+      ctx.fillStyle=i===0?'#35c759':'#249a41';
+      const pad=i===0?1:2;
+      ctx.beginPath(); ctx.roundRect(p.x*S+pad,p.y*S+pad,S-pad*2,S-pad*2,6); ctx.fill();
+      if(i===0){ ctx.fillStyle='#07130a'; ctx.font='10px system-ui'; ctx.fillText('••',p.x*S+S/2,p.y*S+S/2); ctx.font=`${S-2}px system-ui`; }
+    });
+    if(msg){
+      ctx.fillStyle='rgba(0,0,0,.6)'; ctx.fillRect(0,0,cv.width,cv.height);
+      ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.font='900 30px system-ui'; ctx.fillText(msg,cv.width/2,cv.height/2-12);
+      ctx.font='600 16px system-ui'; ctx.fillText('Press Start / Restart',cv.width/2,cv.height/2+22);
+    }
+  }
+  function tick(){
+    dir=next;
+    const head={x:snake[0].x+dir.x, y:snake[0].y+dir.y};
+    if(head.x<0||head.y<0||head.x>=N||head.y>=N||snake.some(p=>p.x===head.x&&p.y===head.y)){
+      running=false; clearInterval(timer);
+      if(score>best){best=score;localStorage.setItem('snake-best',best);document.getElementById('best').textContent=best;}
+      draw('Game over 💀'); return;
+    }
+    snake.unshift(head);
+    if(head.x===food.x&&head.y===food.y){
+      score+=10; document.getElementById('score').textContent=score; placeFood();
+      if(delay>70){ delay-=4; restartTimer(); }
+    } else snake.pop();
+    draw();
+  }
+  function restartTimer(){ clearInterval(timer); timer=setInterval(()=>{ if(running&&!paused) tick(); },delay); }
+  function setDir(x,y){ if(dir.x===-x&&dir.y===-y) return; next={x,y}; }
+  const map={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0],w:[0,-1],s:[0,1],a:[-1,0],d:[1,0]};
+  addEventListener('keydown',e=>{ const d=map[e.key]; if(d){ setDir(d[0],d[1]); if(e.key.startsWith('Arrow'))e.preventDefault(); }});
+  document.querySelectorAll('[data-dir]').forEach(b=>b.addEventListener('click',()=>{
+    const d={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]}[b.dataset.dir]; setDir(d[0],d[1]); if(!running) start();
+  }));
+  let sx,sy;
+  cv.addEventListener('touchstart',e=>{ sx=e.touches[0].clientX; sy=e.touches[0].clientY; },{passive:true});
+  cv.addEventListener('touchend',e=>{
+    const dx=e.changedTouches[0].clientX-sx, dy=e.changedTouches[0].clientY-sy;
+    if(Math.abs(dx)<20&&Math.abs(dy)<20) return;
+    Math.abs(dx)>Math.abs(dy)?setDir(Math.sign(dx),0):setDir(0,Math.sign(dy));
+  },{passive:true});
+  function start(){ reset(); running=true; paused=false; restartTimer(); draw(); }
+  document.getElementById('startBtn').onclick=start;
+  document.getElementById('pauseBtn').onclick=()=>{ if(running){ paused=!paused; if(paused) draw('Paused'); else draw(); }};
+  reset(); draw('SNAKE');
+})();
+</script>
+</body>
+</html>
