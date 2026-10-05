@@ -424,4 +424,96 @@
       shown++;
       spawnPerson(shown <= Math.round(totalTicks*(sold/Math.max(1,potential))) );
       const frac=shown/totalTicks;
-      simState.served=Math.round(sold*frac); simState.left=cupsMade-simState.served; sim
+           simState.served=Math.round(sold*frac); simState.left=cupsMade-simState.served; simState.earned=simState.served*S.price;
+      $('#simServed').textContent=simState.served;
+      $('#simLeft').textContent=simState.left;
+      $('#simMoney').textContent=money(simState.earned);
+      $('#simProgress').style.width=(frac*100)+'%';
+      $('#simMsg').textContent = simState.left<=0 ? 'SOLD OUT! You could have charged more or made more. 🔥' : (frac<1 ? 'Selling…' : 'Day winding down…');
+      if(shown>=totalTicks){ clearInterval(simTimer); setTimeout(()=>finishDay(simState,false),650); }
+    }, 260);
+  }
+  function spawnPerson(bought){
+    const street=$('#street');
+    const p=document.createElement('div'); p.className='person';
+    p.textContent=['🚶','🚶‍♀️','🧍','🧍‍♂️','👩','👨','👧','👦','🧑','👵'][Math.floor(Math.random()*10)];
+    p.style.left='-40px';
+    const b=document.createElement('div'); b.className='bubble'; b.textContent=bought?'🥤💵':'😐';
+    b.style.left='-30px'; b.style.opacity='0';
+    street.appendChild(p); street.appendChild(b);
+    requestAnimationFrame(()=>{ p.style.left='105%'; b.style.left='102%'; b.style.opacity='1'; });
+    setTimeout(()=>{ p.remove(); b.remove(); }, 1800);
+    while(street.querySelectorAll('.person').length>7){ street.querySelector('.person')?.remove(); }
+  }
+
+  function finishDay(st, skipped){
+    clearInterval(simTimer);
+    const iceMelted = S.inv.ice; // all leftover loose ice melts tonight
+    S.inv.ice = 0;
+    const wastedCups = st.cupsMade - st.sold;
+    S.money += st.revenue;
+    S.totalSold += st.sold;
+    const profit = st.revenue - S.spentToday;
+    S.bestDay = Math.max(S.bestDay, profit);
+    // Reputation update
+    let repDelta=0; let feedback='';
+    if(st.sold===0){ repDelta=-6; feedback='Nobody bought today. Check your price, recipe, and the weather — rainy days need tiny batches and cheap prices.'; }
+    else{
+      const sellThrough = st.sold/st.cupsMade;
+      if(st.tasteScore>=80) { repDelta+=5; feedback='😋 People LOVED it. ' + tasteText(st.tasteScore); }
+      else if(st.tasteScore>=60){ repDelta+=2; feedback='🙂 Solid lemonade. ' + tasteText(st.tasteScore); }
+      else if(st.tasteScore>=40){ repDelta-=3; feedback='😐 Customers were underwhelmed. ' + tasteText(st.tasteScore); }
+      else { repDelta-=8; feedback='😖 Word is spreading… not in a good way. ' + tasteText(st.tasteScore); }
+      if(S.price<=0.30 && st.tasteScore>=60){ repDelta+=2; feedback+=' Fair prices made you popular.'; }
+      if(S.price>=1.00){ repDelta-=2; feedback+=' Prices felt steep to a lot of people.'; }
+      if(sellThrough>=0.95 && st.cupsMade>=30){ feedback+=' You sold out — make more or raise the price a little tomorrow!'; }
+      if(sellThrough<0.4){ feedback+=` You threw away ${wastedCups} unsold cups. Make fewer pitchers on slow days.`; }
+    }
+    S.reputation=Math.max(0,Math.min(100,S.reputation+repDelta));
+    S.history.push({day:S.day, sold:st.sold, revenue:st.revenue, profit});
+    // Fill results
+    $('#rSold').textContent=st.sold;
+    $('#rRevenue').textContent=money(st.revenue);
+    $('#rCosts').textContent=money(S.spentToday) + (st.signCost?` (incl. ${money(st.signCost)} signs)`:'');
+    const rp=$('#rProfit'); rp.textContent=(profit>=0?'+':'')+money(profit); rp.className='v '+(profit>=0?'good':'bad');
+    $('#rDetails').innerHTML = `
+      <div class="kv"><span>Weather</span><b>${S.weather.temp}° ${S.weather.name}</b></div>
+      <div class="kv"><span>People who walked by</span><b>${st.potential}</b></div>
+      <div class="kv"><span>Wanted lemonade at ${money(S.price)}</span><b>${st.want}</b></div>
+      <div class="kv"><span>Cups you had ready</span><b>${st.cupsMade}</b></div>
+      <div class="kv"><span>Unsold (thrown away)</span><b>${wastedCups}</b></div>
+      <div class="kv"><span>Ice melted tonight</span><b>${iceMelted} cubes</b></div>
+      <div class="kv"><span>Taste score</span><b>${st.tasteScore}/100</b></div>`;
+    $('#repStars2').textContent=stars(S.reputation);
+    $('#rFeedback').textContent=feedback + ` (Reputation ${repDelta>=0?'+':''}${repDelta})`;
+    S.spentToday=0; S.pitchers=0; S.signs=0; S.phase='results';
+    $('#signsRange').value=0; $('#signsVal').textContent='0';
+    save(); renderAll(); showScreen('screenResults');
+    $('#skipSimBtn').classList.add('hidden');
+  }
+
+  $('#nextDayBtn').onclick=()=>{
+    if(!S.endless && S.day>=S.season){
+      S.phase='over'; save(); renderAll();
+      const finalMoney=S.money;
+      const verdict = finalMoney>=100?'🌟 Lemonade legend! You turned $20 into a real business.':finalMoney>=50?'👍 Great season — a profitable little empire.':finalMoney>=20?'🙂 You broke even-ish. Smarter pricing/weather calls = more profit.':'📉 Tough season. Watch the forecast, buy bulk, and don’t over-make on rainy days.';
+      $('#finalCard').innerHTML=`<div class="kv"><span>Final cash</span><b>${money(finalMoney)}</b></div>
+        <div class="kv"><span>Started with</span><b>$20.00</b></div>
+        <div class="kv"><span>Total cups sold</span><b>${S.totalSold}</b></div>
+        <div class="kv"><span>Best single-day profit</span><b>${money(S.bestDay)}</b></div>
+        <div class="kv"><span>Final reputation</span><b>${stars(S.reputation)} (${Math.round(S.reputation)}/100)</b></div>
+        <p class="muted">${verdict}</p>`;
+      showScreen('screenOver'); return;
+    }
+    S.day++; rollWeather(); S.phase='store'; save(); renderAll();
+    toast(`Day ${S.day} — check the forecast before you buy!`);
+  };
+  $('#playAgainBtn').onclick=()=>{ localStorage.removeItem('lemonade-stand-v1'); newGame(); toast('New season — good luck! 🍋'); };
+  $('#keepGoingBtn').onclick=()=>{ S.endless=true; S.day++; rollWeather(); S.phase='store'; save(); renderAll(); };
+
+  // Init
+  if(!load()) newGame(); else { if(!S.weather) rollWeather(); renderAll(); }
+})();
+</script>
+</body>
+</html>
