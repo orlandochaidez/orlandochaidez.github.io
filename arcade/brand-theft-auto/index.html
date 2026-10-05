@@ -196,6 +196,10 @@
         S.inv.cigs--; S.mood=clamp(S.mood+4); S.health=clamp(S.health-4);
         addLog('Brandino smoked a cig on the porch and thought about absolutely nothing.'); passTime(1); break;
       // FACTORY
+            case 'buyWeed':
+        if(spend(25)){ S.inv.weed++; addLog('Brandino bought weed from Eduardo by the loading dock ($25). Eduardo said tell nobody.'); }
+        else addLog('Eduardo doesn’t do IOUs. Brandino needs $25 cash.');
+        break;
       case 'factoryShift': {
         if(!needEnergy(25)){ addLog('Brandino is too tired to safely work around spinning blades. Sleep first.'); break; }
         earn(144); S.factory++; S.energy=clamp(S.energy-35); S.health=clamp(S.health-3); S.mood=clamp(S.mood-2);
@@ -246,8 +250,8 @@
       ['drinkBottle','🥃 Drink from the Bottle','Needs a bottle · mood ++ · 1 hr',0],
       ['smokeCig','🚬 Smoke a Cig','Needs cigs · mood + · health −',0]
     ],
-    factory:[['factoryShift','🔪 Work Factory Shift','8 hrs · +$144 · the real payday',1]],
-    liquor:[
+    factory:[['factoryShift','🔪 Work Factory Shift','8 hrs · +$144 · the real payday',1],['buyWeed','🌿 Buy Weed from Eduardo','$25 · +1 weed · by the loading dock',0]],
+   liquor:[
       ['liquorShift','🧾 Work Liquor Store Shift','6 hrs · +$90 · tips possible',1],
       ['buyBeer','🍺 Buy Beer','$9 · adds 1 beer to the stash',0],
       ['buyBottle','🍾 Buy a Bottle','$22 · adds 1 bottle to the stash',0],
