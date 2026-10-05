@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lemonade Stand — Tycoon Game</title>
+<meta name="description" content="A classic Lemonade Stand tycoon game. Buy supplies, set your recipe and price, and run the most profitable stand in the neighborhood.">
+<style>
+  :root{
+    --yellow:#f5d90a; --yellow2:#ffe95a; --yellow-dark:#e8c400;
+    --ink:#222; --paper:#fff8d6; --wood:#c68a4b; --wood2:#a96f35;
+    --red:#e63946; --green:#1f9d55; --sky:#aee3ff;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#fdf6c9;color:var(--ink);}
+  .wrap{max-width:520px;margin:0 auto;min-height:100dvh;display:flex;flex-direction:column;background:#fffbe6;box-shadow:0 0 30px rgba(0,0,0,.15);}
+  /* Top bar like the screenshot */
+  .topbar{display:grid;grid-template-columns:1fr 1fr;background:linear-gradient(var(--yellow2),var(--yellow));border-bottom:4px solid #d9b800;text-align:center;}
+  .topbar>div{padding:14px 8px 10px;}
+  .topbar>div:first-child{border-right:2px solid rgba(0,0,0,.25);}
+  .topbar .big{font-family:Georgia,'Times New Roman',serif;font-weight:900;font-size:34px;letter-spacing:.5px;color:#fff;text-shadow:2px 2px 0 rgba(0,0,0,.35);}
+  .forecast{background:var(--yellow);text-align:center;font-weight:800;padding:8px 10px;border-bottom:3px solid #d9b800;font-size:17px;}
+  .subforecast{text-align:center;font-size:13px;padding:6px 12px;background:#fff3a3;color:#555;}
+  .screen{padding:14px 14px 10px;flex:1;}
+  .hidden{display:none!important;}
+  h2.sign{margin:6px auto 14px;background:linear-gradient(#d99a55,#b97936);color:#fff;text-align:center;
+    font-family:Georgia,serif;letter-spacing:2px;font-size:30px;padding:10px 12px;border-radius:8px;border:3px solid #8a5a24;
+    text-shadow:2px 2px 0 rgba(0,0,0,.3);max-width:340px;transform:rotate(-1deg);}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .item{background:#fff;border:2px solid #eee;border-radius:14px;padding:10px;box-shadow:0 3px 0 rgba(0,0,0,.08);}
+  .item h3{margin:2px 0 8px;text-align:center;text-decoration:underline;font-size:19px;}
+  .item .emoji{font-size:38px;text-align:center;display:block;line-height:1;}
+  .pack{display:flex;justify-content:space-between;align-items:center;width:100%;border:2px solid #222;border-radius:10px;background:#fff;padding:9px 10px;margin:7px 0;font-weight:800;font-size:16px;cursor:pointer;}
+  .pack:active{transform:scale(.98);}
+  .pack:disabled{opacity:.35;cursor:not-allowed;}
+  .pack span:last-child{color:#0a7a42;}
+  .btn{display:block;width:100%;border:none;border-radius:12px;padding:16px 14px;font-weight:900;font-size:20px;cursor:pointer;margin:14px 0;}
+  .btn:active{transform:scale(.99);}
+  .btn-primary{background:linear-gradient(#d99a55,#b97936);color:#fff;border:3px solid #8a5a24;text-shadow:1px 1px 0 rgba(0,0,0,.3);letter-spacing:1px;}
+  .btn-green{background:var(--green);color:#fff;}
+  .btn-dark{background:#222;color:#fff;}
+  .btn-ghost{background:#fff;border:2px solid #ddd;color:#333;font-size:15px;padding:12px;}
+  /* Inventory like bottom of screenshot */
+  .inventory{display:grid;grid-template-columns:1fr 1fr;background:var(--yellow);border-top:4px solid #d9b800;}
+  .inv{padding:10px 12px;display:flex;align-items:center;gap:10px;border-bottom:2px solid rgba(0,0,0,.15);}
+  .inv:nth-child(odd){border-right:2px solid rgba(0,0,0,.2);}
+  .inv .em{font-size:28px;}
+  .inv .num{font-family:Georgia,serif;font-weight:900;font-size:34px;color:#fff;text-shadow:2px 2px 0 rgba(0,0,0,.35);}
+  .inv .lbl{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;opacity:.75;}
+  /* Price bar */
+  .pricebar{background:#111;color:#fff;padding:12px 14px;display:flex;align-items:center;gap:12px;position:sticky;bottom:0;}
+  .pricebar label{font-weight:900;font-size:20px;}
+  .pricebar output{font-weight:900;font-size:20px;min-width:74px;text-align:right;}
+  input[type=range]{flex:1;accent-color:var(--yellow);height:34px;}
+  .card{background:#fff;border:2px solid #f0e6a0;border-radius:14px;padding:14px;margin:12px 0;}
+  .row{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:10px 0;}
+  .row label{font-weight:800;}
+  .row .val{font-weight:900;background:#fff3a3;border-radius:8px;padding:4px 10px;min-width:54px;text-align:center;}
+  .stepper{display:flex;align-items:center;gap:10px;justify-content:center;margin:8px 0;}
+  .stepper button{width:52px;height:52px;border-radius:50%;border:2px solid #222;background:var(--yellow);font-size:26px;font-weight:900;cursor:pointer;}
+  .stepper .n{font-size:34px;font-weight:900;min-width:70px;text-align:center;}
+  .muted{color:#666;font-size:13px;line-height:1.45;}
+  .center{text-align:center;}
+  .street{background:linear-gradient(var(--sky) 62%, #8bd17c 62%);border-radius:16px;min-height:210px;position:relative;overflow:hidden;border:3px solid #fff;box-shadow:inset 0 0 0 2px rgba(0,0,0,.06);}
+  .stand{position:absolute;left:50%;transform:translateX(-50%);bottom:18px;font-size:62px;filter:drop-shadow(0 6px 4px rgba(0,0,0,.25));}
+  .standlabel{position:absolute;left:50%;transform:translateX(-50%);bottom:88px;background:#fff;border:2px solid #222;border-radius:8px;padding:3px 8px;font-weight:900;font-size:12px;white-space:nowrap;}
+  .person{position:absolute;bottom:14px;font-size:34px;transition:left .5s linear;will-change:left;}
+  .bubble{position:absolute;bottom:52px;font-size:18px;background:#fff;border-radius:999px;padding:1px 6px;border:1px solid #ddd;}
+  .statgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0;}
+  .stat{background:#fff;border:2px solid #eee;border-radius:12px;padding:12px;text-align:center;}
+  .stat .k{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#777;}
+  .stat .v{font-size:26px;font-weight:900;margin-top:4px;}
+  .good{color:var(--green);} .bad{color:var(--red);}
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:92px;background:#222;color:#fff;padding:10px 14px;border-radius:999px;font-weight:800;font-size:14px;opacity:0;pointer-events:none;transition:.25s;z-index:20;max-width:92vw;text-align:center;}
+  .toast.show{opacity:1;}
+  .progress{height:12px;background:#eee;border-radius:999px;overflow:hidden;}
+  .progress>i{display:block;height:100%;background:var(--green);width:0%;transition:width .3s;}
+  .rep{font-size:18px;letter-spacing:2px;}
+  footer{padding:12px;text-align:center;font-size:12px;color:#888;background:#fffbe6;}
+  .kv{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px dashed #eee;font-size:15px;}
+  .kv:last-child{border-bottom:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div><div class="big" id="dayLabel">Day 1</div><div style="font-size:12px;font-weight:800;">of <span id="seasonLen">25</span> day season</div></div>
+    <div><div class="big" id="moneyLabel">$20.00</div><div style="font-size:12px;font-weight:800;">your cash</div></div>
+  </div>
+  <div class="forecast" id="forecastLabel">Forecast: 84 and Sunny</div>
+  <div class="subforecast" id="eventLabel">A perfect day to sell lemonade. 🍋</div>
+
+  <!-- STORE SCREEN -->
+  <section class="screen" id="screenStore">
+    <h2 class="sign">STORE</h2>
+    <p class="center muted" style="margin-top:-4px;">Tap a pack to buy it. Ice melts tonight, so don’t overbuy ice.<br>Bigger packs are cheaper per unit.</p>
+    <div class="grid2" id="storeGrid"></div>
+
+    <div class="card">
+      <div class="row"><label>⭐ Reputation</label><span class="rep" id="repStars">★★★☆☆</span></div>
+      <div class="muted" id="repText">New stand — nobody knows you yet. Good lemonade + fair prices build your rep, and rep brings more customers tomorrow.</div>
+    </div>
+
+    <button class="btn btn-primary" id="toPrepBtn">LEAVE STORE → MAKE LEMONADE</button>
+    <button class="btn btn-ghost" id="resetBtn1">Start over (new game)</button>
+  </section>
+
+  <!-- PREP SCREEN -->
+  <section class="screen hidden" id="screenPrep">
+    <h2 class="sign">YOUR RECIPE</h2>
+
+    <div class="card">
+      <div class="center" style="font-weight:900;font-size:18px;">How many pitchers?</div>
+      <div class="muted center">1 pitcher = 10 cups. Only make what you can sell — unsold lemonade is thrown away tonight.</div>
+      <div class="stepper">
+        <button id="pitchMinus" aria-label="Fewer pitchers">−</button>
+        <div class="n" id="pitchCount">0</div>
+        <button id="pitchPlus" aria-label="More pitchers">+</button>
+      </div>
+      <div class="center muted" id="pitchNeeds">Pick a recipe below first</div>
+      <div class="center" style="font-weight:900;margin-top:6px;" id="cupsReady">0 cups ready</div>
+    </div>
+
+    <div class="card">
+      <div class="row"><label>🍋 Lemons per pitcher</label><span class="val" id="lemonsVal">4</span></div>
+      <input type="range" id="lemonsRange" min="1" max="10" step="1" value="4" style="width:100%;">
+      <div class="row"><label>🍬 Sugar per pitcher</label><span class="val" id="sugarVal">4</span></div>
+      <input type="range" id="sugarRange" min="0" max="10" step="1" value="4" style="width:100%;">
+      <div class="row"><label>🧊 Ice cubes per cup</label><span class="val" id="iceVal">3</span></div>
+      <input type="range" id="iceRange" min="0" max="6" step="1" value="3" style="width:100%;">
+      <div class="muted" id="tasteHint">Balanced &amp; classic. Most people like 4 lemons + 4–5 sugar.</div>
+    </div>
+
+    <div class="card">
+      <div class="row"><label>📣 Advertising signs</label><span class="val" id="signsVal">0</span></div>
+      <input type="range" id="signsRange" min="0" max="10" step="1" value="0" style="width:100%;">
+      <div class="muted">Signs cost <b>$0.75 each</b> (charged when you open) and bring extra foot traffic today only.</div>
+    </div>
+
+    <button class="btn btn-green" id="openStandBtn">☀️ OPEN THE STAND</button>
+    <button class="btn btn-ghost" id="backToStoreBtn">← Back to store</button>
+  </section>
+
+  <!-- DAY SIM SCREEN -->
+  <section class="screen hidden" id="screenDay">
+    <h2 class="sign">OPEN FOR BUSINESS</h2>
+    <div class="street" id="street">
+      <div class="standlabel" id="standPriceLabel">Lemonade $0.35</div>
+      <div class="stand">⛱️🍋</div>
+    </div>
+    <div class="card">
+      <div class="row"><label>Customers served</label><span class="val" id="simServed">0</span></div>
+      <div class="row"><label>Cups left</label><span class="val" id="simLeft">0</span></div>
+      <div class="row"><label>Money made today</label><span class="val" id="simMoney">$0.00</span></div>
+      <div class="progress"><i id="simProgress"></i></div>
+      <div class="muted center" id="simMsg" style="margin-top:8px;">Opening up…</div>
+    </div>
+    <button class="btn btn-dark hidden" id="skipSimBtn">Skip to results →</button>
+  </section>
+
+  <!-- RESULTS SCREEN -->
+  <section class="screen hidden" id="screenResults">
+    <h2 class="sign">DAY’S RESULTS</h2>
+    <div class="statgrid">
+      <div class="stat"><div class="k">Cups sold</div><div class="v" id="rSold">0</div></div>
+      <div class="stat"><div class="k">Revenue</div><div class="v good" id="rRevenue">$0.00</div></div>
+      <div class="stat"><div class="k">Costs today</div><div class="v bad" id="rCosts">$0.00</div></div>
+      <div class="stat"><div class="k">Profit today</div><div class="v" id="rProfit">$0.00</div></div>
+    </div>
+    <div class="card" id="rDetails"></div>
+    <div class="card">
+      <div class="row"><label>⭐ Reputation</label><span class="rep" id="repStars2">★★★☆☆</span></div>
+      <div class="muted" id="rFeedback">—</div>
+    </div>
+    <button class="btn btn-primary" id="nextDayBtn">START NEXT DAY →</button>
+  </section>
+
+  <!-- GAME OVER -->
+  <section class="screen hidden" id="screenOver">
+    <h2 class="sign">SEASON OVER!</h2>
+    <div class="center" style="font-size:52px;">🏆🍋</div>
+    <div class="card" id="finalCard"></div>
+    <button class="btn btn-green" id="playAgainBtn">Play a new 25-day season</button>
+    <button class="btn btn-ghost" id="keepGoingBtn">Keep going (endless mode)</button>
+  </section>
+
+  <!-- PRICE BAR (visible in store + prep, like screenshot) -->
+  <div class="pricebar" id="priceBar">
+    <label for="priceRange">Price:</label>
+    <input type="range" id="priceRange" min="0.05" max="2.00" step="0.01" value="0.35">
+    <output id="priceOut">$0.35</output>
+  </div>
+
+  <!-- INVENTORY -->
+  <div class="inventory" aria-label="Inventory">
+    <div class="inv"><span class="em">🍋</span><div><div class="num" id="invLemons">0</div><div class="lbl">Lemons</div></div></div>
+    <div class="inv"><span class="em">🧊</span><div><div class="num" id="invIce">0</div><div class="lbl">Ice cubes</div></div></div>
+    <div class="inv"><span class="em">🍬</span><div><div class="num" id="invSugar">0</div><div class="lbl">Sugar</div></div></div>
+    <div class="inv"><span class="em">🥤</span><div><div class="num" id="invCups">0</div><div class="lbl">Cups</div></div></div>
+  </div>
+
+  <footer>Lemonade Stand Tycoon • Buy low, price smart, watch the weather.<br>Tip: Hot sunny days love cold, fairly-priced lemonade. Rain kills traffic.</footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const money = n => '$' + n.toFixed(2);
+  const STORE = {
+    ice:   {label:'Ice Cubes', emoji:'🧊', packs:[[100,0.88],[250,2.15],[500,3.92]]},
+    lemons:{label:'Lemons',    emoji:'🍋', packs:[[15,1.12],[40,2.34],[75,4.52]]},
+    sugar: {label:'Sugar',     emoji:'🍬', packs:[[25,1.10],[50,1.88],[100,3.15]]},
+    cups:  {label:'Cups',      emoji:'🥤', packs:[[50,0.96],[100,1.71],[250,2.97]]},
+  };
+  const WEATHERS = [
+    {name:'Sunny & Hot', icon:'☀️🔥', temp:[92,104], traffic:95, thirst:1.35},
+    {name:'Sunny',       icon:'☀️',   temp:[80,94],  traffic:72, thirst:1.15},
+    {name:'Sunny & Mild',icon:'🌤️',   temp:[68,79],  traffic:55, thirst:0.95},
+    {name:'Partly Cloudy',icon:'⛅',  temp:[65,82],  traffic:44, thirst:0.85},
+    {name:'Cloudy',      icon:'☁️',   temp:[58,74],  traffic:32, thirst:0.7},
+    {name:'Raining',     icon:'🌧️',   temp:[58,76],  traffic:16, thirst:0.5},
+    {name:'Thunderstorm',icon:'⛈️',   temp:[62,80],  traffic:7,  thirst:0.4},
+  ];
+  const EVENTS = [
+    {p:.12, text:'🎉 Block party nearby! Extra foot traffic today.', trafficMult:1.5},
+    {p:.08, text:'🚧 Road construction on your street. Fewer passers-by.', trafficMult:0.55},
+    {p:.08, text:'🏃 Local fun-run ends at your corner. Thirsty crowd!', trafficMult:1.4},
+    {p:.06, text:'📰 School is out today — lots of kids walking by.', trafficMult:1.3},
+  ];
+
+  let S;
+  function newGame(){
+    S = {
+      day:1, season:25, endless:false, money:20.00,
+      inv:{lemons:0, ice:0, sugar:0, cups:0},
+      price:0.35, lemonsPer:4, sugarPer:4, icePer:3, signs:0, pitchers:0,
+      reputation:55, // 0-100
+      weather:null, event:null,
+      spentToday:0, bestDay:0, totalSold:0, history:[],
+      phase:'store'
+    };
+    rollWeather(); save(); renderAll();
+  }
+  function load(){
+    try{
+      const raw = localStorage.getItem('lemonade-stand-v1');
+      if(!raw) return false;
+      S = JSON.parse(raw);
+      if(!S || typeof S.money !== 'number') return false;
+      return true;
+    }catch(e){ return false; }
+  }
+  function save(){ try{ localStorage.setItem('lemonade-stand-v1', JSON.stringify(S)); }catch(e){} }
+
+  function rollWeather(){
+    // Weighted: sunny-ish is common, storms rare
+    const bag = [0,0,1,1,1,2,2,2,3,3,4,4,5,5,6];
+    const w = {...WEATHERS[bag[Math.floor(Math.random()*bag.length)]]};
+    w.temp = Math.floor(w.temp[0] + Math.random()*(w.temp[1]-w.temp[0]+1));
+    S.weather = w;
+    S.event = null;
+    for(const ev of EVENTS){ if(Math.random() < ev.p){ S.event = ev; break; } }
+  }
+
+  function taste(){
+    const L = S.lemonsPer, G = S.sugarPer, I = S.icePer;
+    let score = 100;
+    score -= Math.abs(L-4)*9;            // too sour / too weak
+    score -= Math.abs(G-4.5)*8;          // too sweet / bland
+    if(L > G+2) score -= 12;             // mouth-puckering sour
+    if(G > L+3) score -= 10;             // syrupy
+    // Ice: hotter day wants more ice
+    const idealIce = S.weather.temp >= 90 ? 4 : S.weather.temp >= 78 ? 3 : 2;
+    score -= Math.abs(I-idealIce)*5;
+    return Math.max(5, Math.min(100, Math.round(score)));
+  }
+  function tasteText(t){
+    if(S.lemonsPer > S.sugarPer+2) return '😖 Way too sour — add sugar or cut lemons.';
+    if(S.sugarPer > S.lemonsPer+3) return '🤢 Too sweet & syrupy — cut the sugar.';
+    if(S.lemonsPer <= 2) return '💧 Pretty watery — people want real lemon flavor.';
+    if(t>=85) return '😋 Delicious! Balanced, cold, and refreshing.';
+    if(t>=65) return '🙂 Pretty good lemonade. Minor tweaks could make it great.';
+    if(t>=45) return '😐 Meh. Drinkable, but nobody will rave about it.';
+    return '🤮 Rough batch. Fix the recipe before word gets around.';
+  }
+
+  function maxPitchers(){
+    const byLemons = S.lemonsPer>0 ? Math.floor(S.inv.lemons / S.lemonsPer) : 0;
+    const bySugar  = S.sugarPer>0 ? Math.floor(S.inv.sugar / S.sugarPer) : (S.sugarPer===0?99:0);
+    const byCups   = Math.floor(S.inv.cups / 10);
+    const byIce    = S.icePer>0 ? Math.floor(S.inv.ice / (10*S.icePer)) : 99;
+    return Math.max(0, Math.min(byLemons, bySugar, byCups, byIce, 99));
+  }
+
+  // ---------- Rendering ----------
+  function renderStore(){
+    const grid = $('#storeGrid'); grid.innerHTML='';
+    Object.entries(STORE).forEach(([key,item])=>{
+      const div=document.createElement('div'); div.className='item';
+      div.innerHTML = `<span class="emoji">${item.emoji}</span><h3>${item.label}</h3>`;
+      item.packs.forEach(([qty,price])=>{
+        const b=document.createElement('button'); b.className='pack';
+        b.innerHTML=`<span>${qty}</span><span>${money(price)}</span>`;
+        b.disabled = S.money < price;
+        b.onclick=()=>buy(key,qty,price);
+        div.appendChild(b);
+      });
+      const per=document.createElement('div'); per.className='muted center';
+      per.textContent = 'Best value: ' + Math.min(...item.packs.map(([q,p])=>p/q)).toFixed(3) + '¢ each'.replace('¢','$0.');
+      // fix label simply:
+      per.textContent = 'Tap a pack to buy';
+      div.appendChild(per);
+      grid.appendChild(div);
+    });
+  }
+  function stars(rep){
+    const n = Math.round(rep/20);
+    return '★'.repeat(n) + '☆'.repeat(5-n);
+  }
+  function renderAll(){
+    $('#dayLabel').textContent = 'Day ' + S.day;
+    $('#seasonLen').textContent = S.endless ? '∞' : S.season;
+    $('#moneyLabel').textContent = money(S.money);
+    $('#forecastLabel').textContent = `Forecast: ${S.weather.temp}° and ${S.weather.name} ${S.weather.icon}`;
+    $('#eventLabel').textContent = S.event ? S.event.text :
+      (S.weather.traffic>=70 ? 'Great lemonade weather — expect a crowd. 🍋' :
+       S.weather.traffic>=40 ? 'Decent day. Price and taste will decide it.' :
+       S.weather.traffic>=15 ? 'Slow day — don’t make too many pitchers.' : 'Rough day. Keep costs tiny and survive.');
+    $('#invLemons').textContent=S.inv.lemons; $('#invIce').textContent=S.inv.ice;
+    $('#invSugar').textContent=S.inv.sugar; $('#invCups').textContent=S.inv.cups;
+    $('#priceRange').value=S.price; $('#priceOut').textContent=money(+S.price);
+    $('#repStars').textContent=stars(S.reputation); $('#repStars2').textContent=stars(S.reputation);
+    $('#lemonsRange').value=S.lemonsPer; $('#lemonsVal').textContent=S.lemonsPer;
+    $('#sugarRange').value=S.sugarPer; $('#sugarVal').textContent=S.sugarPer;
+    $('#iceRange').value=S.icePer; $('#iceVal').textContent=S.icePer;
+    $('#signsRange').value=S.signs; $('#signsVal').textContent=S.signs;
+    renderStore(); renderPitch();
+    showScreen(S.phase==='results' ? 'screenResults' : S.phase==='prep' ? 'screenPrep' : S.phase==='over' ? 'screenOver' : 'screenStore');
+    $('#priceBar').style.display = (S.phase==='store'||S.phase==='prep') ? 'flex' : 'none';
+  }
+  function showScreen(id){
+    ['screenStore','screenPrep','screenDay','screenResults','screenOver'].forEach(x=>$('#'+x).classList.toggle('hidden', x!==id));
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+  function toast(msg){
+    const t=$('#toast'); t.textContent=msg; t.classList.add('show');
+    clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),1800);
+  }
+  function renderPitch(){
+    const mp = maxPitchers();
+    if(S.pitchers>mp) S.pitchers=mp;
+    $('#pitchCount').textContent=S.pitchers;
+    $('#cupsReady').textContent=(S.pitchers*10)+' cups ready';
+    $('#pitchNeeds').textContent = S.pitchers===0
+      ? `Each pitcher needs ${S.lemonsPer} lemons + ${S.sugarPer} sugar, makes 10 cups (${S.icePer} ice each). You can make up to ${mp}.`
+      : `Uses ${S.pitchers*S.lemonsPer} lemons, ${S.pitchers*S.sugarPer} sugar, ${S.pitchers*10} cups, ${S.pitchers*10*S.icePer} ice. Max today: ${mp} pitchers.`;
+    $('#tasteHint').textContent = tasteText(taste()) + ` (Taste score: ${taste()}/100)`;
+  }
+
+  // ---------- Actions ----------
+  function buy(key,qty,price){
+    if(S.money < price){ toast('Not enough cash for that pack'); return; }
+    S.money -= price; S.inv[key]+=qty; S.spentToday += price;
+    toast(`Bought ${qty} ${STORE[key].label} for ${money(price)}`);
+    save(); renderAll();
+  }
+
+  // Price + recipe controls
+  $('#priceRange').addEventListener('input', e=>{ S.price=+e.target.value; $('#priceOut').textContent=money(S.price); save(); });
+  $('#lemonsRange').addEventListener('input', e=>{ S.lemonsPer=+e.target.value; renderAll(); save(); });
+  $('#sugarRange').addEventListener('input', e=>{ S.sugarPer=+e.target.value; renderAll(); save(); });
+  $('#iceRange').addEventListener('input', e=>{ S.icePer=+e.target.value; renderAll(); save(); });
+  $('#signsRange').addEventListener('input', e=>{ S.signs=+e.target.value; $('#signsVal').textContent=S.signs; save(); });
+  $('#pitchPlus').onclick=()=>{ if(S.pitchers<maxPitchers()) S.pitchers++; renderPitch(); save(); };
+  $('#pitchMinus').onclick=()=>{ if(S.pitchers>0) S.pitchers--; renderPitch(); save(); };
+
+  $('#toPrepBtn').onclick=()=>{ S.phase='prep'; save(); renderAll(); };
+  $('#backToStoreBtn').onclick=()=>{ S.phase='store'; save(); renderAll(); };
+  $('#resetBtn1').onclick=()=>{ if(confirm('Start a brand-new game? Your current season will be erased.')){ localStorage.removeItem('lemonade-stand-v1'); S=null; newGame(); toast('New game started — good luck! 🍋'); } };
+
+  let simTimer=null, simState=null;
+  $('#openStandBtn').onclick=()=>{
+    const signCost = S.signs*0.75;
+    if(S.pitchers<=0){ toast('Make at least 1 pitcher first!'); return; }
+    if(S.money < signCost){ toast('Not enough cash for those signs'); return; }
+    // Consume ingredients now (you made the lemonade this morning)
+    S.money -= signCost; S.spentToday += signCost;
+    S.inv.lemons -= S.pitchers*S.lemonsPer;
+    S.inv.sugar  -= S.pitchers*S.sugarPer;
+    S.inv.cups   -= S.pitchers*10;
+    const cupsMade = S.pitchers*10;
+    const iceNeeded = cupsMade*S.icePer;
+    S.inv.ice -= iceNeeded; // ice is in the lemonade / cooler for today; leftovers handled at day end via cups sold calc below
+    // We'll track ice-in-lemonade separately: unsold cups' ice melts anyway, sold cups' ice is gone. Net: all iceNeeded is gone by day end. Correct.
+
+    S.phase='day'; save(); renderAll(); showScreen('screenDay');
+    $('#standPriceLabel').textContent = `Lemonade ${money(S.price)}`;
+    runDay(cupsMade, signCost);
+  };
+  $('#skipSimBtn').onclick=()=>{ if(simState) finishDay(simState, true); };
+
+  function runDay(cupsMade, signCost){
+    const w=S.weather;
+    let traffic = w.traffic * (S.event ? (S.event.trafficMult||1) : 1);
+    traffic *= (0.75 + S.reputation/100); // rep 55 -> x1.30? wait: keep gentle: below calc
+    // Recompute cleaner: reputation 0-100 maps to 0.7x - 1.5x
+    traffic = w.traffic * (S.event ? (S.event.trafficMult||1) : 1) * (0.7 + S.reputation/125) * (1 + S.signs*0.07);
+    const tasteScore = taste();
+    // Price willingness: at 0.25 great, 0.50 okay, 1.00 low
+    let buyChance = 1.25 - (S.price*1.05) + (tasteScore-60)/220 + (w.thirst-1)*0.25;
+    buyChance = Math.max(0.03, Math.min(0.92, buyChance));
+    const potential = Math.max(2, Math.round(traffic * (0.85 + Math.random()*0.3)));
+    const want = Math.round(potential * buyChance);
+    const sold = Math.min(cupsMade, want);
+    simState = {cupsMade, signCost, potential, want, sold, tasteScore, revenue: sold*S.price, served:0, left:cupsMade, earned:0, customersShown:0};
+    $('#skipSimBtn').classList.remove('hidden');
+    $('#simMsg').textContent = `${potential} people will walk by today…`;
+    let shown=0;
+    const totalTicks = Math.min(potential, 26); // animate a sample, math stays exact
+    clearInterval(simTimer);
+    simTimer=setInterval(()=>{
+      shown++;
+      spawnPerson(shown <= Math.round(totalTicks*(sold/Math.max(1,potential))) );
+      const frac=shown/totalTicks;
+      simState.served=Math.round(sold*frac); simState.left=cupsMade-simState.served; sim
