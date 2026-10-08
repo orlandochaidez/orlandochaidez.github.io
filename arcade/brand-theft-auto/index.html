@@ -60,7 +60,7 @@
       <div class="building">🍸<small>SHOTZ</small></div>
       <div class="building">🎳<small>WEST SIDE BOWL</small></div>
     </div>
-    <div class="brandino">🚶‍♂️<small>Brandino just tryna make it to payday.</small></div>
+    <div class="brandino">🚶‍♂️<small>Brandino just tryna live life.</small></div>
   </div>
 
   <div class="hud">
@@ -96,11 +96,11 @@
   const clamp=(n,a=0,b=100)=>Math.max(a,Math.min(b,Math.round(n)));
   const pick=a=>a[Math.floor(Math.random()*a.length)];
   const PLACES={
-    home:{name:"🏠 Mom's Crib", text:"da crib. Mom's got food, opinions, and a couch with Brandino's name on it."},
+    home:{name:"🏠 Mom's Crib", text:"Da Crib. Mom's got food, cats, and a couch with Brandino's name on it."},
     factory:{name:"🔪 Knife Sharpening Factory", text:"The good money. Eight hours of slurs, drugs, and trying not to lose a fingertip."},
     liquor:{name:"🍾 The Wine Cellar", text:"Brando can work the register here — and it's the spot for beer, bottles, and cigs."},
     shotz:{name:"🍸 Shotz", text:"The neighborhood bar. Brando can only come in to buy drinks… which is honestly fair after last time."},
-    bowl:{name:"🎳 WestSide Bowl", text:"The bowling alley lights are on, people are laughing inside… but Brandin can't go in. Not in v1."}
+    bowl:{name:"🎳 WestSide Bowl", text:"The bowling alley lights are on, people are laughing inside… but Brandins not allowed in. Not in v1."}
   };
   let S, place='home';
   function fresh(){
@@ -171,7 +171,7 @@
       case 'sleep': sleep(); return;
       case 'tv': S.mood=clamp(S.mood+8); S.energy=clamp(S.energy-2); addLog('Brando watched youtube on the couch and let his brain fry.'); passTime(1); break;
       case 'eat':
-        if(S.ateDay===S.day){ addLog("Mom already fed big Brand once today. She's not running a soup kitchen."); break; }
+        if(S.ateDay===S.day){ addLog("Mom already fed big Brand once today. She's not running a buffet."); break; }
         if(S.mom<15){ addLog("Mom Rep is too low — Mom told Brandino the kitchen is closed until he acts right."); break; }
         S.ateDay=S.day; S.energy=clamp(S.energy+14); S.health=clamp(S.health+6); S.mood=clamp(S.mood+4); touchMom(2);
         addLog('Brandino ate Mom’s spaghetti. Knees weak, arms are heavy.'); passTime(1); break;
@@ -205,7 +205,7 @@
         earn(144); S.factory++; S.energy=clamp(S.energy-35); S.health=clamp(S.health-3); S.mood=clamp(S.mood-2);
         let extra='';
         const r=Math.random();
-        if(r<0.14){ earn(36); extra=' The bossman kept him for overtime (+$36).'; passTime(9); }
+        if(r<0.14){ earn(36); extra=' The friendly skinhead manager kept him for overtime (+$36).'; passTime(9); }
         else if(r<0.26){ S.health=clamp(S.health-9); S.mood=clamp(S.mood-5); extra=' He sliced his fingertip on a blade again — nothing serious, but it stung all shift.'; passTime(8); }
         else passTime(8);
         addLog('Brando worked a shit-factory shift (+$144).'+extra); break; }
@@ -224,15 +224,15 @@
       case 'buyCigs': if(spend(13)){ S.inv.cigs++; addLog('Brandino bought a pack of fags ($13).'); } else addLog('Not enough cash for ciggies.'); break;
       // SHOTZ — buy drinks only, consumed on the spot
       case 'shotzBeer':
-        if(!spend(7)){ addLog('Brandino can’t cover a $7 beer at Shotz. Humbling.'); break; }
+        if(!spend(7)){ addLog('Brandino can’t cover a $7 beer at Shotz. Down bad.'); break; }
         S.drinks++; S.mood=clamp(S.mood+9); S.health=clamp(S.health-2); S.energy=clamp(S.energy-2);
         addLog('Big bran bought a coors at Shotz and posted up like he owned the joint.'); passTime(1); break;
       case 'shotzShot':
-        if(!spend(9)){ addLog('Brandino can’t cover a $9 shot at Shotz. The hot bartender looked away politely.'); break; }
+        if(!spend(9)){ addLog('Brandino can’t cover a $9 shot at Shotz. The hot bartender looked away politely. Ouch.'); break; }
         S.drinks++; S.mood=clamp(S.mood+12); S.health=clamp(S.health-4); S.energy=clamp(S.energy-3);
-        addLog('Brandino took a shot at Shotz. Immediate confidence boost.'); passTime(1); break;
+        addLog('Brandino took a shot at Shotz. Immediate rizz boost.'); passTime(1); break;
       // WEST SIDE BOWL — no entry in v1
-      case 'bowlDoor': addLog('Brandino tried the West Side Bowl door. He is not on the list.  — the bowling life is a v2 feature.'); break;
+      case 'bowlDoor': addLog('Brandino tried the WestSide Bowl door. He is not on the list.  — the bowling life is a v2 feature.'); break;
     }
     if(id!=='sleep' && id!=='bowlDoor') randomEvent(place);
     if(S.drinks>=4 && Math.random()<0.5){ S.mood=clamp(S.mood-6); S.energy=clamp(S.energy-6); addLog('Brandino is feeling those drinks. Tomorrow morning might have opinions.'); }
