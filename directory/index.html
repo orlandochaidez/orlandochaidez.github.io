@@ -38,6 +38,7 @@
   .item.big{font-size:1.6em}
   .hidden{display:none}
   .foot{margin-top:36px;color:#1f9923;font-size:.8em}
+  .hid{color:inherit;text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
   .easter{color:#33ff33;text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
   a{color:#33ff33}
 </style>
@@ -86,16 +87,9 @@
 </div>
 <div id="side" class="indent hidden">
   <a class="item" href="https://orlandochaidez.com/fred/">FRED</a>
-  <div class="folder" id="f-misc" role="button" tabindex="0" aria-expanded="false" aria-label="unlabeled folder">
-    [DIR]<span class="toggle" id="t-misc">[+]</span>
-  </div>
-  <div id="misc" class="indent hidden">
-    <a class="item big" href="https://coffeehotbox.com" aria-label="Coffee Hotbox">&#9749;&#65039;</a>
-    <a class="item big" href="https://odcpartners.com" aria-label="land biz">&#128004;</a>
-  </div>
 </div>
 
-<div class="foot"><span class="prompt">C:\ORLANDO&gt;</span> <span id="typed"></span><span class="cursor"></span></div>
+<div class="foot"><span class="prompt"><a class="hid" href="https://coffeehotbox.com" aria-label="Coffee Hotbox">C:</a>\</span><span class="prompt"><a class="hid" href="https://odcpartners.com" aria-label="ODC Partners land biz">ORLANDO&gt;</a></span> <span id="typed"></span><span class="cursor"></span></div>
 
 <script>
   function toggle(id, folderEl, ev){
@@ -117,7 +111,6 @@
   wire('f-ram500', 'ram500');
   wire('f-ram1t', 'ram1t');
   wire('f-side', 'side');
-  wire('f-misc', 'misc');
 
   // little boot text typing effect, purely cosmetic
   var msg = 'loading complete. pick a folder.';
