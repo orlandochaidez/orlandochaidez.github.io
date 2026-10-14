@@ -3,37 +3,105 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Arcade — Free Games</title>
+<title>welcome!</title>
 <style>
   *{box-sizing:border-box}
-  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0f1115;color:#f5f5f5}
-  .wrap{max-width:760px;margin:0 auto;padding:28px 18px 40px}
-  h1{font-size:38px;margin:0 0 6px;text-align:center}
-  p.sub{color:#9aa3b2;text-align:center;margin:0 0 24px;line-height:1.5}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px}
-  a.card{display:block;background:#171a22;border:1px solid #2a2f3a;border-radius:16px;padding:22px 16px;text-decoration:none;color:#fff;text-align:center;transition:.15s}
-  a.card:hover{transform:translateY(-3px);border-color:#4a5265}
-  .em{font-size:46px;display:block;margin-bottom:8px}
-  .name{font-weight:900;font-size:19px}
-  .desc{color:#9aa3b2;font-size:13px;margin-top:6px;line-height:1.45}
-  footer{text-align:center;color:#666;font-size:12px;margin-top:28px}
+  html,body{margin:0;padding:0;background:#000;min-height:100%}
+  body{
+    font-family:"Courier New",Courier,monospace;
+    color:#33ff33;
+    padding:28px 20px 70px;
+    max-width:760px;margin:0 auto;
+    line-height:1.7;
+    font-size:clamp(16px,2.6vw,19px);
+    text-shadow:0 0 7px rgba(51,255,51,.5);
+    -webkit-text-size-adjust:100%;
+  }
+  /* subtle CRT scanlines */
+  body::after{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:99;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0 1px,transparent 1px 3px);
+  }
+  .head{font-size:clamp(30px,7vw,48px);font-weight:bold;margin:0 0 6px;letter-spacing:1px}
+  .cursor{display:inline-block;width:.62em;height:1.05em;background:#33ff33;vertical-align:-.16em;margin-left:.1em;
+    animation:blink 1.05s steps(1) infinite;box-shadow:0 0 8px rgba(51,255,51,.8)}
+  @keyframes blink{50%{opacity:0}}
+  .prompt{color:#22cc22}
+  .folder{cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;
+    padding:8px 10px;margin-left:-10px;border-radius:4px;outline:none}
+  .folder:hover,.folder:focus{background:rgba(51,255,51,.12)}
+  .toggle{color:#22cc22;margin-left:1ch}
+  .indent{padding-left:3ch}
+  .item{display:block;padding:9px 10px;margin-left:-10px;color:#33ff33;text-decoration:none;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;border-radius:4px}
+  .item:hover,.item:focus{background:rgba(51,255,51,.12);text-decoration:underline}
+  .item.big{font-size:1.6em}
+  .hidden{display:none}
+  .foot{margin-top:36px;color:#1f9923;font-size:.8em}
+  a{color:#33ff33}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>🕹️ Arcade</h1>
-  <p class="sub">Simple, clean classics — no downloads, no accounts.<br>Works on phone and computer.</p>
-  <div class="grid">
-    <a class="card" href="lemonade-stand/index.html"><span class="em">🍋</span><div class="name">Lemonade Stand</div><div class="desc">Buy supplies, set your recipe &amp; price, beat the weather over a 25-day season.</div></a>
-    <a class="card" href="pong/index.html"><span class="em">🏓</span><div class="name">Pong</div><div class="desc">The original. You vs the computer, first to 7.</div></a>
-    <a class="card" href="snake/index.html"><span class="em">🐍</span><div class="name">Snake</div><div class="desc">Eat apples, grow longer, don’t bite yourself.</div></a>
-    <a class="card" href="brick-breaker/index.html"><span class="em">🧱</span><div class="name">Brick Breaker</div><div class="desc">Smash every brick, keep the ball alive, level up.</div></a>
-    <a class="card" href="blocky-blaster/index.html"><span class="em">🔫</span><div class="name">Blocky Blaster</div><div class="desc">Colorful cube-world FPS. Blast the cube monsters, survive the waves.</div></a>
-    <a class="card" href="flappy/index.html"><span class="em">🐤</span><div class="name">Flappy</div><div class="desc">Tap, click, or Space to flap through the pipes. One point each.</div></a>
-    <a class="card" href="pizza-pac/index.html"><span class="em">🍕</span><div class="name">Pizza Pac</div><div class="desc">Pac-Man, but Pac is a pizza missing a few slices. Eat the dots, dodge the 👻 ghosts.</div></a>
-    <a class="card" href="https://orlandochaidez.com/fred/"><span class="em">📈</span><div class="name">FRED</div><div class="desc">Better FRED dashboard — rates, inflation, jobs, GDP and more.</div></a>
-  </div>
-  <footer>All games run 100% in your browser. High scores save on your device. <a href="https://coffeehotbox.com" style="text-decoration:none;opacity:.55" aria-label="Coffee Hotbox">☕</a></footer>
+
+<div class="head">welcome!<span class="cursor"></span></div>
+<div><span class="prompt">C:\ORLANDO&gt;</span> dir</div>
+<br>
+
+<div class="folder" id="f-arcade" role="button" tabindex="0" aria-expanded="false">
+  [DIR] arcade<span class="toggle" id="t-arcade">[+]</span>
 </div>
+<div id="arcade" class="indent hidden">
+  <a class="item" href="lemonade-stand/index.html">Lemonade Stand</a>
+  <a class="item" href="pong/index.html">Pong</a>
+  <a class="item" href="snake/index.html">Snake</a>
+  <a class="item" href="brick-breaker/index.html">Brick Breaker</a>
+  <a class="item" href="blocky-blaster/index.html">Blocky Blaster</a>
+  <a class="item" href="flappy/index.html">Flappy</a>
+  <a class="item" href="pizza-pac/index.html">Pizza Pac</a>
+</div>
+<br>
+
+<div class="folder" id="f-side" role="button" tabindex="0" aria-expanded="false">
+  [DIR] side quests<span class="toggle" id="t-side">[+]</span>
+</div>
+<div id="side" class="indent hidden">
+  <a class="item" href="https://orlandochaidez.com/fred/">FRED</a>
+  <div class="folder" id="f-misc" role="button" tabindex="0" aria-expanded="false" aria-label="unlabeled folder">
+    [DIR]<span class="toggle" id="t-misc">[+]</span>
+  </div>
+  <div id="misc" class="indent hidden">
+    <a class="item big" href="https://coffeehotbox.com" aria-label="Coffee Hotbox">&#9749;&#65039;</a>
+    <a class="item big" href="https://odcpartners.com" aria-label="land biz">&#128004;</a>
+  </div>
+</div>
+
+<div class="foot"><span class="prompt">C:\ORLANDO&gt;</span> <span id="typed"></span><span class="cursor"></span></div>
+
+<script>
+  function toggle(id, folderEl, ev){
+    if(ev){ ev.stopPropagation(); }
+    var el = document.getElementById(id);
+    var nowHidden = el.classList.toggle('hidden');
+    document.getElementById('t-' + id).textContent = nowHidden ? '[+]' : '[\u2013]';
+    if(folderEl){ folderEl.setAttribute('aria-expanded', String(!nowHidden)); }
+  }
+  function wire(folderId, panelId){
+    var f = document.getElementById(folderId);
+    f.addEventListener('click', function(ev){ toggle(panelId, f, ev); });
+    f.addEventListener('keydown', function(ev){
+      if(ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); toggle(panelId, f, ev); }
+    });
+  }
+  wire('f-arcade', 'arcade');
+  wire('f-side', 'side');
+  wire('f-misc', 'misc');
+
+  // little boot text typing effect, purely cosmetic
+  var msg = 'loading complete. pick a folder.';
+  var i = 0, out = document.getElementById('typed');
+  (function type(){
+    if(i <= msg.length){ out.textContent = msg.slice(0, i++); setTimeout(type, 28); }
+  })();
+</script>
 </body>
 </html>
