@@ -3,15 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>welcome!</title>
+<title>welcome</title>
 <style>
   *{box-sizing:border-box}
   html,body{margin:0;padding:0;background:#000;min-height:100%}
   body{
     font-family:"Courier New",Courier,monospace;
     color:#33ff33;
-    padding:28px 20px 70px;
-    max-width:760px;margin:0 auto;
+    padding:28px 20px 70px 28px;
+    max-width:760px;margin:0;
     line-height:1.7;
     font-size:clamp(16px,2.6vw,19px);
     text-shadow:0 0 7px rgba(51,255,51,.5);
@@ -38,12 +38,13 @@
   .item.big{font-size:1.6em}
   .hidden{display:none}
   .foot{margin-top:36px;color:#1f9923;font-size:.8em}
+  .easter{color:#33ff33;text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
   a{color:#33ff33}
 </style>
 </head>
 <body>
 
-<div class="head">welcome!<span class="cursor"></span></div>
+<div class="head">welcome</div>
 <div><span class="prompt">C:\ORLANDO&gt;</span> dir</div>
 <br>
 
@@ -100,7 +101,11 @@
   var msg = 'loading complete. pick a folder.';
   var i = 0, out = document.getElementById('typed');
   (function type(){
-    if(i <= msg.length){ out.textContent = msg.slice(0, i++); setTimeout(type, 28); }
+    if(i < msg.length){ out.textContent = msg.slice(0, i++); setTimeout(type, 28); }
+    else{
+      out.innerHTML = 'loading complete. pick a folder' +
+        '<a class="easter" href="brand-theft-auto/index.html" aria-label="secret">&period;</a>';
+    }
   })();
 </script>
 </body>
