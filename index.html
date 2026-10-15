@@ -21,7 +21,7 @@
 </head>
 <body>
   <a class="enter" href="directory/" aria-label="Space monkey">
-    <img class="monkey" id="monkeyImg" src="monkey.png" alt="Space monkey">
+    <img class="monkey" id="monkeyImg" src="monkey.webp" alt="Space monkey">
     <span class="fallback" id="monkeyFallback" aria-hidden="true">🐵</span>
   </a>
 
@@ -29,7 +29,7 @@
 (() => {
   // If monkey.png isn't the real filename, try a few common names before showing the emoji placeholder.
   const img=document.getElementById('monkeyImg'), fb=document.getElementById('monkeyFallback');
-  const tries=['monkey.png','monkey.jpg','monkey.jpeg','monkey.webp','Monkey.png','Monkey.jpg','monkey-pic.png','monkeypic.png','monkey.PNG'];
+  const tries=['monkey.webp','monkey.png','monkey.jpg','monkey.jpeg','Monkey.png','Monkey.jpg','monkey-pic.png','monkeypic.png','monkey.PNG'];
   let i=0;
   img.addEventListener('error', () => {
     i++;
