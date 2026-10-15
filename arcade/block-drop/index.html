@@ -189,7 +189,12 @@
     }
     draw();
   });
-  function bind(id,fn){ const el=$(id); const go=e=>{ e.preventDefault(); fn(); }; el.addEventListener('pointerdown',go); }
+  function bind(id,fn){
+    const el=$(id); let touched=false;
+    // touchstart + preventDefault stops iOS double-tap-to-zoom on rapid taps
+    el.addEventListener('touchstart',e=>{ e.preventDefault(); touched=true; fn(); setTimeout(()=>touched=false,400); },{passive:false});
+    el.addEventListener('mousedown',e=>{ if(!touched){ e.preventDefault(); fn(); } });
+  }
   bind('btnLeft',()=>{ if(started&&!over&&!paused){ move(-1); draw(); } });
   bind('btnRight',()=>{ if(started&&!over&&!paused){ move(1); draw(); } });
   bind('btnRot',()=>{ if(started&&!over&&!paused){ rotate(1); draw(); } });
@@ -197,7 +202,7 @@
   bind('btnDrop',()=>{ if(started&&!over&&!paused){ hardDrop(); draw(); } });
   bind('btnHold',()=>{ if(started&&!over&&!paused){ hold(); draw(); } });
   bind('btnPause',togglePause);
-  $('startBtn').addEventListener('click',start);
+  bind('startBtn',start);
   board.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
   window.addEventListener('beforeunload',()=>{ if(score>best) localStorage.setItem('block-drop-best',score); });
   setInterval(()=>{ if(score>best){ best=score; $('best').textContent=best; localStorage.setItem('block-drop-best',score); } },2000);
