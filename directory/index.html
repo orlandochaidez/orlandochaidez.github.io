@@ -1,1 +1,129 @@
-PLACEHOLDER
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>welcome</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:#000;min-height:100%}
+  body{
+    font-family:"Courier New",Courier,monospace;
+    color:#33ff33;
+    padding:28px 20px 70px 28px;
+    max-width:760px;margin:0;
+    line-height:1.7;
+    font-size:clamp(16px,2.6vw,19px);
+    text-shadow:0 0 7px rgba(51,255,51,.5);
+    -webkit-text-size-adjust:100%;
+  }
+  /* subtle CRT scanlines */
+  body::after{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:99;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0 1px,transparent 1px 3px);
+  }
+  .head{font-size:clamp(30px,7vw,48px);font-weight:bold;margin:0 0 6px;letter-spacing:1px}
+  .cursor{display:inline-block;width:.62em;height:1.05em;background:#33ff33;vertical-align:-.16em;margin-left:.1em;
+    animation:blink 1.05s steps(1) infinite;box-shadow:0 0 8px rgba(51,255,51,.8)}
+  @keyframes blink{50%{opacity:0}}
+  .prompt{color:#22cc22}
+  .folder{cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;
+    padding:8px 10px;margin-left:-10px;border-radius:4px;outline:none}
+  .folder:hover,.folder:focus{background:rgba(51,255,51,.12)}
+  .toggle{color:#22cc22;margin-left:1ch}
+  .indent{padding-left:3ch}
+  .item{display:block;padding:9px 10px;margin-left:-10px;color:#33ff33;text-decoration:none;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;border-radius:4px}
+  .item:hover,.item:focus{background:rgba(51,255,51,.12);text-decoration:underline}
+  .item.big{font-size:1.6em}
+  .hidden{display:none}
+  .foot{margin-top:36px;color:#1f9923;font-size:.8em}
+  .hid{color:inherit;text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .easter{color:#33ff33;text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  a{color:#33ff33}
+</style>
+</head>
+<body>
+
+<div class="head">welcome</div>
+<div><span class="prompt">C:\ORLANDO&gt;</span> dir</div>
+<br>
+
+<div class="folder" id="f-arcade" role="button" tabindex="0" aria-expanded="false">
+  [DIR] arcade<span class="toggle" id="t-arcade">[+]</span>
+</div>
+<div id="arcade" class="indent hidden">
+  <a class="item" href="/arcade/lemonade-stand/index.html">Lemonade Stand</a>
+  <a class="item" href="/arcade/pong/index.html">Pong</a>
+  <a class="item" href="/arcade/snake/index.html">Snake</a>
+  <a class="item" href="/arcade/brick-breaker/index.html">Brick Breaker</a>
+  <a class="item" href="/arcade/blocky-blaster/index.html">Blocky Blaster</a>
+  <a class="item" href="/arcade/flappy/index.html">Flappy</a>
+  <a class="item" href="/arcade/pizza-pac/index.html">Pizza Pac</a>
+  <a class="item" href="/arcade/block-drop/index.html">Block Drop</a>
+</div>
+<br>
+
+<div class="folder" id="f-ram" role="button" tabindex="0" aria-expanded="false">
+  [DIR] download more RAM<span class="toggle" id="t-ram">[+]</span>
+</div>
+<div id="ram" class="indent hidden">
+  <div class="folder" id="f-ram500" role="button" tabindex="0" aria-expanded="false">
+    [DIR] 500gb<span class="toggle" id="t-ram500">[+]</span>
+  </div>
+  <div id="ram500" class="indent hidden">
+    <a class="item big" href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" aria-label="free RAM">&#128015;</a>
+  </div>
+  <div class="folder" id="f-ram1t" role="button" tabindex="0" aria-expanded="false">
+    [DIR] 1tb<span class="toggle" id="t-ram1t">[+]</span>
+  </div>
+  <div id="ram1t" class="indent hidden">
+    <a class="item big" href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" aria-label="free RAM">&#128015;</a>
+  </div>
+</div>
+<br>
+
+<div class="folder" id="f-side" role="button" tabindex="0" aria-expanded="false">
+  [DIR] side quests<span class="toggle" id="t-side">[+]</span>
+</div>
+<div id="side" class="indent hidden">
+  <a class="item" href="https://orlandochaidez.com/fred/">FRED</a>
+  <a class="item" href="https://orlandochaidez.com/muscle-anatomy-3d/">MUSCLE ANATOMY 3D</a>
+</div>
+
+<div class="foot"><span class="prompt"><a class="hid" href="https://coffeehotbox.com" aria-label="Coffee Hotbox">C:</a>\</span><span class="prompt"><a class="hid" href="https://odcpartners.com" aria-label="ODC Partners land biz">ORLANDO&gt;</a></span> <span id="typed"></span><span class="cursor"></span></div>
+
+<script>
+  function toggle(id, folderEl, ev){
+    if(ev){ ev.stopPropagation(); }
+    var el = document.getElementById(id);
+    var nowHidden = el.classList.toggle('hidden');
+    document.getElementById('t-' + id).textContent = nowHidden ? '[+]' : '[\u2013]';
+    if(folderEl){ folderEl.setAttribute('aria-expanded', String(!nowHidden)); }
+  }
+  function wire(folderId, panelId){
+    var f = document.getElementById(folderId);
+    f.addEventListener('click', function(ev){ toggle(panelId, f, ev); });
+    f.addEventListener('keydown', function(ev){
+      if(ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); toggle(panelId, f, ev); }
+    });
+  }
+  wire('f-arcade', 'arcade');
+  wire('f-ram', 'ram');
+  wire('f-ram500', 'ram500');
+  wire('f-ram1t', 'ram1t');
+  wire('f-side', 'side');
+
+  // little boot text typing effect, purely cosmetic
+  var msg = 'loading complete. pick a folder.';
+  var i = 0, out = document.getElementById('typed');
+  (function type(){
+    if(i < msg.length){ out.textContent = msg.slice(0, i++); setTimeout(type, 28); }
+    else{
+      out.innerHTML = 'loading complete. pick a folder' +
+        '<a class="easter" href="/arcade/brand-theft-auto/index.html" aria-label="secret">&period;</a>';
+    }
+  })();
+</script>
+</body>
+</html>
