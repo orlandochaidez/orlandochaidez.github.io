@@ -12,8 +12,10 @@
   header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
   h1{font-size:26px;margin:0}
   a.back{color:#9ecbff;text-decoration:none;font-weight:700;font-size:14px}
-  .game{display:flex;gap:10px;justify-content:center;align-items:flex-start}
-  .side{width:104px;display:flex;flex-direction:column;gap:10px}
+  .hudline{color:#9aa3b2;font-size:14px;margin-bottom:8px;letter-spacing:.5px}
+  .hudline b{color:#fff}
+  .mid{display:flex;gap:12px;justify-content:center;align-items:flex-start}
+  .rail{width:104px;display:flex;flex-direction:column;gap:10px}
   .card{background:#171b2e;border:1px solid #2b3350;border-radius:12px;padding:8px 6px}
   .card small{display:block;color:#9aa3b2;font-size:10px;letter-spacing:1px;font-weight:800;margin-bottom:4px}
   .card b{font-size:20px}
@@ -25,35 +27,34 @@
   .overlay h2{margin:0;font-size:30px}
   .overlay p{margin:0;color:#c9cfdd;font-size:14px;line-height:1.5}
   .controls{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:12px}
+  .controls.sub{grid-template-columns:1fr 1fr}
+  .controls.sub .ctl{font-size:15px}
   .ctl{border:1px solid #39415c;background:#1a1f30;color:#fff;border-radius:12px;padding:14px 0;font-size:22px;font-weight:800;cursor:pointer;user-select:none}
   .ctl:active{background:#2b3350}
   .hint{color:#9aa3b2;font-size:12.5px;line-height:1.6;margin-top:10px}
-  @media(max-width:430px){.side{width:88px}h1{font-size:22px}}
   @media(max-width:560px){
-    .game{flex-direction:column;align-items:center;gap:8px}
-    .side.left{order:0}
-    .boardwrap{order:1;width:min(340px,100%)}
-    .side.right{order:2}
-    canvas#board{width:100%;height:auto}
-    .side{width:min(380px,100%);flex-direction:row}
-    .side .card{flex:1;padding:6px 4px;min-width:0}
-    .side .card b{font-size:16px}
-    canvas#next{width:64px!important;height:160px!important}
-    canvas#hold{width:64px!important;height:48px!important}
-    .side .card small{font-size:9px}
+    .wrap{padding:10px 8px 12px}
+    h1{font-size:20px}
+    .hudline{font-size:12px;margin-bottom:6px}
+    .mid{gap:8px}
+    canvas#board{height:min(calc(100vh - 320px),600px);height:min(calc(100dvh - 320px),600px);min-height:240px;width:auto}
+    .rail{width:62px;gap:8px}
+    canvas#next{width:52px!important;height:130px!important}
+    canvas#hold{width:52px!important;height:39px!important}
+    .card{padding:6px 4px}
+    .card small{font-size:8px}
+    .ctl{padding:11px 0;font-size:20px}
+    .controls{margin-top:8px;gap:6px}
+    .controls.sub .ctl{font-size:13px;padding:9px 0}
+    .hint{display:none}
   }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header><h1>🧱 Block Drop</h1><a class="back" href="../index.html">← All games</a></header>
-  <div class="game">
-    <div class="side left">
-      <div class="card"><small>SCORE</small><b id="score">0</b></div>
-      <div class="card"><small>LINES</small><b id="lines">0</b></div>
-      <div class="card"><small>LEVEL</small><b id="level">1</b></div>
-      <div class="card"><small>HOLD</small><canvas id="hold" width="96" height="72"></canvas></div>
-    </div>
+  <div class="hudline">SCORE <b id="score">0</b> &nbsp;·&nbsp; LINES <b id="lines">0</b> &nbsp;·&nbsp; LV <b id="level">1</b> &nbsp;·&nbsp; BEST <b id="best">0</b></div>
+  <div class="mid">
     <div class="boardwrap">
       <canvas id="board" width="300" height="600"></canvas>
       <div class="overlay" id="overlay">
@@ -62,9 +63,9 @@
         <button class="bigbtn" id="startBtn">▶ Start</button>
       </div>
     </div>
-    <div class="side right">
+    <div class="rail">
       <div class="card"><small>NEXT</small><canvas id="next" width="96" height="240"></canvas></div>
-      <div class="card"><small>BEST</small><b id="best">0</b></div>
+      <div class="card"><small>HOLD</small><canvas id="hold" width="96" height="72"></canvas></div>
     </div>
   </div>
   <div class="controls">
@@ -74,9 +75,9 @@
     <div class="ctl" id="btnDown">▼</div>
     <div class="ctl" id="btnDrop">⤓</div>
   </div>
-  <div class="controls" style="grid-template-columns:1fr 1fr">
-    <div class="ctl" id="btnHold" style="font-size:15px">HOLD</div>
-    <div class="ctl" id="btnPause" style="font-size:15px">⏸ PAUSE</div>
+  <div class="controls sub">
+    <div class="ctl" id="btnHold">HOLD</div>
+    <div class="ctl" id="btnPause">⏸ PAUSE</div>
   </div>
   <p class="hint">Keyboard: ← → move · ↓ soft drop · ↑/X rotate · Z counter-rotate · Space hard drop · C hold · P pause. Tap the buttons on mobile.</p>
 </div>
