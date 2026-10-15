@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Block Drop — Stack 'Em High</title>
+<meta name="description" content="A Tetris-style falling block puzzle game. Rotate, drop, clear lines, stack to the sky.">
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0d1020;color:#f5f5f5;display:flex;justify-content:center;min-height:100vh}
+  .wrap{width:min(560px,100%);padding:14px 12px 22px;text-align:center}
+  header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  h1{font-size:26px;margin:0}
+  a.back{color:#9ecbff;text-decoration:none;font-weight:700;font-size:14px}
+  .game{display:flex;gap:10px;justify-content:center;align-items:flex-start}
+  .side{width:104px;display:flex;flex-direction:column;gap:10px}
+  .card{background:#171b2e;border:1px solid #2b3350;border-radius:12px;padding:8px 6px}
+  .card small{display:block;color:#9aa3b2;font-size:10px;letter-spacing:1px;font-weight:800;margin-bottom:4px}
+  .card b{font-size:20px}
+  canvas#board{background:#060816;border:2px solid #39415c;border-radius:10px;touch-action:none}
+  canvas#next,canvas#hold{background:#0a0d18;border-radius:8px;width:100%}
+  .overlay{position:absolute;inset:0;background:rgba(4,6,14,.82);display:flex;flex-direction:column;justify-content:center;align-items:center;border-radius:10px;gap:10px;padding:16px}
+  .boardwrap{position:relative}
+  .bigbtn{font-size:17px;font-weight:800;border:0;border-radius:12px;padding:13px 26px;cursor:pointer;background:#35c759;color:#06130a}
+  .overlay h2{margin:0;font-size:30px}
+  .overlay p{margin:0;color:#c9cfdd;font-size:14px;line-height:1.5}
+  .controls{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:12px}
+  .ctl{border:1px solid #39415c;background:#1a1f30;color:#fff;border-radius:12px;padding:14px 0;font-size:22px;font-weight:800;cursor:pointer;user-select:none}
+  .ctl:active{background:#2b3350}
+  .hint{color:#9aa3b2;font-size:12.5px;line-height:1.6;margin-top:10px}
+  @media(max-width:430px){.side{width:88px}h1{font-size:22px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><h1>🧱 Block Drop</h1><a class="back" href="../index.html">← All games</a></header>
+  <div class="game">
+    <div class="side">
+      <div class="card"><small>SCORE</small><b id="score">0</b></div>
+      <div class="card"><small>LINES</small><b id="lines">0</b></div>
+      <div class="card"><small>LEVEL</small><b id="level">1</b></div>
+      <div class="card"><small>HOLD</small><canvas id="hold" width="96" height="72"></canvas></div>
+    </div>
+    <div class="boardwrap">
+      <canvas id="board" width="300" height="600"></canvas>
+      <div class="overlay" id="overlay">
+        <h2 id="ovTitle">Block Drop</h2>
+        <p id="ovText">Stack the falling blocks.<br>Clear lines. Don't top out.<br><br><b>Best score: <span id="ovBest">0</span></b></p>
+        <button class="bigbtn" id="startBtn">▶ Start</button>
+      </div>
+    </div>
+    <div class="side">
+      <div class="card"><small>NEXT</small><canvas id="next" width="96" height="240"></canvas></div>
+      <div class="card"><small>BEST</small><b id="best">0</b></div>
+    </div>
+  </div>
+  <div class="controls">
+    <div class="ctl" id="btnLeft">◀</div>
+    <div class="ctl" id="btnRight">▶</div>
+    <div class="ctl" id="btnRot">⟳</div>
+    <div class="ctl" id="btnDown">▼</div>
+    <div class="ctl" id="btnDrop">⤓</div>
+  </div>
+  <div class="controls" style="grid-template-columns:1fr 1fr">
+    <div class="ctl" id="btnHold" style="font-size:15px">HOLD</div>
+    <div class="ctl" id="btnPause" style="font-size:15px">⏸ PAUSE</div>
+  </div>
+  <p class="hint">Keyboard: ← → move · ↓ soft drop · ↑/X rotate · Z counter-rotate · Space hard drop · C hold · P pause. Tap the buttons on mobile.</p>
+</div>
+<script>
+(() => {
+  const COLS=10, ROWS=20, CS=30;
+  const board=document.getElementById('board'), ctx=board.getContext('2d');
+  const nextCv=document.getElementById('next'), nctx=nextCv.getContext('2d');
+  const holdCv=document.getElementById('hold'), hctx=holdCv.getContext('2d');
+  const $=id=>document.getElementById(id);
+  const COLORS={I:'#22d3ee',O:'#facc15',T:'#c084fc',S:'#4ade80',Z:'#f87171',J:'#60a5fa',L:'#fb923c'};
+  const SHAPES={
+    I:[[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]],
+    O:[[1,1],[1,1]],
+    T:[[0,1,0],[1,1,1],[0,0,0]],
+    S:[[0,1,1],[1,1,0],[0,0,0]],
+    Z:[[1,1,0],[0,1,1],[0,0,0]],
+    J:[[1,0,0],[1,1,1],[0,0,0]],
+    L:[[0,0,1],[1,1,1],[0,0,0]]
+  };
+  const KEYS=Object.keys(SHAPES);
+  const SPEEDS=[800,720,630,550,470,380,300,220,160,120,90,70,55,45,38,32];
+  let grid, bag, queue, cur, held, canHold, score, lines, level, dropCounter, lastTime, over, paused, started, best;
+  best=parseInt(localStorage.getItem('block-drop-best')||'0',10)||0;
+  $('best').textContent=best; $('ovBest').textContent=best;
+
+  function freshGrid(){ const g=[]; for(let r=0;r<ROWS;r++) g.push(new Array(COLS).fill(null)); return g; }
+  function refillBag(){ bag=KEYS.slice(); for(let i=bag.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const t=bag[i]; bag[i]=bag[j]; bag[j]=t; } }
+  function nextPiece(){ if(bag.length<7) refillBag(); const k=bag.shift(); queue.push(k); }
+  function rot(m,dir){ const n=m.length, r=[]; for(let y=0;y<n;y++){ r.push([]); for(let x=0;x<n;x++) r[y].push(dir>0?m[n-1-x][y]:m[x][n-1-y]); } return r; }
+  function collide(m,px,py){ for(let y=0;y<m.length;y++) for(let x=0;x<m[y].length;x++){ if(!m[y][x]) continue; const gx=px+x, gy=py+y; if(gx<0||gx>=COLS||gy>=ROWS) return true; if(gy>=0&&grid[gy][gx]) return true; } return false; }
+  function spawn(){
+    const k=queue.shift(); nextPiece();
+    cur={k, m:SHAPES[k].map(r=>r.slice()), x:3, y:k==='I'?-1:0};
+    canHold=true;
+    if(collide(cur.m,cur.x,cur.y)){ over=true; showOverlay('GAME OVER','Score: '+score+'<br>Lines: '+lines+'<br><b>Best: '+best+'</b>'); }
+  }
+  function lock(){
+    cur.m.forEach((row,y)=>row.forEach((v,x)=>{ if(v&&cur.y+y>=0) grid[cur.y+y][cur.x+x]=cur.k; }));
+    let cleared=0;
+    for(let y=ROWS-1;y>=0;y--){ if(grid[y].every(c=>c)){ grid.splice(y,1); grid.unshift(new Array(COLS).fill(null)); cleared++; y++; } }
+    if(cleared){ const pts=[0,100,300,500,800][cleared]*level; score+=pts; lines+=cleared; level=1+Math.floor(lines/10); }
+    spawn();
+  }
+  function move(dx){ if(!collide(cur.m,cur.x+dx,cur.y)) cur.x+=dx; }
+  function rotate(dir){ const m=rot(cur.m,dir); const kicks=[[0,0],[-1,0],[1,0],[0,-1],[-2,0],[2,0]]; for(const [kx,ky] of kicks){ if(!collide(m,cur.x+kx,cur.y+ky)){ cur.m=m; cur.x+=kx; cur.y+=ky; return; } } }
+  function ghostY(){ let gy=cur.y; while(!collide(cur.m,cur.x,gy+1)) gy++; return gy; }
+  function hardDrop(){ const gy=ghostY(); score+=(gy-cur.y)*2; cur.y=gy; lock(); dropCounter=0; }
+  function softDrop(){ if(!collide(cur.m,cur.x,cur.y+1)){ cur.y++; score+=1; dropCounter=0; } else { lock(); dropCounter=0; } }
+  function hold(){ if(!canHold) return; const c=cur.k; if(held){ const t=held; held=c; cur={k:t,m:SHAPES[t].map(r=>r.slice()),x:3,y:t==='I'?-1:0}; } else { held=c; spawn(); } canHold=false; }
+
+  function drawCell(c,gx,gy,ghost){
+    const x=gx*CS, y=gy*CS;
+    if(ghost){ c.strokeStyle=COLORS[cur.k]; c.globalAlpha=0.35; c.lineWidth=2; c.strokeRect(x+2,y+2,CS-4,CS-4); c.globalAlpha=1; return; }
+    const grad=c.createLinearGradient(x,y,x,y+CS); grad.addColorStop(0,COLORS[cur.k]||'#fff'); grad.addColorStop(1,'#1b2138');
+    c.fillStyle=grad; c.fillRect(x+1,y+1,CS-2,CS-2);
+  }
+  function drawMini(c,k,W,H){
+    c.clearRect(0,0,W,H); if(!k) return;
+    const m=SHAPES[k], n=m.length, s=Math.min(W/n,(H)/n)*0.9, ox=(W-n*s)/2, oy=(H-n*s)/2;
+    m.forEach((row,y)=>row.forEach((v,x)=>{ if(!v) return; c.fillStyle=COLORS[k]; c.fillRect(ox+x*s+1,oy+y*s+1,s-2,s-2); }));
+  }
+  function drawNext(){
+    nctx.clearRect(0,0,96,240);
+    for(let i=0;i<3;i++){
+      const k=queue[i]; if(!k) continue;
+      const m=SHAPES[k], n=m.length, s=Math.min(96/n,72/n)*0.9;
+      const ox=(96-n*s)/2, oy=i*80+(72-n*s)/2;
+      m.forEach((row,y)=>row.forEach((v,x)=>{ if(!v) return; nctx.fillStyle=COLORS[k]; nctx.fillRect(ox+x*s+1,oy+y*s+1,s-2,s-2); }));
+    }
+  }
+  function draw(){
+    ctx.clearRect(0,0,board.width,board.height);
+    for(let y=0;y<ROWS;y++) for(let x=0;x<COLS;x++) if(grid[y][x]) drawCell(ctx,x,y,false);
+    if(cur&&!over){ const gy=ghostY(); cur.m.forEach((row,y)=>row.forEach((v,x)=>{ if(v&&cur.y+y>=0&&gy+y>=0){ if(gy!==cur.y) drawCell(ctx,cur.x+x,gy+y,true); } })); cur.m.forEach((row,y)=>row.forEach((v,x)=>{ if(v&&cur.y+y>=0) drawCell(ctx,cur.x+x,cur.y+y,false); })); }
+    drawNext();
+    holdCv.width=96; drawMini(hctx,held,96,72);
+    $('score').textContent=score; $('lines').textContent=lines; $('level').textContent=level;
+  }
+  function loop(t){
+    if(!started||paused||over) { requestAnimationFrame(loop); return; }
+    if(!lastTime) lastTime=t;
+    const dt=t-lastTime; lastTime=t; dropCounter+=dt;
+    const speed=SPEEDS[Math.min(level-1,SPEEDS.length-1)];
+    if(dropCounter>=speed){ dropCounter=0; if(!collide(cur.m,cur.x,cur.y+1)) cur.y++; else lock(); }
+    draw(); requestAnimationFrame(loop);
+  }
+  function showOverlay(title,html){ $('ovTitle').textContent=title; $('ovText').innerHTML=html; $('overlay').style.display='flex'; $('startBtn').textContent=over?'↻ Play again':'▶ Start'; }
+  function start(){
+    grid=freshGrid(); bag=[]; queue=[]; refillBag();
+    for(let i=0;i<4;i++) nextPiece();
+    held=null; canHold=true; score=0; lines=0; level=1; dropCounter=0; lastTime=0; over=false; paused=false; started=true;
+    $('overlay').style.display='none';
+    spawn(); draw(); requestAnimationFrame(loop);
+  }
+  function togglePause(){ if(!started||over) return; paused=!paused; $('btnPause').textContent=paused?'▶ RESUME':'⏸ PAUSE'; lastTime=0; }
+  document.addEventListener('keydown',e=>{
+    if(!started||over) { if(e.key==='Enter'){ start(); } return; }
+    if(e.key==='p'||e.key==='P'){ togglePause(); return; }
+    if(paused) return;
+    switch(e.key){
+      case 'ArrowLeft': move(-1); break;
+      case 'ArrowRight': move(1); break;
+      case 'ArrowDown': e.preventDefault(); softDrop(); break;
+      case 'ArrowUp': case 'x': case 'X': rotate(1); break;
+      case 'z': case 'Z': rotate(-1); break;
+      case ' ': e.preventDefault(); hardDrop(); break;
+      case 'c': case 'C': hold(); break;
+    }
+    draw();
+  });
+  function bind(id,fn){ const el=$(id); const go=e=>{ e.preventDefault(); fn(); }; el.addEventListener('pointerdown',go); }
+  bind('btnLeft',()=>{ if(started&&!over&&!paused){ move(-1); draw(); } });
+  bind('btnRight',()=>{ if(started&&!over&&!paused){ move(1); draw(); } });
+  bind('btnRot',()=>{ if(started&&!over&&!paused){ rotate(1); draw(); } });
+  bind('btnDown',()=>{ if(started&&!over&&!paused){ softDrop(); draw(); } });
+  bind('btnDrop',()=>{ if(started&&!over&&!paused){ hardDrop(); draw(); } });
+  bind('btnHold',()=>{ if(started&&!over&&!paused){ hold(); draw(); } });
+  bind('btnPause',togglePause);
+  $('startBtn').addEventListener('click',start);
+  board.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
+  window.addEventListener('beforeunload',()=>{ if(score>best) localStorage.setItem('block-drop-best',score); });
+  setInterval(()=>{ if(score>best){ best=score; $('best').textContent=best; localStorage.setItem('block-drop-best',score); } },2000);
+})();
+</script>
+</body>
+</html>
