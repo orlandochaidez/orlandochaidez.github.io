@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#05060f" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>Fractal Maker</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { height:100%; overflow:hidden; background:#05060f; touch-action:none; overscroll-behavior:none;
+    font-family:-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, sans-serif; }
+  #stage { position:fixed; inset:0; display:block; cursor:crosshair; }
+  #vignette { position:fixed; inset:0; pointer-events:none;
+    background:radial-gradient(ellipse at center, transparent 52%, rgba(0,0,5,.6) 100%); }
+  #hud { position:fixed; top:calc(env(safe-area-inset-top, 0px) + 14px); left:18px; pointer-events:none; user-select:none; -webkit-user-select:none; }
+  #hud h1 { color:#fff; font-size:15px; letter-spacing:.35em; font-weight:700; text-shadow:0 2px 12px rgba(0,0,0,.8); }
+  #hud h1 span { color:#8ef; }
+  #stats { margin-top:6px; color:rgba(255,255,255,.55); font-size:11.5px; letter-spacing:.12em; }
+  #palname { margin-top:5px; font-size:11px; letter-spacing:.3em; color:#ffd479; opacity:0; transition:opacity .4s; text-shadow:0 2px 10px rgba(0,0,0,.8); }
+  #controls { position:fixed; bottom:calc(env(safe-area-inset-bottom, 0px) + 18px); left:50%; transform:translateX(-50%);
+    display:flex; gap:10px; z-index:5; }
+  #controls button { border:1px solid rgba(255,255,255,.22); color:#fff;
+    background:rgba(12,14,28,.55); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+    font-size:12.5px; letter-spacing:.14em; padding:11px 18px; border-radius:999px; cursor:pointer;
+    text-transform:uppercase; font-weight:600; transition:transform .12s, background .2s; white-space:nowrap; }
+  #controls button:active { transform:scale(.94); background:rgba(40,44,80,.7); }
+  #hint { position:fixed; bottom:calc(env(safe-area-inset-bottom, 0px) + 76px); left:50%; transform:translateX(-50%);
+    color:rgba(255,255,255,.8); font-size:13px; letter-spacing:.22em; pointer-events:none; user-select:none; -webkit-user-select:none;
+    text-shadow:0 2px 10px rgba(0,0,0,.9); transition:opacity .8s; animation:breathe 2.6s ease-in-out infinite; white-space:nowrap; }
+  @keyframes breathe { 0%,100%{opacity:.45} 50%{opacity:.95} }
+  #hint.gone { opacity:0 !important; animation:none; }
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<div id="vignette"></div>
+<div id="hud">
+  <h1>FRACTAL <span>MAKER</span></h1>
+  <div id="stats">warming up…</div>
+  <div id="palname"></div>
+</div>
+<div id="hint">tap &nbsp;·&nbsp; click &nbsp;·&nbsp; hold &nbsp;to grow</div>
+<div id="controls">
+  <button id="btnNew">&#10022; New</button>
+  <button id="btnPal">&#9681; Colors</button>
+  <button id="btnSave">&#10515; Save</button>
+</div>
+<script>
+"use strict";
+/* ============================================================
+   FRACTAL MAKER — infinite tap-to-grow fractal garden
+   Every fractal is born with its own secret growth mathematics:
+   curl bias, sine-wave wobble, chaos jitter, and golden-angle
+   branching (137.508° — the same angle sunflowers use).
+   Tap / click / hold anywhere: every living tip grows, splits,
+   and curls into spirals. The camera backs up automatically so
+   the fractal always has room to keep growing. Forever.
+   ============================================================ */
+const TAU = Math.PI * 2;
+const GOLDEN = Math.PI * (3 - Math.sqrt(5)); // 137.508° in radians
+
+const PALETTES = [
+  { name: "NEBULA", hues: [268, 305, 195], sat: 95,  li: 60 },
+  { name: "EMBER",  hues: [14, 36, 348],   sat: 98,  li: 58 },
+  { name: "LAGOON", hues: [162, 188, 138], sat: 92,  li: 55 },
+  { name: "SUNSET", hues: [322, 18, 48],   sat: 96,  li: 60 },
+  { name: "ACID",   hues: [92, 140, 62],   sat: 100, li: 54 },
+  { name: "PRISM",  hues: [0, 130, 230],   sat: 100, li: 60 },
+  { name: "GHOST",  hues: [215, 215, 215],  sat: 12,  li: 74 }
+];
+
+const P = 3072;      // world paint-buffer size (px)
+const MAXT = 420;    // max living growth tips
+const MAXG = 9;      // max branch generation depth
+const START_X = -430;
+
+const stage = document.getElementById("stage");
+const ctx = stage.getContext("2d");
+let vw = 0, vh = 0, dpr = 1, bg = null, maxZ = 1;
+
+let paint, pctx, paintScale;
+let seed, rng, P0, turtles, palIdx;
+let minX, maxX, minY, maxY, segs, taps;
+let cam, introBias, lastTip;
+let holding = false, lastHold = 0;
+let ripples = [];
+let palFlashT = 0;
+
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const w2p = v => v * paintScale + P / 2; // world → paint-buffer px
+
+function freshPaint() {
+  paint = document.createElement("canvas");
+  paint.width = paint.height = P;
+  pctx = paint.getContext("2d");
+  pctx.globalCompositeOperation = "lighter"; // additive glow
+  pctx.lineCap = pctx.lineJoin = "round";
+  paintScale = 1;
+}
+
+function newFractal() {
+  seed = (Math.random() * 0xffffff) | 0;
+  rng = mulberry32(seed);
+  // ---- each fractal rolls its own laws of growth ----
+  P0 = {
+    baseTurn:  (rng() - 0.5) * 0.24,  // constant curl → logarithmic-spiral bias
+    waveAmp:   0.25 + rng() * 0.75,   // sine wobble amplitude
+    waveFreq:  0.015 + rng() * 0.075, // wobble frequency (per step)
+    jitter:    0.35 + rng() * 0.55,   // chaos
+    branchP:   0.025 + rng() * 0.075, // per-step chance to sprout a branch
+    branchAng: GOLDEN * (0.55 + rng() * 0.9), // kick near the golden angle
+    stepLen:   6.5 + rng() * 5,       // world units per step
+    lenDecay:  0.962 + rng() * 0.025  // shrink per generation
+  };
+  palIdx = (rng() * PALETTES.length) | 0;
+  turtles = [{ x: START_X, y: 0, a: (rng() - 0.5) * 0.6, gen: 0, t: 0, phase: rng() * TAU, alive: true }];
+  lastTip = { x: START_X, y: 0, a: 0 };
+  minX = maxX = START_X; minY = maxY = 0;
+  segs = 0; taps = 0; introBias = 1; ripples = [];
+  freshPaint();
+  // the seed dot, glowing, waiting on the left
+  const dx = w2p(START_X), dy = w2p(0);
+  const pal = PALETTES[palIdx];
+  const g = pctx.createRadialGradient(dx, dy, 0, dx, dy, 26);
+  g.addColorStop(0, "hsla(" + pal.hues[0] + "," + pal.sat + "%,82%,1)");
+  g.addColorStop(1, "hsla(0,0%,0%,0)");
+  pctx.fillStyle = g;
+  pctx.fillRect(dx - 26, dy - 26, 52, 52);
+  // camera starts with the dot left-of-center, eases to center as it grows
+  cam = { x: dx + (0.30 * vw) / maxZ, y: P / 2, z: maxZ };
+  document.getElementById("hint").classList.remove("gone");
+  updateStats();
+  flashPalette();
+}
+
+function grow(px, py) {
+  taps++;
+  const kids = [];
+  const pal = PALETTES[palIdx];
+  let aliveCount = 0;
+  for (const tu of turtles) if (tu.alive) aliveCount++;
+  for (const tu of turtles) {
+    if (!tu.alive) continue;
+    const steps = tu.gen < 3 ? 26 : tu.gen < 6 ? 14 : 7;
+    const len = P0.stepLen * Math.pow(P0.lenDecay, tu.gen);
+    for (let s = 0; s < steps; s++) {
+      // the turn law: constant curl + sine wave + chaos = spirals
+      tu.a += P0.baseTurn * (0.5 + rng())
+            + P0.waveAmp * 0.35 * Math.sin(tu.t * P0.waveFreq + tu.phase)
+            + (rng() - 0.5) * P0.jitter;
+      tu.t++;
+      const nx = tu.x + Math.cos(tu.a) * len;
+      const ny = tu.y + Math.sin(tu.a) * len;
+      const w = Math.max(0.5, 5.2 * Math.pow(0.78, tu.gen) + 0.5) * paintScale;
+      const hue = (pal.hues[tu.gen % pal.hues.length] + tu.t * 0.12 + tu.gen * 17) % 360;
+      pctx.strokeStyle = "hsla(" + hue.toFixed(1) + "," + pal.sat + "%," +
+        Math.min(74, 54 + tu.gen * 2.2).toFixed(1) + "%,0.85)";
+      pctx.lineWidth = w;
+      pctx.beginPath();
+      pctx.moveTo(w2p(tu.x), w2p(tu.y));
+      pctx.lineTo(w2p(nx), w2p(ny));
+      pctx.stroke();
+      tu.x = nx; tu.y = ny; segs++;
+      if (nx < minX) minX = nx; if (nx > maxX) maxX = nx;
+      if (ny < minY) minY = ny; if (ny > maxY) maxY = ny;
+      // branching, biased to the golden angle
+      const bp = P0.branchP * (1 - tu.gen / MAXG);
+      if (rng() < bp && aliveCount + kids.length < MAXT) {
+        const dir = rng() < 0.5 ? -1 : 1;
+        const ka = rng() < 0.14
+          ? tu.a + dir * Math.PI * 0.5 * (0.8 + rng() * 0.4)
+          : tu.a + dir * P0.branchAng * (0.75 + rng() * 0.5);
+        kids.push({ x: tu.x, y: tu.y, a: ka, gen: tu.gen + 1, t: 0, phase: rng() * TAU, alive: true });
+      }
+      if (rng() < 0.0025) tu.alive = false; // natural pruning
+      lastTip.x = nx; lastTip.y = ny; lastTip.a = tu.a;
+    }
+  }
+  if (kids.length) { turtles.push.apply(turtles, kids); aliveCount += kids.length; }
+  // shed the long-dead so the frontier can renew forever
+  if (turtles.length > MAXT * 2) turtles = turtles.filter(t => t.alive);
+  if (aliveCount > MAXT) { // retire the oldest tips, keep it infinite
+    let kill = aliveCount - MAXT;
+    for (const tu of turtles) { if (kill <= 0) break; if (tu.alive) { tu.alive = false; kill--; } }
+    aliveCount = MAXT;
+  }
+  // extinction insurance: never let the growth stall out completely
+  if (aliveCount === 0) {
+    turtles.push({ x: lastTip.x, y: lastTip.y, a: lastTip.a + (rng() - 0.5), gen: 0, t: 0, phase: rng() * TAU, alive: true });
+  }
+  maybeRebase();
+  if (px !== undefined) ripples.push({ x: px, y: py, t0: performance.now() });
+  if (taps === 3) document.getElementById("hint").classList.add("gone");
+  introBias = Math.max(0, introBias - 0.3);
+  updateStats();
+}
+
+// when the fractal outgrows the paint buffer, shrink the buffer's
+// contents by half — doubling the room the fractal has to grow into.
+// this is what lets it expand forever.
+function maybeRebase() {
+  const ext = Math.max(maxX - minX, maxY - minY) * paintScale;
+  if (ext < P * 0.62) return;
+  const nc = document.createElement("canvas");
+  nc.width = nc.height = P;
+  const c = nc.getContext("2d");
+  c.globalCompositeOperation = "lighter";
+  c.drawImage(paint, P / 4, P / 4, P / 2, P / 2);
+  paint = nc; pctx = c;
+  pctx.lineCap = pctx.lineJoin = "round";
+  paintScale *= 0.5;
+}
+
+function updateStats() {
+  document.getElementById("stats").textContent =
+    "#" + seed.toString(16).padStart(6, "0") +
+    " · " + taps + " taps · " + segs.toLocaleString("en-US") +
+    " segments · " + PALETTES[palIdx].name;
+}
+
+function flashPalette() {
+  const pn = document.getElementById("palname");
+  pn.textContent = "◑ " + PALETTES[palIdx].name;
+  pn.style.opacity = 1;
+  palFlashT = performance.now() + 1600;
+}
+
+function buildBg() {
+  bg = document.createElement("canvas");
+  bg.width = Math.max(1, vw); bg.height = Math.max(1, vh);
+  const b = bg.getContext("2d");
+  const gr = b.createLinearGradient(0, 0, 0, vh);
+  gr.addColorStop(0, "#070a18"); gr.addColorStop(0.55, "#05060f"); gr.addColorStop(1, "#0a0616");
+  b.fillStyle = gr; b.fillRect(0, 0, vw, vh);
+  const sr = mulberry32(1234567);
+  for (let i = 0; i < 220; i++) {
+    b.fillStyle = "rgba(200,220,255," + (0.12 + sr() * 0.5).toFixed(2) + ")";
+    b.beginPath(); b.arc(sr() * vw, sr() * vh, sr() * 1.3 + 0.2, 0, TAU); b.fill();
+  }
+}
+
+function resize() {
+  vw = window.innerWidth; vh = window.innerHeight;
+  dpr = Math.min(2, window.devicePixelRatio || 1);
+  stage.width = Math.round(vw * dpr); stage.height = Math.round(vh * dpr);
+  stage.style.width = vw + "px"; stage.style.height = vh + "px";
+  buildBg();
+  maxZ = Math.min(vw, vh) / 560;
+}
+window.addEventListener("resize", resize);
+
+function frame(now) {
+  requestAnimationFrame(frame);
+  // camera: fit the fractal's bounding box with breathing room,
+  // easing outward — the "backs up to make more room" move
+  const cxp = ((minX + maxX) / 2) * paintScale + P / 2;
+  const cyp = ((minY + maxY) / 2) * paintScale + P / 2;
+  const bbw = Math.max(1, maxX - minX) * paintScale;
+  const bbh = Math.max(1, maxY - minY) * paintScale;
+  const tz = Math.min(vw / (bbw * 1.28), vh / (bbh * 1.28), maxZ);
+  const tx = cxp + introBias * (0.30 * vw / Math.max(tz, 1e-6));
+  cam.x += (tx - cam.x) * 0.09;
+  cam.y += (cyp - cam.y) * 0.09;
+  cam.z += (tz - cam.z) * 0.07;
+
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.drawImage(bg, 0, 0, vw, vh);
+  ctx.save();
+  ctx.translate(vw / 2, vh / 2);
+  ctx.scale(cam.z, cam.z);
+  ctx.translate(-cam.x, -cam.y);
+  ctx.drawImage(paint, 0, 0);
+  ctx.restore();
+
+  // pulsing invitation on the seed dot before the first tap
+  if (taps === 0) {
+    const sx = (w2p(START_X) - cam.x) * cam.z + vw / 2;
+    const sy = (w2p(0) - cam.y) * cam.z + vh / 2;
+    const pr = (now / 900) % 1;
+    ctx.strokeStyle = "rgba(160,220,255," + ((1 - pr) * 0.7).toFixed(3) + ")";
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(sx, sy, 14 + pr * 46, 0, TAU); ctx.stroke();
+  }
+
+  // tap ripples
+  ripples = ripples.filter(r => now - r.t0 < 650);
+  for (const r of ripples) {
+    const age = (now - r.t0) / 650;
+    ctx.strokeStyle = "rgba(255,255,255," + ((1 - age) * 0.45).toFixed(3) + ")";
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(r.x, r.y, 8 + age * 90, 0, TAU); ctx.stroke();
+  }
+
+  // press-and-hold grows continuously
+  if (holding && now - lastHold > 90) { lastHold = now; grow(); }
+
+  const pn = document.getElementById("palname");
+  if (palFlashT && now > palFlashT) { palFlashT = 0; pn.style.opacity = 0; }
+}
+
+// ---- input ----
+stage.addEventListener("pointerdown", function (e) {
+  holding = true; lastHold = performance.now();
+  grow(e.clientX, e.clientY);
+  e.preventDefault();
+});
+window.addEventListener("pointerup", function () { holding = false; });
+window.addEventListener("pointercancel", function () { holding = false; });
+window.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+document.addEventListener("gesturestart", function (e) { e.preventDefault(); });
+
+document.getElementById("btnNew").addEventListener("click", function (e) {
+  e.stopPropagation(); newFractal();
+});
+document.getElementById("btnPal").addEventListener("click", function (e) {
+  e.stopPropagation();
+  palIdx = (palIdx + 1) % PALETTES.length; // new growth picks up the new palette
+  flashPalette(); updateStats();
+});
+document.getElementById("btnSave").addEventListener("click", function (e) {
+  e.stopPropagation();
+  stage.toBlob(function (blob) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "fractal-" + seed.toString(16) + ".png";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+  });
+});
+window.addEventListener("keydown", function (e) {
+  if (e.code === "Space") { e.preventDefault(); grow(vw / 2, vh / 2); }
+  else if (e.key === "n" || e.key === "N") newFractal();
+  else if (e.key === "c" || e.key === "C") document.getElementById("btnPal").click();
+});
+
+// ---- go ----
+resize();
+newFractal();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
