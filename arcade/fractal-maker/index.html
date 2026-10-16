@@ -70,7 +70,14 @@
    SIERPINSKI tap / hold to scatter chaos-game points
    CANTOR     tap to divide the Cantor set
    MENGER     tap to carve the Menger sponge deeper
-   TREE       tap to grow a recursive fractal tree deeper
+   VECTOR MODES (Bloom, Tree, Snowflake, Dragon, Sierpinski, Cantor, Menger)
+   draw geometry in WORLD coords straight to a device-pixel cache canvas,
+   so lines stay razor sharp at ANY zoom — there is no bitmap to magnify.
+   While the camera moves, the cached bitmap is warped (one drawImage, 60fps);
+   300ms after it settles, the mode re-renders crisp at the new view.
+   Manual pinch/drag/wheel freezes the auto camera (it stays where you put it);
+   ✦ or mode switch hands control back to the auto follow.
+   TREE now grows to 16 generations (65,536 tips), batched one path per depth.
    ============================================================ */
 const TAU = Math.PI * 2;
 const GOLDEN = Math.PI * (3 - Math.sqrt(5)); // 137.508° — nature's favorite angle
@@ -85,7 +92,6 @@ const PALETTES = [
   { name: "GHOST",  hues: [215, 215, 215],  sat: 12,  li: 74 }
 ];
 
-const P = 3072;      // world paint-buffer size (px)
 const MAXT = 420;    // max living growth tips (bloom)
 const MAXG = 9;      // max branch generation depth (bloom)
 const START_X = -430;
@@ -94,13 +100,16 @@ const stage = document.getElementById("stage");
 const ctx = stage.getContext("2d");
 let vw = 0, vh = 0, dpr = 1, bg = null, maxZ = 1;
 
-let paint, pctx, paintScale;
 let seed, rng, P0, turtles, palIdx;
 let minX, maxX, minY, maxY, segs, taps;
 let cam, introBias, lastTip;
 let holding = false, lastHold = 0;
 let ripples = [];
 let palFlashT = 0;
+// crisp vector layer: geometry is drawn in WORLD coords straight to a
+// device-pixel cache canvas, so lines stay razor sharp at any zoom —
+// never a magnified bitmap. cam lives in world coords too.
+let vlc = null, vctx = null, vBasis = null, vNeedCrisp = false, camLock = false, vSettleT = null;
 
 function mulberry32(a) {
   return function () {
@@ -117,36 +126,96 @@ function hsl(h, s, l) { // h 0-360, s/l 0-100 → [r,g,b] 0-255
   return [(f(0) * 255) | 0, (f(8) * 255) | 0, (f(4) * 255) | 0];
 }
 
-const w2p = v => v * paintScale + P / 2; // world → paint-buffer px
 function vTouch(x, y) { if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y; }
 function vReset() { minX = 1e9; maxX = -1e9; minY = 1e9; maxY = -1e9; }
-function freshPaint() {
-  paint = document.createElement("canvas");
-  paint.width = paint.height = P;
-  pctx = paint.getContext("2d");
-  pctx.globalCompositeOperation = "lighter";
-  pctx.lineCap = pctx.lineJoin = "round";
-  paintScale = 1;
+function vEnsure() {
+  const W = Math.max(2, Math.round(vw * dpr)), H = Math.max(2, Math.round(vh * dpr));
+  if (!vlc || vlc.width !== W || vlc.height !== H) {
+    vlc = document.createElement("canvas"); vlc.width = W; vlc.height = H;
+    vctx = vlc.getContext("2d");
+    vBasis = null;
+  }
+}
+// world → screen transform for vector drawing (device pixels)
+function vApplyCam(c) {
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.translate(vw / 2 + usr.ox, vh / 2 + usr.oy);
+  const z = cam.z * usr.z;
+  c.scale(z, z);
+  c.translate(-cam.x, -cam.y);
+}
+function vRenderCrisp() {
+  // full re-render of the current vector mode at device resolution
+  vEnsure();
+  const c = vctx;
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  c.globalCompositeOperation = "source-over";
+  c.clearRect(0, 0, vlc.width, vlc.height);
+  c.globalCompositeOperation = "lighter";
+  c.lineCap = c.lineJoin = "round";
+  vApplyCam(c);
+  MODES[cur].vecDraw();
+  vBasis = { cx: cam.x, cy: cam.y, cz: cam.z, ox: usr.ox, oy: usr.oy, oz: usr.z };
+  vNeedCrisp = false;
+}
+function vBasisMatches() {
+  if (!vBasis) return false;
+  return Math.abs(vBasis.cx - cam.x) < 1e-3 && Math.abs(vBasis.cy - cam.y) < 1e-3 &&
+    Math.abs(vBasis.cz - cam.z) / Math.max(1e-9, vBasis.cz) < 1e-4 &&
+    Math.abs(vBasis.ox - usr.ox) < 0.5 && Math.abs(vBasis.oy - usr.oy) < 0.5 &&
+    Math.abs(vBasis.oz - usr.z) / Math.max(1e-9, vBasis.oz) < 1e-4;
+}
+function vWarpAmount() {
+  // how far the live camera has drifted from the crisp render — big drift = re-render
+  if (!vBasis) return 1e9;
+  const K0 = vBasis.cz * vBasis.oz, K1 = cam.z * usr.z;
+  const s = K1 / Math.max(1e-12, K0);
+  const dx = Math.abs(cam.x - vBasis.cx) * K1 + Math.abs(usr.ox - vBasis.ox);
+  const dy = Math.abs(cam.y - vBasis.cy) * K1 + Math.abs(usr.oy - vBasis.oy);
+  return Math.max(Math.abs(Math.log(Math.max(1e-9, s))), dx / 300, dy / 300);
+}
+function vWarpDraw() {
+  // camera moved since the crisp render: warp the cached bitmap (one drawImage, 60fps)
+  const K0 = vBasis.cz * vBasis.oz, K1 = cam.z * usr.z;
+  const s = K1 / Math.max(1e-12, K0);
+  const T0x = vw / 2 + vBasis.ox, T0y = vh / 2 + vBasis.oy;
+  const T1x = vw / 2 + usr.ox, T1y = vh / 2 + usr.oy;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.globalCompositeOperation = "source-over";
+  ctx.translate(T1x - s * T0x + K1 * (vBasis.cx - cam.x), T1y - s * T0y + K1 * (vBasis.cy - cam.y));
+  ctx.scale(s, s);
+  ctx.drawImage(vlc, 0, 0, vw, vh);
+}
+function vBlit() {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.globalCompositeOperation = "source-over";
+  ctx.drawImage(vlc, 0, 0, vw, vh);
+}
+function vMotion() {
+  // camera is moving — once it settles, re-render crisp if the warp drifted far
+  clearTimeout(vSettleT);
+  vSettleT = setTimeout(function () { if (vWarpAmount() > 0.12) vNeedCrisp = true; }, 300);
+}
+function vectorFrame() {
+  let moving = false;
+  if (!camLock) moving = cameraTick();
+  if (moving) vMotion();
+  if (vNeedCrisp || !vBasis) vRenderCrisp();
+  else if (!vBasisMatches()) vWarpDraw();
+  else vBlit();
 }
 function cameraTick() {
-  const cxp = ((minX + maxX) / 2) * paintScale + P / 2;
-  const cyp = ((minY + maxY) / 2) * paintScale + P / 2;
-  const bbw = Math.max(1, maxX - minX) * paintScale;
-  const bbh = Math.max(1, maxY - minY) * paintScale;
+  if (camLock) return false; // user took the camera — it stays exactly where they put it
+  const cxp = (minX + maxX) / 2, cyp = (minY + maxY) / 2;
+  const bbw = Math.max(1, maxX - minX), bbh = Math.max(1, maxY - minY);
   const tz = Math.min(vw / (bbw * 1.28), vh / (bbh * 1.28), maxZ);
   const tx = cxp + introBias * (0.30 * vw / Math.max(tz, 1e-6));
-  cam.x += (tx - cam.x) * 0.09;
-  cam.y += (cyp - cam.y) * 0.09;
-  cam.z += (tz - cam.z) * 0.07;
-}
-function drawPaint() {
-  ctx.save();
-  ctx.translate(vw / 2 + usr.ox, vh / 2 + usr.oy);
-  const z = cam.z * usr.z;
-  ctx.scale(z, z);
-  ctx.translate(-cam.x, -cam.y);
-  ctx.drawImage(paint, 0, 0);
-  ctx.restore();
+  const dx = tx - cam.x, dy = cyp - cam.y, dz = tz - cam.z;
+  const moved = Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5 || Math.abs(dz) > tz * 0.002;
+  cam.x += dx * 0.09;
+  cam.y += dy * 0.09;
+  cam.z += dz * 0.07;
+  return moved;
 }
 // user camera: pinch-zoom & drag-pan sit on top of the auto camera
 let usr = { z: 1, ox: 0, oy: 0 };
@@ -158,6 +227,41 @@ function vecWheel(f, mx, my) {
 }
 
 /* ================= BLOOM (the original infinite garden) ================= */
+// every segment is stored (world coords) so the garden can be re-rendered
+// razor-sharp at any zoom — no magnified bitmaps, ever
+const BSEG_CAP = 400000;
+let bstore = null, bsegN = 0;
+function bloomStore(x1, y1, x2, y2, w, gen, t) {
+  if (!bstore) bstore = new Float32Array(BSEG_CAP * 7);
+  if (bsegN >= BSEG_CAP) return;
+  const o = bsegN * 7;
+  bstore[o] = x1; bstore[o + 1] = y1; bstore[o + 2] = x2; bstore[o + 3] = y2;
+  bstore[o + 4] = w; bstore[o + 5] = gen; bstore[o + 6] = t;
+  bsegN++;
+}
+function bloomRestroke() {
+  const pal = PALETTES[palIdx];
+  for (let k = 0; k < bsegN; k++) {
+    const o = k * 7, gen = bstore[o + 5] | 0, t = bstore[o + 6];
+    const hue = (pal.hues[gen % pal.hues.length] + t * 0.12 + gen * 17) % 360;
+    vctx.strokeStyle = "hsla(" + hue.toFixed(1) + "," + pal.sat + "%," +
+      Math.min(74, 54 + gen * 2.2).toFixed(1) + "%,0.85)";
+    vctx.lineWidth = Math.max(0.5, bstore[o + 4]);
+    vctx.beginPath();
+    vctx.moveTo(bstore[o], bstore[o + 1]);
+    vctx.lineTo(bstore[o + 2], bstore[o + 3]);
+    vctx.stroke();
+  }
+}
+function bloomVecDraw() {
+  const pal = PALETTES[palIdx];
+  const g = vctx.createRadialGradient(START_X, 0, 0, START_X, 0, 26);
+  g.addColorStop(0, "hsla(" + pal.hues[0] + "," + pal.sat + "%,82%,1)");
+  g.addColorStop(1, "hsla(0,0%,0%,0)");
+  vctx.fillStyle = g;
+  vctx.fillRect(START_X - 26, -26, 52, 52);
+  bloomRestroke();
+}
 function bloomNew() {
   seed = (Math.random() * 0xffffff) | 0;
   rng = mulberry32(seed);
@@ -176,20 +280,17 @@ function bloomNew() {
   lastTip = { x: START_X, y: 0, a: 0 };
   minX = maxX = START_X; minY = maxY = 0;
   segs = 0; taps = 0; introBias = 1; ripples = [];
-  freshPaint();
-  const dx = w2p(START_X), dy = w2p(0);
-  const pal = PALETTES[palIdx];
-  const g = pctx.createRadialGradient(dx, dy, 0, dx, dy, 26);
-  g.addColorStop(0, "hsla(" + pal.hues[0] + "," + pal.sat + "%,82%,1)");
-  g.addColorStop(1, "hsla(0,0%,0%,0)");
-  pctx.fillStyle = g;
-  pctx.fillRect(dx - 26, dy - 26, 52, 52);
-  cam = { x: dx + (0.30 * vw) / maxZ, y: P / 2, z: maxZ };
+  bsegN = 0;
+  camLock = false;
+  cam = { x: START_X, y: 0, z: maxZ };
+  vNeedCrisp = true;
 }
 function bloomGrow(px, py) {
   taps++;
   const kids = [];
   const pal = PALETTES[palIdx];
+  vEnsure();
+  vApplyCam(vctx);
   let aliveCount = 0;
   for (const tu of turtles) if (tu.alive) aliveCount++;
   for (const tu of turtles) {
@@ -203,15 +304,16 @@ function bloomGrow(px, py) {
       tu.t++;
       const nx = tu.x + Math.cos(tu.a) * len;
       const ny = tu.y + Math.sin(tu.a) * len;
-      const w = Math.max(0.5, 5.2 * Math.pow(0.78, tu.gen) + 0.5) * paintScale;
+      const w = Math.max(0.5, 5.2 * Math.pow(0.78, tu.gen) + 0.5);
       const hue = (pal.hues[tu.gen % pal.hues.length] + tu.t * 0.12 + tu.gen * 17) % 360;
-      pctx.strokeStyle = "hsla(" + hue.toFixed(1) + "," + pal.sat + "%," +
+      vctx.strokeStyle = "hsla(" + hue.toFixed(1) + "," + pal.sat + "%," +
         Math.min(74, 54 + tu.gen * 2.2).toFixed(1) + "%,0.85)";
-      pctx.lineWidth = w;
-      pctx.beginPath();
-      pctx.moveTo(w2p(tu.x), w2p(tu.y));
-      pctx.lineTo(w2p(nx), w2p(ny));
-      pctx.stroke();
+      vctx.lineWidth = w;
+      vctx.beginPath();
+      vctx.moveTo(tu.x, tu.y);
+      vctx.lineTo(nx, ny);
+      vctx.stroke();
+      bloomStore(tu.x, tu.y, nx, ny, w, tu.gen, tu.t);
       tu.x = nx; tu.y = ny; segs++;
       vTouch(nx, ny);
       const bp = P0.branchP * (1 - tu.gen / MAXG);
@@ -235,18 +337,6 @@ function bloomGrow(px, py) {
   }
   if (aliveCount === 0) {
     turtles.push({ x: lastTip.x, y: lastTip.y, a: lastTip.a + (rng() - 0.5), gen: 0, t: 0, phase: rng() * TAU, alive: true });
-  }
-  // outgrew the buffer? shrink it by half → double the room, forever
-  const ext = Math.max(maxX - minX, maxY - minY) * paintScale;
-  if (ext > P * 0.62) {
-    const nc = document.createElement("canvas");
-    nc.width = nc.height = P;
-    const c = nc.getContext("2d");
-    c.globalCompositeOperation = "lighter";
-    c.drawImage(paint, P / 4, P / 4, P / 2, P / 2);
-    paint = nc; pctx = c;
-    pctx.lineCap = pctx.lineJoin = "round";
-    paintScale *= 0.5;
   }
   if (px !== undefined) ripples.push({ x: px, y: py, t0: performance.now() });
   introBias = Math.max(0, introBias - 0.3);
@@ -416,7 +506,7 @@ function escDraw() {
 
 /* ==================== VECTOR FRACTALS ==================== */
 function kochRender(n) {
-  vReset(); freshPaint();
+  vReset();
   const pal = PALETTES[palIdx];
   let pts = [[0, -1], [0.8660254, 0.5], [-0.8660254, 0.5], [0, -1]];
   const cx = 0, cy = 0;
@@ -436,24 +526,24 @@ function kochRender(n) {
     pts = out;
   }
   const S = 760;
-  pctx.lineJoin = pctx.lineCap = "round";
+  vctx.lineJoin = vctx.lineCap = "round";
   for (let pass = 0; pass < 2; pass++) {
-    pctx.strokeStyle = pass === 0
+    vctx.strokeStyle = pass === 0
       ? "hsla(" + pal.hues[0] + "," + pal.sat + "%,55%,0.28)"
       : "hsla(" + ((pal.hues[1] + n * 24) % 360) + "," + pal.sat + "%,68%,0.95)";
-    pctx.lineWidth = (pass === 0 ? 26 : 7) * paintScale;
-    pctx.beginPath();
+    vctx.lineWidth = pass === 0 ? 26 : 7;
+    vctx.beginPath();
     pts.forEach((p, i) => {
       const X = p[0] * S, Y = p[1] * S;
       vTouch(X, Y);
-      if (i === 0) pctx.moveTo(w2p(X), w2p(Y)); else pctx.lineTo(w2p(X), w2p(Y));
+      if (i === 0) vctx.moveTo(X, Y); else vctx.lineTo(X, Y);
     });
-    pctx.stroke();
+    vctx.stroke();
   }
   return pts.length;
 }
 function dragonRender(n) {
-  vReset(); freshPaint();
+  vReset();
   const pal = PALETTES[palIdx];
   let s = "FX";
   for (let i = 0; i < n; i++) {
@@ -476,27 +566,33 @@ function dragonRender(n) {
   }
   const S = 1500 / Math.max(mxx - mnx, mxy - mny, 1);
   const ox = -(mnx + mxx) / 2 * S, oy = -(mny + mxy) / 2 * S;
-  pctx.lineJoin = pctx.lineCap = "round";
+  vctx.lineJoin = vctx.lineCap = "round";
   for (let pass = 0; pass < 2; pass++) {
-    pctx.strokeStyle = pass === 0
+    vctx.strokeStyle = pass === 0
       ? "hsla(" + pal.hues[2 % pal.hues.length] + "," + pal.sat + "%,55%,0.25)"
       : "hsla(" + ((pal.hues[0] + n * 30) % 360) + "," + pal.sat + "%,66%,0.95)";
-    pctx.lineWidth = (pass === 0 ? 20 : 6) * paintScale;
-    pctx.beginPath();
+    vctx.lineWidth = pass === 0 ? 20 : 6;
+    vctx.beginPath();
     pts.forEach((p, i) => {
       const X = p[0] * S + ox, Y = p[1] * S + oy;
       vTouch(X, Y);
-      if (i === 0) pctx.moveTo(w2p(X), w2p(Y)); else pctx.lineTo(w2p(X), w2p(Y));
+      if (i === 0) vctx.moveTo(X, Y); else vctx.lineTo(X, Y);
     });
-    pctx.stroke();
+    vctx.stroke();
   }
   return fcount;
 }
 function sierpinskiEnter() {
-  vReset(); freshPaint();
+  vReset();
   introBias = 0;
-  cam = { x: P / 2, y: P / 2, z: maxZ };
-  return { ax: -720, ay: 470, bx: 720, by: 470, cx: 0, cy: -770, px: 0, py: 0, n: 0 };
+  camLock = false;
+  cam = { x: 0, y: 0, z: maxZ };
+  const st = { ax: -720, ay: 470, bx: 720, by: 470, cx: 0, cy: -770, px: 0, py: 0, n: 0 };
+  st.sSeed = (Math.random() * 0xffffff) | 0;
+  st.rng = mulberry32(st.sSeed);
+  st.px = (st.ax + st.bx) / 2; st.py = (st.ay + st.by) / 2;
+  vTouch(st.ax, st.ay); vTouch(st.bx, st.by); vTouch(st.cx, st.cy);
+  return st;
 }
 function sierpinskiScatter(st, count) {
   const pal = PALETTES[palIdx];
@@ -505,26 +601,32 @@ function sierpinskiScatter(st, count) {
     "hsla(" + pal.hues[1 % pal.hues.length] + "," + pal.sat + "%,64%,0.9)",
     "hsla(" + pal.hues[2 % pal.hues.length] + "," + pal.sat + "%,64%,0.9)"
   ];
-  if (st.n === 0) {
-    vTouch(st.ax, st.ay); vTouch(st.bx, st.by); vTouch(st.cx, st.cy);
-    st.px = (st.ax + st.bx) / 2; st.py = (st.ay + st.by) / 2;
-  }
-  const s = 2.2 * paintScale + 0.4;
+  const s = 2.2; // world units — stays crisp at any zoom
   for (let i = 0; i < count; i++) {
-    const v = (rng() * 3) | 0;
+    const v = (st.rng() * 3) | 0;
     const vx = v === 0 ? st.ax : v === 1 ? st.bx : st.cx;
     const vy = v === 0 ? st.ay : v === 1 ? st.by : st.cy;
     st.px = (st.px + vx) / 2; st.py = (st.py + vy) / 2;
-    pctx.fillStyle = cols[v];
-    pctx.fillRect(w2p(st.px) - s / 2, w2p(st.py) - s / 2, s, s);
+    vctx.fillStyle = cols[v];
+    vctx.fillRect(st.px - s / 2, st.py - s / 2, s, s);
     st.n++;
   }
 }
+function sierpinskiVecDraw(st) {
+  // deterministic re-scatter: identical points, new palette / crisp zoom
+  vReset();
+  vTouch(st.ax, st.ay); vTouch(st.bx, st.by); vTouch(st.cx, st.cy);
+  const n = st.n;
+  st.rng = mulberry32(st.sSeed);
+  st.px = (st.ax + st.bx) / 2; st.py = (st.ay + st.by) / 2;
+  st.n = 0;
+  sierpinskiScatter(st, n);
+}
 function cantorRender(n) {
-  vReset(); freshPaint();
+  vReset();
   const pal = PALETTES[palIdx];
   const W0 = 1500, rowH = 92, y0 = -rowH * n / 2;
-  pctx.lineCap = "round";
+  vctx.lineCap = "round";
   function row(x, w, k) {
     if (k === 0) {
       const y = y0 + 0 * rowH;
@@ -535,15 +637,15 @@ function cantorRender(n) {
   for (let k = 0; k <= n; k++) {
     const segs = row(-W0 / 2, W0, k);
     const y = y0 + k * rowH;
-    pctx.strokeStyle = "hsla(" + ((pal.hues[k % pal.hues.length] + k * 14) % 360) + "," + pal.sat + "%,62%,0.95)";
-    pctx.lineWidth = Math.max(2, rowH * 0.52) * paintScale;
-    pctx.beginPath();
+    vctx.strokeStyle = "hsla(" + ((pal.hues[k % pal.hues.length] + k * 14) % 360) + "," + pal.sat + "%,62%,0.95)";
+    vctx.lineWidth = Math.max(2, rowH * 0.52);
+    vctx.beginPath();
     for (const s of segs) {
       vTouch(s[0], y); vTouch(s[1], y);
-      pctx.moveTo(w2p(s[0]), w2p(y));
-      pctx.lineTo(w2p(s[1]), w2p(y));
+      vctx.moveTo(s[0], y);
+      vctx.lineTo(s[1], y);
     }
-    pctx.stroke();
+    vctx.stroke();
   }
 }
 function mengerCubes(level) {
@@ -561,7 +663,7 @@ function mengerCubes(level) {
   return cubes;
 }
 function mengerRender(level) {
-  vReset(); freshPaint();
+  vReset();
   const pal = PALETTES[palIdx];
   const cubes = mengerCubes(level);
   const grid = Math.pow(3, level);
@@ -570,7 +672,7 @@ function mengerRender(level) {
   const off = grid / 2;
   const hue = pal.hues[0];
   cubes.sort((a, b) => (a.x + a.z - b.x - b.z) || (a.y - b.y));
-  pctx.lineJoin = "round";
+  vctx.lineJoin = "round";
   for (const c of cubes) {
     const gx = c.x - off + 0.5, gy = c.y - off + 1.5, gz = c.z - off + 0.5;
     // top vertex T of this cubelet
@@ -587,10 +689,10 @@ function mengerRender(level) {
       ["hsla(" + hue + "," + pal.sat + "%,32%,1)", [[Bx, By], [Cx, Cy], [Cx + Dx, Cy + Dy], [Bx + Dx, By + Dy]]]
     ];
     for (const f of faces) {
-      pctx.fillStyle = f[0];
-      pctx.beginPath();
-      f[1].forEach((p, i) => { if (i === 0) pctx.moveTo(w2p(p[0]), w2p(p[1])); else pctx.lineTo(w2p(p[0]), w2p(p[1])); });
-      pctx.closePath(); pctx.fill();
+      vctx.fillStyle = f[0];
+      vctx.beginPath();
+      f[1].forEach((p, i) => { if (i === 0) vctx.moveTo(p[0], p[1]); else vctx.lineTo(p[0], p[1]); });
+      vctx.closePath(); vctx.fill();
     }
   }
   return cubes.length;
@@ -598,38 +700,49 @@ function mengerRender(level) {
 
 /* ==================== MODES ==================== */
 let treeSeed = 0, treeP = null;
-function treeRender(n) {
-  vReset(); freshPaint();
+function treeFull(n) {
+  // recursive fractal tree, drawn in world coords; segments batched per depth
+  // (one path per generation) so even 65k branches render in a blink
+  vReset(); vTouch(0, 540);
   const pal = PALETTES[palIdx];
   const TP = treeP;
   const trng = mulberry32(treeSeed); // same seed → same tree, every render
+  const levels = [], buds = [];
   let tips = 0;
-  pctx.lineCap = "round";
-  (function branch(x, y, a, len, w, d) {
+  (function branch(x, y, a, len, w, d, i) {
     const nx = x + Math.cos(a) * len, ny = y + Math.sin(a) * len;
-    const hue = (pal.hues[d % pal.hues.length] + d * 22) % 360;
-    pctx.strokeStyle = "hsla(" + hue.toFixed(1) + "," + pal.sat + "%," + Math.min(70, 40 + d * 3.2).toFixed(1) + "%,0.95)";
-    pctx.lineWidth = Math.max(0.6, w) * paintScale;
-    pctx.beginPath();
-    pctx.moveTo(w2p(x), w2p(y));
-    pctx.lineTo(w2p(nx), w2p(ny));
-    pctx.stroke();
-    vTouch(x, y); vTouch(nx, ny);
-    if (d >= n) {
-      // bud at every tip
-      tips++;
-      pctx.fillStyle = "hsla(" + pal.hues[(d + 1) % pal.hues.length] + "," + pal.sat + "%,72%,0.9)";
-      pctx.beginPath();
-      pctx.arc(w2p(nx), w2p(ny), Math.max(1.4, w * 0.85) * paintScale, 0, TAU);
-      pctx.fill();
-      return;
-    }
+    (levels[d] = levels[d] || []).push(x, y, nx, ny);
+    vTouch(nx, ny);
+    if (d >= n) { tips++; (buds[d] = buds[d] || []).push(nx, ny); return; }
     const nl = len * TP.ratio, nw = w * TP.wRatio;
-    const spread = TP.angle * (1 + (trng() - 0.5) * 0.18);
-    const c = (trng() - 0.5) * TP.curl;
-    branch(nx, ny, a - spread + TP.asym + c, nl, nw, d + 1);
-    branch(nx, ny, a + spread + TP.asym + c, nl, nw, d + 1);
-  })(0, 540, -Math.PI / 2, 330, 26, 0);
+    for (let s = 0; s < 2; s++) {
+      const ci = i * 2 + s;
+      const spread = TP.angle * (1 + (trng() - 0.5) * 0.18);
+      const c = (trng() - 0.5) * TP.curl;
+      branch(nx, ny, a + (s === 0 ? -spread : spread) + TP.asym + c, nl, nw, d + 1, ci);
+    }
+  })(0, 540, -Math.PI / 2, 330, 26, 0, 0);
+  vctx.lineCap = "round";
+  let w = 26;
+  for (let d = 0; d < levels.length; d++) {
+    const L = levels[d];
+    if (!L) continue;
+    const hue = (pal.hues[d % pal.hues.length] + d * 22) % 360;
+    vctx.strokeStyle = "hsla(" + hue.toFixed(1) + "," + pal.sat + "%," + Math.min(70, 40 + d * 3.2).toFixed(1) + "%,0.95)";
+    vctx.lineWidth = Math.max(0.5, w);
+    vctx.beginPath();
+    for (let k = 0; k < L.length; k += 4) { vctx.moveTo(L[k], L[k + 1]); vctx.lineTo(L[k + 2], L[k + 3]); }
+    vctx.stroke();
+    const B = buds[d];
+    if (B && B.length) {
+      const br = Math.max(1.2, w * 0.85);
+      vctx.fillStyle = "hsla(" + pal.hues[(d + 1) % pal.hues.length] + "," + pal.sat + "%,72%,0.9)";
+      vctx.beginPath();
+      for (let k = 0; k < B.length; k += 2) { vctx.moveTo(B[k] + br, B[k + 1]); vctx.arc(B[k], B[k + 1], br, 0, TAU); }
+      vctx.fill();
+    }
+    w *= TP.wRatio;
+  }
   return tips;
 }
 const MODES = {};
@@ -642,13 +755,15 @@ MODES.bloom = {
   tap(x, y) { bloomGrow(x, y); if (taps === 3) document.getElementById("hint").classList.add("gone"); },
   holdTick() { bloomGrow(); },
   reset() { bloomNew(); },
-  onPalette() {},
+  onPalette() { vNeedCrisp = true; },
   wheelVec: vecWheel,
+  vecDraw() { bloomVecDraw(); },
   draw(now) {
-    cameraTick(); drawPaint();
+    vectorFrame();
     if (taps === 0) {
-      const sx = (w2p(START_X) - cam.x) * cam.z + vw / 2;
-      const sy = (w2p(0) - cam.y) * cam.z + vh / 2;
+      const K = cam.z * usr.z;
+      const sx = vw / 2 + usr.ox + (START_X - cam.x) * K;
+      const sy = vh / 2 + usr.oy + (0 - cam.y) * K;
       const pr = (now / 900) % 1;
       ctx.strokeStyle = "rgba(160,220,255," + ((1 - pr) * 0.7).toFixed(3) + ")";
       ctx.lineWidth = 2;
@@ -728,12 +843,13 @@ MODES.newton = Object.assign(escMode("newton", "Newton", "tap to grow it · ✦ 
 function vectorMode(name, hint, maxN, render, fmtStats) {
   return {
     name, hint: hint + " · pinch to zoom · drag to pan", n: 0, maxN,
-    enter() { this.n = 0; introBias = 0; cam = { x: P / 2, y: P / 2, z: maxZ }; render(this.n); },
-    tap(x, y) { if (this.n < this.maxN) { this.n++; render(this.n); } ripples.push({ x, y, t0: performance.now() }); },
+    enter() { this.n = 0; introBias = 0; camLock = false; cam = { x: 0, y: 0, z: maxZ }; vNeedCrisp = true; },
+    tap(x, y) { if (this.n < this.maxN) { this.n++; vNeedCrisp = true; } ripples.push({ x, y, t0: performance.now() }); },
     reset() { this.enter(); },
-    onPalette() { render(this.n); },
+    onPalette() { vNeedCrisp = true; },
     wheelVec: vecWheel,
-    draw() { cameraTick(); drawPaint(); },
+    vecDraw() { render(this.n); },
+    draw() { vectorFrame(); },
     stats() { return fmtStats(this.n); }
   };
 }
@@ -745,7 +861,7 @@ MODES.cantor = vectorMode("Cantor", "tap to divide it", 11, cantorRender,
   n => "CANTOR SET · row " + n + " · " + PALETTES[palIdx].name);
 MODES.menger = vectorMode("Menger", "tap to carve it deeper", 3, mengerRender,
   n => "MENGER SPONGE · level " + n + " · " + PALETTES[palIdx].name);
-MODES.tree = Object.assign(vectorMode("Tree", "tap to grow it deeper", 12, treeRender,
+MODES.tree = Object.assign(vectorMode("Tree", "tap to grow it deeper", 16, treeFull,
   n => "FRACTAL TREE · generation " + n + " · " + PALETTES[palIdx].name), {
   enter() {
     // every tree rolls its own botany: angle, taper, asymmetry, curl
@@ -757,18 +873,19 @@ MODES.tree = Object.assign(vectorMode("Tree", "tap to grow it deeper", 12, treeR
       wRatio: 0.62 + rng() * 0.12,
       curl: (rng() - 0.5) * 0.45
     };
-    this.n = 0; introBias = 0; cam = { x: P / 2, y: P / 2, z: maxZ }; treeRender(this.n);
+    this.n = 0; introBias = 0; camLock = false; cam = { x: 0, y: 0, z: maxZ }; vNeedCrisp = true;
   }
 });
 MODES.sierpinski = {
   name: "Sierpinski", hint: "tap · hold to scatter · pinch to zoom · drag to pan", st: null,
-  enter() { seed = (Math.random() * 0xffffff) | 0; rng = mulberry32(seed); this.st = sierpinskiEnter(); },
-  tap(x, y) { sierpinskiScatter(this.st, 12000); ripples.push({ x, y, t0: performance.now() }); },
-  holdTick() { sierpinskiScatter(this.st, 4000); },
+  enter() { seed = (Math.random() * 0xffffff) | 0; rng = mulberry32(seed); this.st = sierpinskiEnter(); vNeedCrisp = true; },
+  tap(x, y) { vEnsure(); vApplyCam(vctx); sierpinskiScatter(this.st, 12000); ripples.push({ x, y, t0: performance.now() }); },
+  holdTick() { vEnsure(); vApplyCam(vctx); sierpinskiScatter(this.st, 4000); },
   reset() { this.enter(); },
-  onPalette() { const n = this.st.n; this.enter(); sierpinskiScatter(this.st, n); },
+  onPalette() { vNeedCrisp = true; },
   wheelVec: vecWheel,
-  draw() { cameraTick(); drawPaint(); },
+  vecDraw() { sierpinskiVecDraw(this.st); },
+  draw() { vectorFrame(); },
   stats() { return "SIERPINSKI · " + this.st.n.toLocaleString("en-US") + " points · " + PALETTES[palIdx].name; }
 };
 
@@ -777,6 +894,7 @@ function setMode(id) {
   ESC.job = null;
   VG = null;
   usr = { z: 1, ox: 0, oy: 0 };
+  camLock = false; vBasis = null; vNeedCrisp = false;
   clearTimeout(wheelT);
   cur = id;
   ripples = [];
@@ -888,6 +1006,7 @@ function movePinch() {
     usr.z = u0.z * f;
     usr.ox = m1x - Cx - (pinchSt.m0x - Cx - u0.ox) * f;
     usr.oy = m1y - Cy - (pinchSt.m0y - Cy - u0.oy) * f;
+    camLock = true; vMotion(); // user took the camera — freeze the auto follow
   }
 }
 function movePan(x, y) {
@@ -903,6 +1022,7 @@ function movePan(x, y) {
   } else {
     usr.ox += x - downInfo.lx;
     usr.oy += y - downInfo.ly;
+    camLock = true; vMotion(); // user took the camera — freeze the auto follow
   }
 }
 function commitGest() {
@@ -968,6 +1088,7 @@ stage.addEventListener("wheel", function (e) {
     wheelT = setTimeout(function () { VG = null; escStart(M.job()); }, 200);
   } else if (M.wheelVec) {
     M.wheelVec(f, e.clientX, e.clientY);
+    camLock = true; vMotion(); // user took the camera — freeze the auto follow
   }
 }, { passive: false });
 window.addEventListener("contextmenu", function (e) { e.preventDefault(); });
