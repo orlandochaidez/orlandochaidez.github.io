@@ -261,8 +261,11 @@ const NEWTON_POLYS = [
   { name: "z³−1", deg: 3, roots: [[1, 0], [-0.5, 0.8660254], [-0.5, -0.8660254]] },
   { name: "z⁴−1", deg: 4, roots: [[1, 0], [-1, 0], [0, 1], [0, -1]] }
 ];
-function escStart(job) {
-  const sc = 0.45;
+let fineT = null; // idle timer that kicks off the crisp refine pass
+function escStart(job, quality) {
+  clearTimeout(fineT);
+  quality = quality || "fast";
+  const sc = quality === "fine" ? 0.75 : 0.4; // fast preview while interacting, crisp refine when idle
   let W = Math.round(vw * sc), H = Math.round(vh * sc);
   const cf = Math.min(1, 900 / W, 900 / H);
   W = Math.max(120, Math.round(W * cf)); H = Math.max(120, Math.round(H * cf));
@@ -275,9 +278,18 @@ function escStart(job) {
   for (let i = 3; i < d.length; i += 4) d[i] = 0;
   job.W = W; job.H = H; job.row = 0;
   job.unit = job.size / W;
+  job.quality = quality;
   ESC.job = job;
   ESC.rv = { cx: job.cx, cy: job.cy, size: job.size }; // the view this bitmap was rendered with
   VG = null;
+}
+function scheduleFine() {
+  // after the fast preview finishes and things go quiet, re-render crisp
+  clearTimeout(fineT);
+  fineT = setTimeout(function () {
+    const M = MODES[cur];
+    if (M && M.isEscape && !ESC.job && !VG && PTRS.size === 0) escStart(M.job(), "fine");
+  }, 500);
 }
 // ---- iteration probes (shared by the renderer and the region sampler) ----
 function mProbe(cr, ci, maxIter) {
@@ -367,7 +379,10 @@ function pumpEscape() {
   }
   J.row = py;
   ESC.x.putImageData(ESC.img, 0, 0);
-  if (py >= H) ESC.job = null;
+  if (py >= H) {
+    ESC.job = null;
+    if (J.quality === "fast") scheduleFine(); // preview done → sharpen when idle
+  }
 }
 // ---- free zoom & pan: warp the rendered bitmap live, commit on release ----
 let VG = null; // {s, ax, ay} in CSS px — display each bitmap point p as ax + (p-ax)*s
@@ -611,7 +626,12 @@ function escMode(kind, name, hint, baseIter, iterStep, maxCap) {
   return {
     name, hint, kind, baseIter, iterStep, maxCap, isEscape: true,
     cx: 0, cy: 0, size: 3.4, cRe: 0, cIm: 0, poly: 0, g: null,
-    job() { return { kind, maxIter: this.g.maxIter, reveal: this.g.reveal, cx: this.cx, cy: this.cy, size: this.size, cRe: this.cRe, cIm: this.cIm, poly: this.poly }; },
+    job() {
+      // detail keeps resolving as you zoom: iterations scale with depth (float64 view → ~trillion× zoom)
+      const zoomNeed = Math.round(40 + 30 * Math.log10(Math.max(1, 3.4 / this.size)));
+      const maxIter = Math.min(this.maxCap, Math.max(this.g.maxIter, zoomNeed));
+      return { kind, maxIter, reveal: this.g.reveal, cx: this.cx, cy: this.cy, size: this.size, cRe: this.cRe, cIm: this.cIm, poly: this.poly };
+    },
     enter() { this.resetView(); this.g = { reveal: 0.22, maxIter: this.baseIter }; escStart(this.job()); },
     resetView() {},
     draw() { escDraw(); },
