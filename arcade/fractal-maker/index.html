@@ -10,6 +10,7 @@
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html, body { height:100%; overflow:hidden; background:#05060f; touch-action:none; overscroll-behavior:none;
+    -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;
     font-family:-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, sans-serif; }
   #stage { position:fixed; inset:0; display:block; cursor:crosshair; }
   #vignette { position:fixed; inset:0; pointer-events:none;
@@ -139,11 +140,20 @@ function cameraTick() {
 }
 function drawPaint() {
   ctx.save();
-  ctx.translate(vw / 2, vh / 2);
-  ctx.scale(cam.z, cam.z);
+  ctx.translate(vw / 2 + usr.ox, vh / 2 + usr.oy);
+  const z = cam.z * usr.z;
+  ctx.scale(z, z);
   ctx.translate(-cam.x, -cam.y);
   ctx.drawImage(paint, 0, 0);
   ctx.restore();
+}
+// user camera: pinch-zoom & drag-pan sit on top of the auto camera
+let usr = { z: 1, ox: 0, oy: 0 };
+function vecWheel(f, mx, my) {
+  const Cx = vw / 2, Cy = vh / 2;
+  usr.ox = mx - Cx - (mx - Cx - usr.ox) * f;
+  usr.oy = my - Cy - (my - Cy - usr.oy) * f;
+  usr.z *= f;
 }
 
 /* ================= BLOOM (the original infinite garden) ================= */
@@ -252,19 +262,65 @@ const NEWTON_POLYS = [
   { name: "z⁴−1", deg: 4, roots: [[1, 0], [-1, 0], [0, 1], [0, -1]] }
 ];
 function escStart(job) {
-  const W = Math.max(120, Math.min(900, Math.round(vw * 0.45)));
-  const H = Math.max(120, Math.min(900, Math.round(vh * 0.45)));
+  const sc = 0.45;
+  let W = Math.round(vw * sc), H = Math.round(vh * sc);
+  const cf = Math.min(1, 900 / W, 900 / H);
+  W = Math.max(120, Math.round(W * cf)); H = Math.max(120, Math.round(H * cf));
   ESC.W = W; ESC.H = H;
   ESC.cvs = document.createElement("canvas");
   ESC.cvs.width = W; ESC.cvs.height = H;
   ESC.x = ESC.cvs.getContext("2d");
   ESC.img = ESC.x.createImageData(W, H);
-  // paint it transparent-black to start (progressive reveal)
   const d = ESC.img.data;
   for (let i = 3; i < d.length; i += 4) d[i] = 0;
   job.W = W; job.H = H; job.row = 0;
   job.unit = job.size / W;
   ESC.job = job;
+  ESC.rv = { cx: job.cx, cy: job.cy, size: job.size }; // the view this bitmap was rendered with
+  VG = null;
+}
+// ---- iteration probes (shared by the renderer and the region sampler) ----
+function mProbe(cr, ci, maxIter) {
+  let zr = 0, zi = 0, n = 0, r2 = 0;
+  const q = (cr - 0.25) * (cr - 0.25) + ci * ci;
+  if (q * (q + (cr - 0.25)) < 0.25 * ci * ci || (cr + 1) * (cr + 1) + ci * ci < 0.0625) return { n: maxIter, r2: 0 };
+  while (n < maxIter && (r2 = zr * zr + zi * zi) <= 4) {
+    const t = zr * zr - zi * zi + cr;
+    zi = 2 * zr * zi + ci; zr = t; n++;
+  }
+  return { n, r2 };
+}
+function jProbe(zr, zi, cRe, cIm, maxIter) {
+  let n = 0, r2 = 0;
+  while (n < maxIter && (r2 = zr * zr + zi * zi) <= 4) {
+    const t = zr * zr - zi * zi + cRe;
+    zi = 2 * zr * zi + cIm; zr = t; n++;
+  }
+  return { n, r2 };
+}
+function nProbe(zr, zi, deg, roots, maxIter) {
+  let n = 0, ri = -1;
+  for (; n < maxIter; n++) {
+    let pr = zr, pi = zi;
+    for (let k = 2; k < deg; k++) { const t = pr * zr - pi * zi; pi = pr * zi + pi * zr; pr = t; }
+    const zdr = pr * zr - pi * zi, zdi = pr * zi + pi * zr;
+    const fr = zdr - 1, fi = zdi;
+    if (fr * fr + fi * fi < 1e-8) break;
+    const dr = deg * pr, di = deg * pi;
+    const den = dr * dr + di * di;
+    if (den < 1e-12) break;
+    zr -= (fr * dr + fi * di) / den;
+    zi -= (fi * dr - fr * di) / den;
+    if (zr * zr + zi * zi > 1e6) break;
+  }
+  if (n < maxIter) {
+    let best = 1e9;
+    for (let k = 0; k < roots.length; k++) {
+      const dd = (zr - roots[k][0]) ** 2 + (zi - roots[k][1]) ** 2;
+      if (dd < best) { best = dd; ri = k; }
+    }
+  }
+  return { n, ri };
 }
 function escColor(pal, n, sn, maxIter) {
   if (n >= maxIter) return [6, 7, 18];
@@ -278,62 +334,33 @@ function pumpEscape() {
   const t0 = performance.now();
   const W = ESC.W, H = ESC.H, data = ESC.img.data;
   const pal = PALETTES[palIdx];
+  const R2 = (J.reveal * Math.hypot(W, H) / 2) ** 2; // grow-from-seed mask
+  const HW = W / 2, HH = H / 2;
   let py = J.row;
   while (py < H && performance.now() - t0 < 12) {
+    const dy = py - HH;
     for (let px = 0; px < W; px++) {
-      const r0 = J.cx + (px - W / 2) * J.unit;
-      const i0 = J.cy - (py - H / 2) * J.unit;
+      const o = (py * W + px) * 4;
+      const dx = px - HW;
+      if (dx * dx + dy * dy > R2) continue; // not grown here yet
+      const r0 = J.cx + dx * J.unit;
+      const i0 = J.cy - dy * J.unit;
       let r, g, b;
       if (J.kind === "newton") {
         const poly = NEWTON_POLYS[J.poly];
-        const deg = poly.deg;
-        let zr = r0, zi = i0, n = 0, ri = -1;
-        for (; n < J.maxIter; n++) {
-          // z - (z^d - 1) / (d * z^(d-1))
-          let pr = zr, pi = zi; // z^(d-1)
-          for (let k = 2; k < deg; k++) { const t = pr * zr - pi * zi; pi = pr * zi + pi * zr; pr = t; }
-          const zdr = pr * zr - pi * zi, zdi = pr * zi + pi * zr; // z^d
-          const fr = zdr - 1, fi = zdi;
-          if (fr * fr + fi * fi < 1e-8) break; // converged
-          const dr = deg * pr, di = deg * pi;
-          const den = dr * dr + di * di;
-          if (den < 1e-12) break;
-          zr -= (fr * dr + fi * di) / den;
-          zi -= (fi * dr - fr * di) / den;
-          if (zr * zr + zi * zi > 1e6) break;
-        }
-        if (n < J.maxIter) {
-          let best = 1e9;
-          for (let k = 0; k < poly.roots.length; k++) {
-            const dd = (zr - poly.roots[k][0]) ** 2 + (zi - poly.roots[k][1]) ** 2;
-            if (dd < best) { best = dd; ri = k; }
-          }
-        }
-        if (ri < 0) { r = 6; g = 7; b = 18; }
+        const pr2 = nProbe(r0, i0, poly.deg, poly.roots, J.maxIter);
+        if (pr2.ri < 0) { r = 6; g = 7; b = 18; }
         else {
-          const c = hsl(pal.hues[ri % pal.hues.length], pal.sat, 30 + 44 * (1 - n / J.maxIter));
+          const c = hsl(pal.hues[pr2.ri % pal.hues.length], pal.sat, 30 + 44 * (1 - pr2.n / J.maxIter));
           r = c[0]; g = c[1]; b = c[2];
         }
       } else {
-        let zr, zi, cr, ci;
-        if (J.kind === "mandelbrot") { zr = 0; zi = 0; cr = r0; ci = i0; }
-        else { zr = r0; zi = i0; cr = J.cRe; ci = J.cIm; }
-        let n = 0, r2 = 0;
-        if (J.kind === "mandelbrot") {
-          // cardioid + period-2 bulb precheck (the boring interior, skipped fast)
-          const q = (cr - 0.25) * (cr - 0.25) + ci * ci;
-          if (q * (q + (cr - 0.25)) < 0.25 * ci * ci || (cr + 1) * (cr + 1) + ci * ci < 0.0625) n = J.maxIter;
-        }
-        while (n < J.maxIter && (r2 = zr * zr + zi * zi) <= 4) {
-          const t = zr * zr - zi * zi + cr;
-          zi = 2 * zr * zi + ci; zr = t; n++;
-        }
-        let sn = n;
-        if (n < J.maxIter && r2 > 1) sn = n + 1 - Math.log2(0.5 * Math.log(r2) / Math.LN2);
-        const c = escColor(pal, n, sn, J.maxIter);
+        const pr2 = J.kind === "mandelbrot" ? mProbe(r0, i0, J.maxIter) : jProbe(r0, i0, J.cRe, J.cIm, J.maxIter);
+        let sn = pr2.n;
+        if (pr2.n < J.maxIter && pr2.r2 > 1) sn = pr2.n + 1 - Math.log2(0.5 * Math.log(pr2.r2) / Math.LN2);
+        const c = escColor(pal, pr2.n, sn, J.maxIter);
         r = c[0]; g = c[1]; b = c[2];
       }
-      const o = (py * W + px) * 4;
       data[o] = r; data[o + 1] = g; data[o + 2] = b; data[o + 3] = 255;
     }
     py++;
@@ -342,18 +369,33 @@ function pumpEscape() {
   ESC.x.putImageData(ESC.img, 0, 0);
   if (py >= H) ESC.job = null;
 }
-function escDraw() {
-  if (ESC.cvs) ctx.drawImage(ESC.cvs, 0, 0, vw, vh);
+// ---- free zoom & pan: warp the rendered bitmap live, commit on release ----
+let VG = null; // {s, ax, ay} in CSS px — display each bitmap point p as ax + (p-ax)*s
+function cFromCss(px, py, V) {
+  const rx = px * (ESC.W / vw), ry = py * (ESC.H / vh);
+  const unit = V.size / ESC.W;
+  return [V.cx + (rx - ESC.W / 2) * unit, V.cy - (ry - ESC.H / 2) * unit];
 }
-// screen px → complex, using the active job's last mapping (stored on mode)
-function escZoomAt(mode, x, y, factor) {
-  const unit = mode.size / ESC.W;
-  const rx = x * (ESC.W / vw), ry = y * (ESC.H / vh);
-  const re = mode.cx + (rx - ESC.W / 2) * unit;
-  const im = mode.cy - (ry - ESC.H / 2) * unit;
-  mode.cx = re; mode.cy = im;
-  mode.size = Math.max(1e-9, mode.size / factor);
-  escStart(mode.job());
+function viewForAnchor(z, axCss, ayCss, size) {
+  const unit = size / ESC.W;
+  const rx = axCss * (ESC.W / vw), ry = ayCss * (ESC.H / vh);
+  return { cx: z[0] - (rx - ESC.W / 2) * unit, cy: z[1] + (ry - ESC.H / 2) * unit, size };
+}
+function warpFor(oV, nV) {
+  // bitmap was rendered as oV — warp it so it previews nV
+  const s = oV.size / nV.size;
+  if (Math.abs(s - 1) < 1e-6 && Math.abs(oV.cx - nV.cx) < 1e-12 && Math.abs(oV.cy - nV.cy) < 1e-12) return null;
+  const unitN = nV.size / ESC.W, R = vw / ESC.W;
+  const Ax = (oV.cx - nV.cx) / unitN * R;
+  const Ay = -(oV.cy - nV.cy) / unitN * R;
+  return { s, ax: vw / 2 + Ax / (1 - s), ay: vh / 2 + Ay / (1 - s) };
+}
+function escDraw() {
+  if (!ESC.cvs) return;
+  ctx.save();
+  if (VG) { ctx.translate(VG.ax, VG.ay); ctx.scale(VG.s, VG.s); ctx.translate(-VG.ax, -VG.ay); }
+  ctx.drawImage(ESC.cvs, 0, 0, vw, vh);
+  ctx.restore();
 }
 
 /* ==================== VECTOR FRACTALS ==================== */
@@ -544,12 +586,13 @@ let cur = "bloom";
 const ORDER = ["bloom", "mandelbrot", "julia", "newton", "snowflake", "dragon", "sierpinski", "cantor", "menger"];
 
 MODES.bloom = {
-  name: "Bloom", hint: "tap · click · hold to grow",
+  name: "Bloom", hint: "tap · click · hold to grow · pinch to zoom · drag to pan",
   enter() { bloomNew(); document.getElementById("hint").classList.remove("gone"); },
   tap(x, y) { bloomGrow(x, y); if (taps === 3) document.getElementById("hint").classList.add("gone"); },
   holdTick() { bloomGrow(); },
   reset() { bloomNew(); },
   onPalette() {},
+  wheelVec: vecWheel,
   draw(now) {
     cameraTick(); drawPaint();
     if (taps === 0) {
@@ -564,48 +607,76 @@ MODES.bloom = {
   stats() { return "#" + seed.toString(16).padStart(6, "0") + " · " + taps + " taps · " + segs.toLocaleString("en-US") + " segs · " + PALETTES[palIdx].name; }
 };
 
-function escMode(kind, name, hint, maxIter) {
+function escMode(kind, name, hint, baseIter, iterStep, maxCap) {
   return {
-    name, hint, kind, maxIter, cx: 0, cy: 0, size: 3.4, cRe: 0, cIm: 0, poly: 0,
-    job() { return { kind, maxIter, cx: this.cx, cy: this.cy, size: this.size, cRe: this.cRe, cIm: this.cIm, poly: this.poly }; },
-    enter() { this.reset(); },
+    name, hint, kind, baseIter, iterStep, maxCap, isEscape: true,
+    cx: 0, cy: 0, size: 3.4, cRe: 0, cIm: 0, poly: 0, g: null,
+    job() { return { kind, maxIter: this.g.maxIter, reveal: this.g.reveal, cx: this.cx, cy: this.cy, size: this.size, cRe: this.cRe, cIm: this.cIm, poly: this.poly }; },
+    enter() { this.resetView(); this.g = { reveal: 0.22, maxIter: this.baseIter }; escStart(this.job()); },
+    resetView() {},
     draw() { escDraw(); },
     pump() { pumpEscape(); },
     onPalette() { escStart(this.job()); },
+    probeAt() { return { n: 0 }; },
+    grownPct() { return Math.round(Math.min(1, this.g.reveal / 1.15) * 100); },
+    seedNewRegion() {
+      // fully grown? pick a fresh interesting patch of boundary and start growing there
+      const V = { cx: this.cx, cy: this.cy, size: this.size };
+      for (let t = 0; t < 80; t++) {
+        const re = V.cx + (Math.random() - 0.5) * V.size;
+        const im = V.cy + (Math.random() - 0.5) * V.size;
+        const pr = this.probeAt(re, im);
+        if (pr.n > 8 && pr.n < 52) { this.cx = re; this.cy = im; this.size = Math.max(1e-9, this.size / 5); break; }
+      }
+      this.g = { reveal: 0.22, maxIter: this.baseIter };
+      escStart(this.job());
+    },
+    tap(x, y) {
+      if (this.g.reveal >= 1.14 && this.g.maxIter >= this.maxCap) this.seedNewRegion();
+      else {
+        this.g.reveal = Math.min(1.15, this.g.reveal + 0.16);
+        this.g.maxIter = Math.min(this.maxCap, this.g.maxIter + this.iterStep);
+        escStart(this.job());
+      }
+      ripples.push({ x, y, t0: performance.now() });
+    },
+    gestPreview(nV) { VG = warpFor(ESC.rv, nV); },
+    gestCommit(nV) { this.cx = nV.cx; this.cy = nV.cy; this.size = nV.size; VG = null; escStart(this.job()); },
     stats() { return ""; }
   };
 }
-MODES.mandelbrot = Object.assign(escMode("mandelbrot", "Mandelbrot", "tap to dive deeper", 110), {
-  enter() { this.cx = -0.5; this.cy = 0; this.size = 3.4; escStart(this.job()); },
-  tap(x, y) { escZoomAt(this, x, y, 2.5); ripples.push({ x, y, t0: performance.now() }); },
+const ESC_STATS = (label, M, extra) =>
+  label + (extra ? " · " + extra : "") + " · iter " + M.g.maxIter + " · " + M.grownPct() + "% grown · " + PALETTES[palIdx].name;
+MODES.mandelbrot = Object.assign(escMode("mandelbrot", "Mandelbrot", "tap to grow it · pinch to zoom · drag to pan", 12, 14, 170), {
+  resetView() { this.cx = -0.5; this.cy = 0; this.size = 3.4; },
+  probeAt(re, im) { return mProbe(re, im, 60); },
   reset() { this.enter(); },
-  stats() { return "MANDELBROT · zoom " + (3.4 / this.size).toFixed(1) + "× · " + PALETTES[palIdx].name; }
+  stats() { return ESC_STATS("MANDELBROT", this); }
 });
-MODES.julia = Object.assign(escMode("julia", "Julia", "tap anywhere to morph it", 130), {
-  enter() { const c = JULIA_PRETTY[(Math.random() * JULIA_PRETTY.length) | 0]; this.cRe = c[0]; this.cIm = c[1]; this.cx = 0; this.cy = 0; this.size = 3.4; escStart(this.job()); },
-  tap(x, y) {
-    this.cRe = (x / vw - 0.5) * 3;
-    this.cIm = (0.5 - y / vh) * 3;
-    escStart(this.job());
-    ripples.push({ x, y, t0: performance.now() });
+MODES.julia = Object.assign(escMode("julia", "Julia", "tap to grow it · ✦ for a new constant", 14, 16, 190), {
+  resetView() {
+    const c = JULIA_PRETTY[(Math.random() * JULIA_PRETTY.length) | 0];
+    this.cRe = c[0]; this.cIm = c[1]; this.cx = 0; this.cy = 0; this.size = 3.4;
   },
+  probeAt(re, im) { return jProbe(re, im, this.cRe, this.cIm, 60); },
   reset() { this.enter(); },
-  stats() { return "JULIA · c = " + this.cRe.toFixed(3) + (this.cIm >= 0 ? "+" : "") + this.cIm.toFixed(3) + "i · " + PALETTES[palIdx].name; }
+  stats() { return ESC_STATS("JULIA", this, "c=" + this.cRe.toFixed(3) + (this.cIm >= 0 ? "+" : "") + this.cIm.toFixed(3) + "i"); }
 });
-MODES.newton = Object.assign(escMode("newton", "Newton", "tap to zoom · ✦ for new equation", 50), {
-  enter() { this.cx = 0; this.cy = 0; this.size = 3.6; escStart(this.job()); },
-  tap(x, y) { escZoomAt(this, x, y, 2.5); ripples.push({ x, y, t0: performance.now() }); },
+MODES.newton = Object.assign(escMode("newton", "Newton", "tap to grow it · ✦ new equation · pinch to zoom", 20, 8, 60), {
+  resetView() { this.cx = 0; this.cy = 0; this.size = 3.6; },
+  probeAt(re, im) { const poly = NEWTON_POLYS[this.poly]; return nProbe(re, im, poly.deg, poly.roots, 40); },
   reset() { this.poly = (this.poly + 1) % NEWTON_POLYS.length; this.enter(); },
-  stats() { return "NEWTON · " + NEWTON_POLYS[this.poly].name + " · zoom " + (3.6 / this.size).toFixed(1) + "× · " + PALETTES[palIdx].name; }
+  stats() { return ESC_STATS("NEWTON", this, NEWTON_POLYS[this.poly].name); }
 });
 
 function vectorMode(name, hint, maxN, render, fmtStats) {
   return {
-    name, hint, n: 0, maxN,
+    name, hint: hint + " · pinch to zoom · drag to pan", n: 0, maxN,
     enter() { this.n = 0; introBias = 0; cam = { x: P / 2, y: P / 2, z: maxZ }; render(this.n); },
     tap(x, y) { if (this.n < this.maxN) { this.n++; render(this.n); } ripples.push({ x, y, t0: performance.now() }); },
     reset() { this.enter(); },
     onPalette() { render(this.n); },
+    wheelVec: vecWheel,
     draw() { cameraTick(); drawPaint(); },
     stats() { return fmtStats(this.n); }
   };
@@ -619,12 +690,13 @@ MODES.cantor = vectorMode("Cantor", "tap to divide it", 11, cantorRender,
 MODES.menger = vectorMode("Menger", "tap to carve it deeper", 3, mengerRender,
   n => "MENGER SPONGE · level " + n + " · " + PALETTES[palIdx].name);
 MODES.sierpinski = {
-  name: "Sierpinski", hint: "tap · hold to scatter points", st: null,
+  name: "Sierpinski", hint: "tap · hold to scatter · pinch to zoom · drag to pan", st: null,
   enter() { seed = (Math.random() * 0xffffff) | 0; rng = mulberry32(seed); this.st = sierpinskiEnter(); },
   tap(x, y) { sierpinskiScatter(this.st, 12000); ripples.push({ x, y, t0: performance.now() }); },
   holdTick() { sierpinskiScatter(this.st, 4000); },
   reset() { this.enter(); },
   onPalette() { const n = this.st.n; this.enter(); sierpinskiScatter(this.st, n); },
+  wheelVec: vecWheel,
   draw() { cameraTick(); drawPaint(); },
   stats() { return "SIERPINSKI · " + this.st.n.toLocaleString("en-US") + " points · " + PALETTES[palIdx].name; }
 };
@@ -632,6 +704,9 @@ MODES.sierpinski = {
 /* ==================== UI ==================== */
 function setMode(id) {
   ESC.job = null;
+  VG = null;
+  usr = { z: 1, ox: 0, oy: 0 };
+  clearTimeout(wheelT);
   cur = id;
   ripples = [];
   document.querySelectorAll("#modes button").forEach(b => b.classList.toggle("on", b.dataset.id === id));
@@ -701,7 +776,7 @@ function frame(now) {
     ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(r.x, r.y, 8 + age * 90, 0, TAU); ctx.stroke();
   }
-  if (holding && now - lastHold > 90 && M.holdTick) { lastHold = now; M.holdTick(); }
+  if (holding && PTRS.size === 1 && holdArmed && M.holdTick && now - lastHold > 90) { lastHold = now; M.holdTick(); }
   const pn = document.getElementById("palname");
   if (palFlashT && now > palFlashT) { palFlashT = 0; pn.style.opacity = 0; }
   if (M.stats) {
@@ -711,13 +786,119 @@ function frame(now) {
   }
 }
 
+// ---- gesture input: tap = grow · 1-finger drag = pan · 2-finger pinch = zoom · wheel = zoom ----
+const PTRS = new Map();
+let downInfo = null, pinchSt = null, panSt = null, holdArmed = false, wheelT = null;
+function escViewOf(M) { return { cx: M.cx, cy: M.cy, size: M.size }; }
+function startPinch() {
+  const p = [...PTRS.values()];
+  pinchSt = {
+    d0: Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 1,
+    m0x: (p[0].x + p[1].x) / 2, m0y: (p[0].y + p[1].y) / 2,
+    v0: null, u0: { z: usr.z, ox: usr.ox, oy: usr.oy }, nV: null
+  };
+  const M = MODES[cur];
+  if (M.isEscape) pinchSt.v0 = escViewOf(M);
+  if (downInfo) downInfo.moved = true;
+}
+function movePinch() {
+  const p = [...PTRS.values()];
+  const d1 = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 1;
+  const m1x = (p[0].x + p[1].x) / 2, m1y = (p[0].y + p[1].y) / 2;
+  const M = MODES[cur];
+  const f = d1 / pinchSt.d0;
+  if (M.isEscape) {
+    const z = cFromCss(pinchSt.m0x, pinchSt.m0y, pinchSt.v0);
+    const nV = viewForAnchor(z, m1x, m1y, Math.max(1e-9, pinchSt.v0.size / f));
+    pinchSt.nV = nV;
+    M.gestPreview(nV);
+  } else {
+    const u0 = pinchSt.u0, Cx = vw / 2, Cy = vh / 2;
+    usr.z = u0.z * f;
+    usr.ox = m1x - Cx - (pinchSt.m0x - Cx - u0.ox) * f;
+    usr.oy = m1y - Cy - (pinchSt.m0y - Cy - u0.oy) * f;
+  }
+}
+function movePan(x, y) {
+  const M = MODES[cur];
+  if (!panSt) {
+    panSt = { x0: downInfo.x, y0: downInfo.y, v0: M.isEscape ? escViewOf(M) : null, nV: null };
+  }
+  if (M.isEscape) {
+    const z = cFromCss(panSt.x0, panSt.y0, panSt.v0);
+    const nV = viewForAnchor(z, x, y, panSt.v0.size);
+    panSt.nV = nV;
+    M.gestPreview(nV);
+  } else {
+    usr.ox += x - downInfo.lx;
+    usr.oy += y - downInfo.ly;
+  }
+}
+function commitGest() {
+  const M = MODES[cur];
+  if (M.isEscape) {
+    const nV = (pinchSt && pinchSt.nV) || (panSt && panSt.nV);
+    if (nV) M.gestCommit(nV);
+  }
+}
 stage.addEventListener("pointerdown", function (e) {
-  holding = true; lastHold = performance.now();
-  MODES[cur].tap(e.clientX, e.clientY);
+  PTRS.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  holding = true;
+  if (PTRS.size === 1) {
+    downInfo = { x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, moved: false };
+    holdArmed = true; lastHold = performance.now();
+  } else if (PTRS.size === 2) {
+    holdArmed = false;
+    panSt = null;
+    startPinch();
+  }
   e.preventDefault();
 });
-window.addEventListener("pointerup", function () { holding = false; });
-window.addEventListener("pointercancel", function () { holding = false; });
+stage.addEventListener("pointermove", function (e) {
+  if (!PTRS.has(e.pointerId)) return;
+  PTRS.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (PTRS.size === 2 && pinchSt) { movePinch(); return; }
+  if (PTRS.size === 1 && downInfo) {
+    const dx = e.clientX - downInfo.x, dy = e.clientY - downInfo.y;
+    if (!downInfo.moved && Math.hypot(dx, dy) > 10) { downInfo.moved = true; holdArmed = false; }
+    if (downInfo.moved) movePan(e.clientX, e.clientY);
+    downInfo.lx = e.clientX; downInfo.ly = e.clientY;
+  }
+});
+function endPointer(e) {
+  PTRS.delete(e.pointerId);
+  const M = MODES[cur];
+  if (PTRS.size === 0) {
+    commitGest();
+    if (downInfo && !downInfo.moved && holdArmed) M.tap(downInfo.x, downInfo.y);
+    downInfo = null; pinchSt = null; panSt = null; holdArmed = false; holding = false;
+  } else if (PTRS.size === 1) {
+    // pinch collapsed to one finger: commit, no accidental tap after
+    commitGest();
+    pinchSt = null; panSt = null;
+    const p = [...PTRS.values()][0];
+    downInfo = { x: p.x, y: p.y, lx: p.x, ly: p.y, moved: true };
+    holdArmed = false;
+  }
+}
+stage.addEventListener("pointerup", endPointer);
+stage.addEventListener("pointercancel", endPointer);
+stage.addEventListener("wheel", function (e) {
+  e.preventDefault();
+  const M = MODES[cur];
+  const f = Math.exp(-e.deltaY * 0.0012);
+  if (M.isEscape) {
+    const V = { cx: M.cx, cy: M.cy, size: M.size };
+    const z = cFromCss(e.clientX, e.clientY, V);
+    const nV = viewForAnchor(z, e.clientX, e.clientY, Math.max(1e-9, V.size / f));
+    M.cx = nV.cx; M.cy = nV.cy; M.size = nV.size;
+    VG = warpFor(ESC.rv, nV);
+    clearTimeout(wheelT);
+    wheelT = setTimeout(function () { VG = null; escStart(M.job()); }, 200);
+  } else if (M.wheelVec) {
+    M.wheelVec(f, e.clientX, e.clientY);
+  }
+}, { passive: false });
 window.addEventListener("contextmenu", function (e) { e.preventDefault(); });
 document.addEventListener("gesturestart", function (e) { e.preventDefault(); });
 
