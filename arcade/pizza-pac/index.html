@@ -61,7 +61,7 @@
     "####.###.#.###.####",
     "####.#.......#.####",
     "####.#.##-##.#.####",
-    "####.#.#   #.#.####",
+    "    .#.#   #.#.    ",
     "####.#.#####.#.####",
     "####.#.......#.####",
     "####.#.#####.#.####",
@@ -81,7 +81,11 @@
   let lives=3, level=1, running=false, paused=false, frightUntil=0, last=0, raf=null, mouthT=0;
   document.getElementById('best').textContent=best;
 
-  const tileAt=(x,y)=> (x<0||y<0||x>=COLS||y>=ROWS) ? '#' : MAP[y][x];
+  const TUNNEL_Y=10; // side-tunnel row, like real Pac-Man
+  const tileAt=(x,y)=>{
+    if(y===TUNNEL_Y&&(x===-1||x===COLS)) return ' '; // tunnel mouths just off the maze edge
+    return (x<0||y<0||x>=COLS||y>=ROWS) ? '#' : MAP[y][x];
+  };
   function canEnter(x,y,who,mode){
     const t=tileAt(x,y);
     if(t==='#') return false;
@@ -133,13 +137,30 @@
     });
   }
   function moveEntity(e,dt,who){
-    const speed = e.speed * (who==='ghost' && performance.now()<frightUntil && e.mode==='chase' ? .55 : 1) * (e.mode==='eyes' ? 1.8 : 1);
+    const _gtx=Math.floor(e.x), _gty=Math.floor(e.y);
+    const inTunnel = _gty===TUNNEL_Y && (_gtx<4||_gtx>COLS-5);
+    const frightened = who==='ghost' && performance.now()<frightUntil && e.mode==='chase';
+    if(who==='ghost' && e.mode!=='eyes' && (inTunnel||frightened)){
+      // half-speed via frame skipping: a speed multiplier would make per-frame steps
+      // smaller than the tile-center snap tolerance (.08) and freeze the ghost in place
+      e._ph=1-(e._ph||0);
+      if(e._ph===0) return;
+    }
+    const speed = e.speed * (e.mode==='eyes' ? 1.8 : 1);
     let remain=speed*dt, guard=0;
     while(remain>0 && guard++<8){
       if(atCenter(e)){
         snap(e);
-        if(who==='player'){
-          const tx=Math.floor(e.x), ty=Math.floor(e.y);
+        const tx=Math.floor(e.x), ty=Math.floor(e.y);
+        const atLeftExit = ty===TUNNEL_Y && tx===-1 && e.dir.x<0;
+        const atRightExit = ty===TUNNEL_Y && tx===COLS && e.dir.x>0;
+        if(atLeftExit||atRightExit){
+          // warp to the other side — unless the player is deliberately turning back
+          const reversing = who==='player' && e.want.x===-e.dir.x && e.want.y===-e.dir.y;
+          if(reversing) e.dir=e.want;
+          else e.x = atLeftExit ? COLS+.5 : -.5;
+        }
+        else if(who==='player'){
           if(canEnter(tx+e.want.x,ty+e.want.y,'player')) e.dir=e.want;
           if(!canEnter(tx+e.dir.x,ty+e.dir.y,'player')){ draw(); return; }
         } else {
