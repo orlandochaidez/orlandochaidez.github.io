@@ -6,47 +6,56 @@
 <title>welcome</title>
 <style>
   *{box-sizing:border-box}
-  html,body{margin:0;padding:0;background:#000;min-height:100%}
+  html,body{margin:0;padding:0}
+  html{background:#6c5eb5;min-height:100%}
   body{
     font-family:"Courier New",Courier,monospace;
-    color:#33ff33;
-    padding:28px 20px 70px 28px;
-    max-width:760px;margin:0;
-    line-height:1.7;
-    font-size:clamp(16px,2.6vw,19px);
-    text-shadow:0 0 7px rgba(51,255,51,.5);
+    background:#6c5eb5;
+    color:#6c5eb5;
+    padding:4vmin;
+    min-height:100vh;min-height:-webkit-fill-available;min-height:100dvh;
+    display:flex;
     -webkit-text-size-adjust:100%;
   }
-  /* subtle CRT scanlines */
-  body::after{
-    content:"";position:fixed;inset:0;pointer-events:none;z-index:99;
-    background:repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0 1px,transparent 1px 3px);
+  .screen{
+    background:#352879;
+    flex:1;
+    max-width:960px;
+    margin:0 auto;
+    padding:30px 26px 64px;
+    text-transform:uppercase;
+    line-height:1.9;
+    font-size:clamp(15px,2.4vw,19px);
+    letter-spacing:1px;
   }
-  .head{font-size:clamp(30px,7vw,48px);font-weight:bold;margin:0 0 6px;letter-spacing:1px}
-  .cursor{display:inline-block;width:.62em;height:1.05em;background:#33ff33;vertical-align:-.16em;margin-left:.1em;
-    animation:blink 1.05s steps(1) infinite;box-shadow:0 0 8px rgba(51,255,51,.8)}
+  .center{text-align:center}
+  .head{margin:0 0 2px}
+  .cursor{display:inline-block;width:.62em;height:1.05em;background:#6c5eb5;vertical-align:-.16em;margin-left:.1em;
+    animation:blink 1.05s steps(1) infinite}
   @keyframes blink{50%{opacity:0}}
-  .prompt{color:#22cc22}
   .folder{cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;
-    padding:8px 10px;margin-left:-10px;border-radius:4px;outline:none}
-  .folder:hover,.folder:focus{background:rgba(51,255,51,.12)}
-  .toggle{color:#22cc22;margin-left:1ch}
+    padding:8px 10px;margin-left:-10px;border-radius:2px;outline:none}
+  .folder:hover,.folder:focus{background:#6c5eb5;color:#352879}
+  .toggle{margin-left:1ch}
   .indent{padding-left:3ch}
-  .item{display:block;padding:9px 10px;margin-left:-10px;color:#33ff33;text-decoration:none;cursor:pointer;
-    -webkit-tap-highlight-color:transparent;border-radius:4px}
-  .item:hover,.item:focus{background:rgba(51,255,51,.12);text-decoration:underline}
+  .item{display:block;padding:9px 10px;margin-left:-10px;color:#6c5eb5;text-decoration:none;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;border-radius:2px}
+  .item:hover,.item:focus{background:#6c5eb5;color:#352879}
   .item.big{font-size:1.6em}
   .hidden{display:none}
-  .foot{margin-top:36px;color:#1f9923;font-size:.8em}
+  .foot{margin-top:40px;font-size:.85em}
   .hid{color:inherit;text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
-  .easter{color:#33ff33;text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
-  a{color:#33ff33}
+  .easter{color:#6c5eb5;text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  a{color:#6c5eb5}
 </style>
 </head>
 <body>
+<div class="screen">
 
-<div class="head">welcome</div>
-<div><span class="prompt">C:\ORLANDO&gt;</span> dir</div>
+<div class="center head">****&nbsp;&nbsp;Orlando&nbsp;&nbsp;****</div>
+<div class="center" id="sysdate">System date</div>
+<br>
+<div>Ready.</div>
 <br>
 
 <div class="folder" id="f-arcade" role="button" tabindex="0" aria-expanded="false">
@@ -60,7 +69,6 @@
   <a class="item" href="/arcade/blocky-blaster/index.html">Blocky Blaster</a>
   <a class="item" href="/arcade/flappy/index.html">Flappy</a>
   <a class="item" href="/arcade/pizza-pac/index.html">Pizza Pac</a>
-  <a class="item" href="/arcade/block-drop/index.html">Block Drop</a>
 </div>
 <br>
 
@@ -88,12 +96,26 @@
 </div>
 <div id="side" class="indent hidden">
   <a class="item" href="https://orlandochaidez.com/fred/">FRED</a>
-  <a class="item" href="https://orlandochaidez.com/muscle-anatomy-3d/">MUSCLE ANATOMY 3D</a>
 </div>
 
-<div class="foot"><span class="prompt"><a class="hid" href="https://coffeehotbox.com" aria-label="Coffee Hotbox">C:</a>\</span><span class="prompt"><a class="hid" href="https://odcpartners.com" aria-label="ODC Partners land biz">ORLANDO&gt;</a></span> <span id="typed"></span><span class="cursor"></span></div>
+<div class="foot"><a class="hid" href="https://coffeehotbox.com" aria-label="Coffee Hotbox">C:</a>\<a class="hid" href="https://odcpartners.com" aria-label="ODC Partners land biz">ORLANDO&gt;</a> <span id="typed"></span><span class="cursor"></span></div>
 
+</div>
 <script>
+  // live system date, C64 style: FRIDAY OCTOBER 16TH 2026
+  (function(){
+    var days = ['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'];
+    var months = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+    var d = new Date();
+    var n = d.getDate();
+    var suf = 'TH';
+    if(n % 10 === 1 && n % 100 !== 11) suf = 'ST';
+    else if(n % 10 === 2 && n % 100 !== 12) suf = 'ND';
+    else if(n % 10 === 3 && n % 100 !== 13) suf = 'RD';
+    document.getElementById('sysdate').textContent =
+      'SYSTEM DATE   ' + days[d.getDay()] + ' ' + months[d.getMonth()] + ' ' + n + suf + ' ' + d.getFullYear();
+  })();
+
   function toggle(id, folderEl, ev){
     if(ev){ ev.stopPropagation(); }
     var el = document.getElementById(id);
@@ -115,12 +137,12 @@
   wire('f-side', 'side');
 
   // little boot text typing effect, purely cosmetic
-  var msg = 'loading complete. pick a folder.';
+  var msg = 'LOADING COMPLETE. PICK A FOLDER.';
   var i = 0, out = document.getElementById('typed');
   (function type(){
     if(i < msg.length){ out.textContent = msg.slice(0, i++); setTimeout(type, 28); }
     else{
-      out.innerHTML = 'loading complete. pick a folder' +
+      out.innerHTML = 'LOADING COMPLETE. PICK A FOLDER' +
         '<a class="easter" href="/arcade/brand-theft-auto/index.html" aria-label="secret">&period;</a>';
     }
   })();
