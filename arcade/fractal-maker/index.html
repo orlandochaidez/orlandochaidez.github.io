@@ -63,7 +63,7 @@
 /* ============================================================
    FRACTAL MAKER v2 — a whole gallery of fractals in one page.
    BLOOM      the original: infinite tap-to-grow golden-angle garden
-   MANDELBROT tap to dive deeper into z²+c  (escape-time)
+   MANDELBROT tap to dive 2.5× deeper (infinite: reseeds past 1e10×) · ✦ resets
    JULIA      tap to morph the constant c   (escape-time)
    SNOWFLAKE  tap to fold the Koch snowflake deeper
    DRAGON     tap to fold the dragon curve deeper
@@ -467,6 +467,12 @@ function escDraw() {
   if (VG) { ctx.translate(VG.ax, VG.ay); ctx.scale(VG.s, VG.s); ctx.translate(-VG.ax, -VG.ay); }
   ctx.drawImage(ESC.cvs, 0, 0, vw, vh);
   ctx.restore();
+  const M = MODES[cur];
+  if (M && M.flashT) { // rebirth flash: a quick white-out sells the "warp deeper" jump
+    const dt = (performance.now() - M.flashT) / 450;
+    if (dt >= 1) M.flashT = 0;
+    else { ctx.fillStyle = "rgba(255,255,255," + (0.85 * (1 - dt)).toFixed(3) + ")"; ctx.fillRect(0, 0, vw, vh); }
+  }
 }
 
 /* ==================== VECTOR FRACTALS ==================== */
@@ -809,13 +815,14 @@ MODES.bloom = {
 
 function escMode(kind, name, hint, baseIter, iterStep, maxCap) {
   return {
-    name, hint, kind, baseIter, iterStep, maxCap, isEscape: true,
-    cx: 0, cy: 0, size: 3.4, cRe: 0, cIm: 0, poly: 0, g: null,
+    name, hint, kind, baseIter, iterStep, maxCap, isEscape: true, dive: false,
+    cx: 0, cy: 0, size: 3.4, cRe: 0, cIm: 0, poly: 0, g: null, flashT: 0,
+    zoom() { return 3.4 / this.size; },
     job() {
       // detail keeps resolving as you zoom: iterations scale with depth (float64 view → ~trillion× zoom)
-      const zoomNeed = Math.round(40 + 30 * Math.log10(Math.max(1, 3.4 / this.size)));
+      const zoomNeed = Math.round(60 + 90 * Math.log10(Math.max(1, this.zoom())));
       const maxIter = Math.min(this.maxCap, Math.max(this.g.maxIter, zoomNeed));
-      return { kind, maxIter, reveal: this.g.reveal, cx: this.cx, cy: this.cy, size: this.size, cRe: this.cRe, cIm: this.cIm, poly: this.poly };
+      return { kind, maxIter, reveal: this.dive ? 2 : this.g.reveal, cx: this.cx, cy: this.cy, size: this.size, cRe: this.cRe, cIm: this.cIm, poly: this.poly };
     },
     enter() { this.resetView(); this.g = { reveal: 0.22, maxIter: this.baseIter }; escStart(this.job()); },
     resetView() {},
@@ -837,7 +844,8 @@ function escMode(kind, name, hint, baseIter, iterStep, maxCap) {
       escStart(this.job());
     },
     tap(x, y) {
-      if (this.g.reveal >= 1.14 && this.g.maxIter >= this.maxCap) this.seedNewRegion();
+      if (this.dive) this.diveTap(x, y);
+      else if (this.g.reveal >= 1.14 && this.g.maxIter >= this.maxCap) this.seedNewRegion();
       else {
         this.g.reveal = Math.min(1.15, this.g.reveal + 0.16);
         this.g.maxIter = Math.min(this.maxCap, this.g.maxIter + this.iterStep);
@@ -845,18 +853,60 @@ function escMode(kind, name, hint, baseIter, iterStep, maxCap) {
       }
       ripples.push({ x, y, t0: performance.now() });
     },
+    diveTap(x, y) {
+      // infinite dive: 2.5× deeper, anchored exactly on the tap point
+      const V = { cx: this.cx, cy: this.cy, size: this.size };
+      const z = cFromCss(x, y, V);
+      const nV = viewForAnchor(z, x, y, V.size / 2.5);
+      this.cx = nV.cx; this.cy = nV.cy; this.size = nV.size;
+      if (this.zoom() >= 1e10) this.rebirth(); // past float64's honest range → reseed deeper, the dive never ends
+      escStart(this.job());
+    },
+    rebirth() {
+      // the set is self-similar: grab a fresh boundary patch right where you are
+      // and keep diving — to the eye, the zoom never stops
+      let span = this.size * 8, found = false;
+      for (let round = 0; round < 3 && !found; round++) {
+        for (let t = 0; t < 120; t++) {
+          const re = this.cx + (Math.random() - 0.5) * span;
+          const im = this.cy + (Math.random() - 0.5) * span;
+          const pr = mProbe(re, im, 300);
+          if (pr.n > 25 && pr.n < 200) { this.cx = re; this.cy = im; found = true; break; }
+        }
+        span *= 10;
+      }
+      if (!found) { // dove into the dead interior? grab any good boundary patch on the whole set
+        for (let t = 0; t < 400; t++) {
+          const re = -2 + Math.random() * 3, im = -1.2 + Math.random() * 2.4;
+          const pr = mProbe(re, im, 300);
+          if (pr.n > 25 && pr.n < 200) { this.cx = re; this.cy = im; found = true; break; }
+        }
+      }
+      this.size = 3.4 / 3000;
+      this.flashT = performance.now();
+    },
     gestPreview(nV) { VG = warpFor(ESC.rv, nV); },
-    gestCommit(nV) { this.cx = nV.cx; this.cy = nV.cy; this.size = nV.size; VG = null; escStart(this.job()); },
+    gestCommit(nV) {
+      this.cx = nV.cx; this.cy = nV.cy; this.size = nV.size; VG = null;
+      if (this.dive && this.zoom() >= 1e10) this.rebirth();
+      escStart(this.job());
+    },
     stats() { return ""; }
   };
 }
 const ESC_STATS = (label, M, extra) =>
   label + (extra ? " · " + extra : "") + " · iter " + M.g.maxIter + " · " + M.grownPct() + "% grown · " + PALETTES[palIdx].name;
-MODES.mandelbrot = Object.assign(escMode("mandelbrot", "Mandelbrot", "tap to grow it · pinch to zoom · drag to pan", 12, 14, 170), {
+MODES.mandelbrot = Object.assign(escMode("mandelbrot", "Mandelbrot", "tap to dive deeper · pinch to zoom · ✦ reset", 60, 0, 2500), {
+  dive: true,
   resetView() { this.cx = -0.5; this.cy = 0; this.size = 3.4; },
+  enter() { this.resetView(); this.g = { reveal: 2, maxIter: this.baseIter }; escStart(this.job()); }, // one whole Mandelbrot, fully rendered
   probeAt(re, im) { return mProbe(re, im, 60); },
   reset() { this.enter(); },
-  stats() { return ESC_STATS("MANDELBROT", this); }
+  stats() {
+    const z = this.zoom();
+    const zs = z >= 1e6 ? z.toExponential(1) + "×" : Math.round(z).toLocaleString("en-US") + "×";
+    return "MANDELBROT · zoom " + zs + " · iter " + this.job().maxIter + " · ∞ dive · " + PALETTES[palIdx].name;
+  }
 });
 MODES.julia = Object.assign(escMode("julia", "Julia", "tap to grow it · ✦ for a new constant", 14, 16, 190), {
   resetView() {
@@ -1132,7 +1182,7 @@ stage.addEventListener("wheel", function (e) {
     M.cx = nV.cx; M.cy = nV.cy; M.size = nV.size;
     VG = warpFor(ESC.rv, nV);
     clearTimeout(wheelT);
-    wheelT = setTimeout(function () { VG = null; escStart(M.job()); }, 200);
+    wheelT = setTimeout(function () { if (M.dive && M.zoom() >= 1e10) M.rebirth(); VG = null; escStart(M.job()); }, 200);
   } else if (M.wheelVec) {
     M.wheelVec(f, e.clientX, e.clientY);
     camLock = true; vMotion(); // user took the camera — freeze the auto follow
