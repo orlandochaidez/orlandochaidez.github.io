@@ -508,7 +508,7 @@ function kochRender(n) {
 }
 function dragonRender(n) {
   // Heighway dragon by paperfold doubling. n=0 draws the seed L (2 lines);
-  // every tap folds one iteration deeper: 2 → 4 → 8 → … → 16384 lines.
+  // every tap folds one iteration deeper: 2 → 4 → 8 → … → 524288 lines.
   // colored as a gradient ALONG the path, cycling the palette hues twice.
   vReset();
   const pal = PALETTES[palIdx];
@@ -535,7 +535,7 @@ function dragonRender(n) {
   const H = pal.hues.length, bands = H * 2; // two rainbow cycles along the path
   const ghost = pal.name === "GHOST";
   vctx.lineJoin = vctx.lineCap = "round"; // rounded joints = the dots in the reference
-  vctx.lineWidth = Math.max(2.5, S * 0.92); // chunky bars like the reference
+  vctx.lineWidth = Math.min(36, Math.max(1.5, S * 0.4)); // thin elegant lines — never blocky, hairlines at deep iterations
   let bi = -1;
   for (let i = 0; i < segs; i++) {
     const b = Math.floor(i / segs * bands);
@@ -931,7 +931,7 @@ function vectorMode(name, hint, maxN, render, fmtStats) {
 }
 MODES.snowflake = vectorMode("Snowflake", "tap to fold it deeper", 7, kochRender,
   n => "KOCH SNOWFLAKE · iteration " + n + " · " + PALETTES[palIdx].name);
-MODES.dragon = vectorMode("Dragon", "tap to fold it deeper", 13, dragonRender,
+MODES.dragon = vectorMode("Dragon", "tap to fold it deeper", 18, dragonRender,
   n => "DRAGON CURVE · iteration " + (n + 1) + " · " + (2 << n).toLocaleString("en-US") + " lines · " + PALETTES[palIdx].name);
 MODES.cantor = vectorMode("Cantor", "tap to divide it", 11, cantorRender,
   n => "CANTOR SET · row " + n + " · " + PALETTES[palIdx].name);
