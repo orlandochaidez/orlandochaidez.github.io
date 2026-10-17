@@ -54,6 +54,7 @@
 <div id="hint">tap &nbsp;·&nbsp; click &nbsp;·&nbsp; hold &nbsp;to grow</div>
 <div id="controls">
   <button id="btnNew">&#10022; New</button>
+  <button id="btnFit">&#9956; Fit</button>
   <button id="btnRoots" style="display:none">&#10070; Roots</button>
   <button id="btnPal">&#9681; Colors</button>
   <button id="btnSave">&#10515; Save</button>
@@ -1192,6 +1193,22 @@ document.addEventListener("gesturestart", function (e) { e.preventDefault(); });
 document.getElementById("btnNew").addEventListener("click", function (e) {
   e.stopPropagation(); MODES[cur].reset(); updateStats(); flashPalette();
 });
+document.getElementById("btnFit").addEventListener("click", function (e) {
+  e.stopPropagation(); fitView();
+});
+// ⛶ Fit: reframe the whole fractal on screen WITHOUT touching growth —
+// unlike ✦ New it never resets iterations, re-rolls seeds, or changes Julia's constant
+function fitView() {
+  const M = MODES[cur];
+  if (M.isEscape) {
+    if (cur === "mandelbrot") { M.cx = -0.5; M.cy = 0; } else { M.cx = 0; M.cy = 0; }
+    M.size = 3.4; VG = null; escStart(M.job());
+  } else {
+    introBias = 0; camLock = false; cam = { x: 0, y: 0, z: maxZ };
+    usr = { z: 1, ox: 0, oy: 0 }; vNeedCrisp = true;
+  }
+  updateStats();
+}
 document.getElementById("btnRoots").addEventListener("click", function (e) {
   e.stopPropagation();
   if (cur === "tree") { MODES.tree.rootTap(); updateStats(); }
@@ -1219,6 +1236,7 @@ window.addEventListener("keydown", function (e) {
   else if (e.key === "c" || e.key === "C") document.getElementById("btnPal").click();
   else if (e.key === "z" || e.key === "Z") keyZoom(1.4);       // keyboard zoom in (desktop)
   else if (e.key === "x" || e.key === "X") keyZoom(1 / 1.4);  // keyboard zoom out (desktop)
+  else if (e.key === "f" || e.key === "F") fitView();         // fit whole fractal on screen
   else if (e.key >= "1" && e.key <= "9") setMode(ORDER[+e.key - 1]);
 });
 
