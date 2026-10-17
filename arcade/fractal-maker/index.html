@@ -1217,8 +1217,27 @@ window.addEventListener("keydown", function (e) {
   else if (e.key === "n" || e.key === "N") MODES[cur].reset();
   else if (e.key === "r" || e.key === "R") document.getElementById("btnRoots").click();
   else if (e.key === "c" || e.key === "C") document.getElementById("btnPal").click();
+  else if (e.key === "z" || e.key === "Z") keyZoom(1.4);       // keyboard zoom in (desktop)
+  else if (e.key === "x" || e.key === "X") keyZoom(1 / 1.4);  // keyboard zoom out (desktop)
   else if (e.key >= "1" && e.key <= "9") setMode(ORDER[+e.key - 1]);
 });
+
+// keyboard zoom — same code path as the wheel, anchored at screen center
+function keyZoom(f) {
+  const M = MODES[cur], mx = vw / 2, my = vh / 2;
+  if (M.isEscape) {
+    const V = { cx: M.cx, cy: M.cy, size: M.size };
+    const z = cFromCss(mx, my, V);
+    const nV = viewForAnchor(z, mx, my, Math.max(1e-9, V.size / f));
+    M.cx = nV.cx; M.cy = nV.cy; M.size = nV.size;
+    VG = warpFor(ESC.rv, nV);
+    clearTimeout(wheelT);
+    wheelT = setTimeout(function () { if (M.dive && M.zoom() >= 1e10) M.rebirth(); VG = null; escStart(M.job()); }, 200);
+  } else if (M.wheelVec) {
+    M.wheelVec(f, mx, my);
+    camLock = true; vMotion(); // user took the camera — freeze the auto follow
+  }
+}
 
 // ---- go ----
 seed = (Math.random() * 0xffffff) | 0;
