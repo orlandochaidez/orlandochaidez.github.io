@@ -507,40 +507,54 @@ function kochRender(n) {
   return pts.length;
 }
 function dragonRender(n) {
+  // Heighway dragon by paperfold doubling. n=0 draws the seed L (2 lines);
+  // every tap folds one iteration deeper: 2 → 4 → 8 → … → 16384 lines.
+  // colored as a gradient ALONG the path, cycling the palette hues twice.
   vReset();
   const pal = PALETTES[palIdx];
-  let s = "FX";
-  for (let i = 0; i < n; i++) {
-    let o = "";
-    for (const ch of s) o += ch === "X" ? "X+YF+" : ch === "Y" ? "FX-Y" : ch;
-    s = o;
-  }
-  let x = 0, y = 0, a = 0;
-  const pts = [[0, 0]];
-  let fcount = 0;
-  for (const ch of s) {
-    if (ch === "F") { x += Math.cos(a); y += Math.sin(a); pts.push([x, y]); fcount++; }
-    else if (ch === "+") a -= Math.PI / 2;
-    else if (ch === "-") a += Math.PI / 2;
+  const iter = n + 1;
+  let pts = [[0, 0], [1, 0], [1, -1]]; // iteration 1: the L
+  for (let i = 1; i < iter; i++) {
+    const last = pts[pts.length - 1];
+    const tail = [];
+    for (let j = pts.length - 2; j >= 0; j--) {
+      const dx = pts[j][0] - last[0], dy = pts[j][1] - last[1];
+      tail.push([last[0] - dy, last[1] + dx]); // fold: rotate tail 90° about the tip
+    }
+    pts = pts.concat(tail);
   }
   let mnx = 1e9, mxx = -1e9, mny = 1e9, mxy = -1e9;
   for (const p of pts) {
     if (p[0] < mnx) mnx = p[0]; if (p[0] > mxx) mxx = p[0];
     if (p[1] < mny) mny = p[1]; if (p[1] > mxy) mxy = p[1];
   }
-  const S = 1500 / Math.max(mxx - mnx, mxy - mny, 1);
+  const S = 760 / Math.max(mxx - mnx, mxy - mny, 1);
   const ox = -(mnx + mxx) / 2 * S, oy = -(mny + mxy) / 2 * S;
-  vctx.lineJoin = vctx.lineCap = "round";
-  vctx.strokeStyle = "hsla(" + ((pal.hues[0] + n * 30) % 360) + "," + pal.sat + "%,66%,0.95)"; // crisp single pass — no glow wash
-  vctx.lineWidth = 6;
-  vctx.beginPath();
-  pts.forEach((p, i) => {
-    const X = p[0] * S + ox, Y = p[1] * S + oy;
-    vTouch(X, Y);
-    if (i === 0) vctx.moveTo(X, Y); else vctx.lineTo(X, Y);
-  });
+  const segs = pts.length - 1;
+  const PX = i => pts[i][0] * S + ox, PY = i => pts[i][1] * S + oy;
+  const H = pal.hues.length, bands = H * 2; // two rainbow cycles along the path
+  const ghost = pal.name === "GHOST";
+  vctx.lineJoin = vctx.lineCap = "round"; // rounded joints = the dots in the reference
+  vctx.lineWidth = Math.max(2.5, S * 0.92); // chunky bars like the reference
+  let bi = -1;
+  for (let i = 0; i < segs; i++) {
+    const b = Math.floor(i / segs * bands);
+    if (b !== bi) {
+      if (bi >= 0) vctx.stroke();
+      bi = b;
+      const t = i / segs;
+      vctx.strokeStyle = ghost
+        ? "hsla(215,12%," + (55 + 25 * t).toFixed(1) + "%,0.95)"
+        : "hsla(" + pal.hues[b % H] + "," + pal.sat + "%," + pal.li + "%,0.95)";
+      vctx.beginPath();
+      vctx.moveTo(PX(i), PY(i));
+    }
+    vctx.lineTo(PX(i + 1), PY(i + 1));
+    vTouch(PX(i), PY(i));
+  }
   vctx.stroke();
-  return fcount;
+  vTouch(PX(segs), PY(segs));
+  return segs;
 }
 function sierpinskiTri(n) {
   // the classic: one solid triangle; every tap splits each triangle into
@@ -917,8 +931,8 @@ function vectorMode(name, hint, maxN, render, fmtStats) {
 }
 MODES.snowflake = vectorMode("Snowflake", "tap to fold it deeper", 7, kochRender,
   n => "KOCH SNOWFLAKE · iteration " + n + " · " + PALETTES[palIdx].name);
-MODES.dragon = vectorMode("Dragon", "tap to fold it deeper", 14, dragonRender,
-  n => "DRAGON CURVE · iteration " + n + " · " + PALETTES[palIdx].name);
+MODES.dragon = vectorMode("Dragon", "tap to fold it deeper", 13, dragonRender,
+  n => "DRAGON CURVE · iteration " + (n + 1) + " · " + (2 << n).toLocaleString("en-US") + " lines · " + PALETTES[palIdx].name);
 MODES.cantor = vectorMode("Cantor", "tap to divide it", 11, cantorRender,
   n => "CANTOR SET · row " + n + " · " + PALETTES[palIdx].name);
 MODES.menger = vectorMode("Menger", "tap to carve it deeper", 3, mengerRender,
