@@ -65,10 +65,9 @@
    BLOOM      the original: infinite tap-to-grow golden-angle garden
    MANDELBROT tap to dive deeper into z²+c  (escape-time)
    JULIA      tap to morph the constant c   (escape-time)
-   NEWTON     tap to zoom the root basins   (z³−1 / z⁴−1)
    SNOWFLAKE  tap to fold the Koch snowflake deeper
    DRAGON     tap to fold the dragon curve deeper
-   SIERPINSKI tap / hold to scatter chaos-game points
+   SIERPINSKI tap to split the triangle deeper (1 → 3 → 9 → 27…)
    CANTOR     tap to divide the Cantor set
    MENGER     tap to carve the Menger sponge deeper
    VECTOR MODES (Bloom, Tree, Snowflake, Dragon, Sierpinski, Cantor, Menger)
@@ -343,15 +342,11 @@ function bloomGrow(px, py) {
   introBias = Math.max(0, introBias - 0.3);
 }
 
-/* ============ ESCAPE-TIME ENGINE (mandelbrot / julia / newton) ============ */
+/* ============ ESCAPE-TIME ENGINE (mandelbrot / julia) ============ */
 const ESC = { cvs: null, x: null, img: null, W: 0, H: 0, job: null };
 const JULIA_PRETTY = [
   [-0.7, 0.27015], [-0.8, 0.156], [-0.7269, 0.1889], [-0.835, -0.2321],
   [0.285, 0.01], [-0.4, 0.6], [-0.70176, -0.3842], [-0.75, 0.11]
-];
-const NEWTON_POLYS = [
-  { name: "z³−1", deg: 3, roots: [[1, 0], [-0.5, 0.8660254], [-0.5, -0.8660254]] },
-  { name: "z⁴−1", deg: 4, roots: [[1, 0], [-1, 0], [0, 1], [0, -1]] }
 ];
 let fineT = null; // idle timer that kicks off the crisp refine pass
 function escStart(job, quality) {
@@ -402,30 +397,6 @@ function jProbe(zr, zi, cRe, cIm, maxIter) {
   }
   return { n, r2 };
 }
-function nProbe(zr, zi, deg, roots, maxIter) {
-  let n = 0, ri = -1;
-  for (; n < maxIter; n++) {
-    let pr = zr, pi = zi;
-    for (let k = 2; k < deg; k++) { const t = pr * zr - pi * zi; pi = pr * zi + pi * zr; pr = t; }
-    const zdr = pr * zr - pi * zi, zdi = pr * zi + pi * zr;
-    const fr = zdr - 1, fi = zdi;
-    if (fr * fr + fi * fi < 1e-8) break;
-    const dr = deg * pr, di = deg * pi;
-    const den = dr * dr + di * di;
-    if (den < 1e-12) break;
-    zr -= (fr * dr + fi * di) / den;
-    zi -= (fi * dr - fr * di) / den;
-    if (zr * zr + zi * zi > 1e6) break;
-  }
-  if (n < maxIter) {
-    let best = 1e9;
-    for (let k = 0; k < roots.length; k++) {
-      const dd = (zr - roots[k][0]) ** 2 + (zi - roots[k][1]) ** 2;
-      if (dd < best) { best = dd; ri = k; }
-    }
-  }
-  return { n, ri };
-}
 function escColor(pal, n, sn, maxIter) {
   if (n >= maxIter) return [6, 7, 18];
   const t = sn / maxIter;
@@ -450,15 +421,7 @@ function pumpEscape() {
       const r0 = J.cx + dx * J.unit;
       const i0 = J.cy - dy * J.unit;
       let r, g, b;
-      if (J.kind === "newton") {
-        const poly = NEWTON_POLYS[J.poly];
-        const pr2 = nProbe(r0, i0, poly.deg, poly.roots, J.maxIter);
-        if (pr2.ri < 0) { r = 6; g = 7; b = 18; }
-        else {
-          const c = hsl(pal.hues[pr2.ri % pal.hues.length], pal.sat, 30 + 44 * (1 - pr2.n / J.maxIter));
-          r = c[0]; g = c[1]; b = c[2];
-        }
-      } else {
+      {
         const pr2 = J.kind === "mandelbrot" ? mProbe(r0, i0, J.maxIter) : jProbe(r0, i0, J.cRe, J.cIm, J.maxIter);
         let sn = pr2.n;
         if (pr2.n < J.maxIter && pr2.r2 > 1) sn = pr2.n + 1 - Math.log2(0.5 * Math.log(pr2.r2) / Math.LN2);
@@ -583,45 +546,33 @@ function dragonRender(n) {
   }
   return fcount;
 }
-function sierpinskiEnter() {
+function sierpinskiTri(n) {
+  // the classic: one solid triangle; every tap splits each triangle into
+  // 3 half-size ones at its corners (1 → 3 → 9 → 27…), middle stays hollow
   vReset();
-  introBias = 0;
-  camLock = false;
-  cam = { x: 0, y: 0, z: maxZ };
-  const st = { ax: -720, ay: 470, bx: 720, by: 470, cx: 0, cy: -770, px: 0, py: 0, n: 0 };
-  st.sSeed = (Math.random() * 0xffffff) | 0;
-  st.rng = mulberry32(st.sSeed);
-  st.px = (st.ax + st.bx) / 2; st.py = (st.ay + st.by) / 2;
-  vTouch(st.ax, st.ay); vTouch(st.bx, st.by); vTouch(st.cx, st.cy);
-  return st;
-}
-function sierpinskiScatter(st, count) {
   const pal = PALETTES[palIdx];
-  const cols = [
-    "hsla(" + pal.hues[0] + "," + pal.sat + "%,64%,0.9)",
-    "hsla(" + pal.hues[1 % pal.hues.length] + "," + pal.sat + "%,64%,0.9)",
-    "hsla(" + pal.hues[2 % pal.hues.length] + "," + pal.sat + "%,64%,0.9)"
-  ];
-  const s = 2.2; // world units — stays crisp at any zoom
-  for (let i = 0; i < count; i++) {
-    const v = (st.rng() * 3) | 0;
-    const vx = v === 0 ? st.ax : v === 1 ? st.bx : st.cx;
-    const vy = v === 0 ? st.ay : v === 1 ? st.by : st.cy;
-    st.px = (st.px + vx) / 2; st.py = (st.py + vy) / 2;
-    vctx.fillStyle = cols[v];
-    vctx.fillRect(st.px - s / 2, st.py - s / 2, s, s);
-    st.n++;
+  let tris = [[-720, 470, 720, 470, 0, -770]];
+  for (let i = 0; i < n; i++) {
+    const out = [];
+    for (const t of tris) {
+      const mx12 = (t[0] + t[2]) / 2, my12 = (t[1] + t[3]) / 2;
+      const mx23 = (t[2] + t[4]) / 2, my23 = (t[3] + t[5]) / 2;
+      const mx31 = (t[4] + t[0]) / 2, my31 = (t[5] + t[1]) / 2;
+      out.push([t[0], t[1], mx12, my12, mx31, my31],
+               [mx12, my12, t[2], t[3], mx23, my23],
+               [mx31, my31, mx23, my23, t[4], t[5]]);
+    }
+    tris = out;
   }
-}
-function sierpinskiVecDraw(st) {
-  // deterministic re-scatter: identical points, new palette / crisp zoom
-  vReset();
-  vTouch(st.ax, st.ay); vTouch(st.bx, st.by); vTouch(st.cx, st.cy);
-  const n = st.n;
-  st.rng = mulberry32(st.sSeed);
-  st.px = (st.ax + st.bx) / 2; st.py = (st.ay + st.by) / 2;
-  st.n = 0;
-  sierpinskiScatter(st, n);
+  vTouch(-720, 470); vTouch(720, 470); vTouch(0, -770);
+  const hue = (pal.hues[0] + n * 36) % 360;
+  vctx.fillStyle = "hsla(" + hue + "," + pal.sat + "%,60%,0.95)";
+  vctx.beginPath();
+  for (const t of tris) {
+    vctx.moveTo(t[0], t[1]); vctx.lineTo(t[2], t[3]); vctx.lineTo(t[4], t[5]); vctx.closePath();
+  }
+  vctx.fill();
+  return tris.length;
 }
 function cantorRender(n) {
   vReset();
@@ -792,7 +743,7 @@ function treeFull(n) {
 }
 const MODES = {};
 let cur = "bloom";
-const ORDER = ["bloom", "tree", "mandelbrot", "julia", "newton", "snowflake", "dragon", "sierpinski", "cantor", "menger"];
+const ORDER = ["bloom", "tree", "mandelbrot", "julia", "snowflake", "dragon", "sierpinski", "cantor", "menger"];
 
 MODES.bloom = {
   name: "Bloom", hint: "tap · click · hold to grow · pinch to zoom · drag to pan",
@@ -878,12 +829,6 @@ MODES.julia = Object.assign(escMode("julia", "Julia", "tap to grow it · ✦ for
   reset() { this.enter(); },
   stats() { return ESC_STATS("JULIA", this, "c=" + this.cRe.toFixed(3) + (this.cIm >= 0 ? "+" : "") + this.cIm.toFixed(3) + "i"); }
 });
-MODES.newton = Object.assign(escMode("newton", "Newton", "tap to grow it · ✦ new equation · pinch to zoom", 20, 8, 60), {
-  resetView() { this.cx = 0; this.cy = 0; this.size = 3.6; },
-  probeAt(re, im) { const poly = NEWTON_POLYS[this.poly]; return nProbe(re, im, poly.deg, poly.roots, 40); },
-  reset() { this.poly = (this.poly + 1) % NEWTON_POLYS.length; this.enter(); },
-  stats() { return ESC_STATS("NEWTON", this, NEWTON_POLYS[this.poly].name); }
-});
 
 function vectorMode(name, hint, maxN, render, fmtStats) {
   return {
@@ -932,18 +877,8 @@ MODES.tree = Object.assign(vectorMode("Tree", "tap grows branches · ❖ grows r
   vecDraw() { treeFull(this.n); rootFull(rootN); },
   rootTap() { if (rootN < ROOT_MAX) { rootN++; vNeedCrisp = true; } }
 });
-MODES.sierpinski = {
-  name: "Sierpinski", hint: "tap · hold to scatter · pinch to zoom · drag to pan", st: null,
-  enter() { seed = (Math.random() * 0xffffff) | 0; rng = mulberry32(seed); this.st = sierpinskiEnter(); vNeedCrisp = true; },
-  tap(x, y) { vEnsure(); vApplyCam(vctx); sierpinskiScatter(this.st, 12000); ripples.push({ x, y, t0: performance.now() }); },
-  holdTick() { vEnsure(); vApplyCam(vctx); sierpinskiScatter(this.st, 4000); },
-  reset() { this.enter(); },
-  onPalette() { vNeedCrisp = true; },
-  wheelVec: vecWheel,
-  vecDraw() { sierpinskiVecDraw(this.st); },
-  draw() { vectorFrame(); },
-  stats() { return "SIERPINSKI · " + this.st.n.toLocaleString("en-US") + " points · " + PALETTES[palIdx].name; }
-};
+MODES.sierpinski = vectorMode("Sierpinski", "tap to split it deeper", 12, sierpinskiTri,
+  n => "SIERPINSKI · iteration " + n + " · " + Math.pow(3, n).toLocaleString("en-US") + " triangles · " + PALETTES[palIdx].name);
 
 /* ==================== UI ==================== */
 function setMode(id) {
@@ -1180,7 +1115,6 @@ window.addEventListener("keydown", function (e) {
   else if (e.key === "r" || e.key === "R") document.getElementById("btnRoots").click();
   else if (e.key === "c" || e.key === "C") document.getElementById("btnPal").click();
   else if (e.key >= "1" && e.key <= "9") setMode(ORDER[+e.key - 1]);
-  else if (e.key === "0") setMode(ORDER[9]);
 });
 
 // ---- go ----
