@@ -3,14 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>AR Sky</title>
+  <title>Cosmos</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #000; color: #fff; font-family: system-ui, sans-serif; overflow: hidden; height: 100vh; }
     #canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
     #hud { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 8px; font-size: 14px; z-index: 10; }
-    #status { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); padding: 12px 20px; border-radius: 20px; text-align: center; }
+    #status { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); padding: 12px 20px; border-radius: 20px; text-align: center; max-width: 92vw; }
     button { background: #4a9eff; color: white; border: none; padding: 10px 16px; border-radius: 6px; margin: 4px; cursor: pointer; }
+    button:disabled { opacity: .5; }
+    #msg { margin-top: 6px; font-size: 13px; color: #ffd479; }
   </style>
 </head>
 <body>
@@ -74,8 +76,9 @@
       const decRad = dec * Math.PI / 180;
       const latRad = lat * Math.PI / 180;
       const sinAlt = Math.sin(decRad) * Math.sin(latRad) + Math.cos(decRad) * Math.cos(latRad) * Math.cos(ha);
-      const alt = Math.asin(sinAlt) * 180 / Math.PI;
-      const cosAz = (Math.sin(decRad) - Math.sin(latRad) * sinAlt) / (Math.cos(latRad) * Math.cos(Math.asin(sinAlt)));
+      const alt = Math.asin(Math.max(-1, Math.min(1, sinAlt))) * 180 / Math.PI;
+      const cosAlt = Math.cos(Math.asin(Math.max(-1, Math.min(1, sinAlt))));
+      const cosAz = (Math.sin(decRad) - Math.sin(latRad) * sinAlt) / Math.max(1e-9, Math.cos(latRad) * cosAlt);
       let az = Math.acos(Math.max(-1, Math.min(1, cosAz))) * 180 / Math.PI;
       if (Math.sin(ha) > 0) az = 360 - az;
       return { alt, az };
@@ -121,38 +124,81 @@
       requestAnimationFrame(draw);
     }
 
-    startBtn.onclick = async () => {
-      msgEl.textContent = 'Requesting permissions...';
+    function getPosition(ms) {
+      // geolocation with a hard timeout — never hangs silently
+      return new Promise((res, rej) => {
+        if (!navigator.geolocation) { rej(new Error('this browser has no geolocation')); return; }
+        const t = setTimeout(() => rej(new Error('timed out — try outdoors, or check location settings')), ms);
+        navigator.geolocation.getCurrentPosition(
+          p => { clearTimeout(t); res(p); },
+          e => { clearTimeout(t); rej(e); },
+          { timeout: ms, maximumAge: 60000 }
+        );
+      });
+    }
+
+    function locErrorText(e) {
+      if (!e) return 'unknown error';
+      if (e.code === 1) return 'location permission denied — allow it for this site in Settings, then reload';
+      if (e.code === 2) return 'location unavailable — try moving near a window or outdoors';
+      if (e.code === 3) return 'location timed out — try again outdoors';
+      return e.message || 'unknown error';
+    }
+
+    function attachOrientation() {
+      window.addEventListener('deviceorientation', (e) => {
+        if (e.webkitCompassHeading !== undefined) {
+          heading = e.webkitCompassHeading;
+        } else if (e.alpha !== null && e.alpha !== undefined) {
+          heading = 360 - e.alpha;
+        }
+        if (e.beta !== null && e.beta !== undefined) pitch = e.beta;
+        headingEl.textContent = Math.round(heading);
+        pitchEl.textContent = Math.round(pitch);
+      });
+    }
+
+    startBtn.onclick = () => {
+      startBtn.disabled = true;
+      boot();
+    };
+
+    async function boot() {
+      // 1) motion permission FIRST, synchronously in the tap — iOS Safari
+      //    refuses it if we ask after awaiting anything else.
+      let motionOK = false;
       try {
-        const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej));
+        if (typeof DeviceOrientationEvent !== 'undefined' &&
+            typeof DeviceOrientationEvent.requestPermission === 'function') {
+          msgEl.textContent = 'Tap "Allow" for motion & orientation…';
+          const perm = await DeviceOrientationEvent.requestPermission();
+          motionOK = (perm === 'granted');
+        } else {
+          motionOK = true; // Android/desktop: no prompt needed
+        }
+      } catch (e) { motionOK = false; }
+      if (motionOK) attachOrientation();
+
+      // 2) location, with a timeout so it can never hang silently
+      msgEl.textContent = 'Getting your location… (allow when asked)';
+      try {
+        const pos = await getPosition(12000);
         lat = pos.coords.latitude;
         lon = pos.coords.longitude;
         latEl.textContent = lat.toFixed(4);
         lonEl.textContent = lon.toFixed(4);
-
-        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-          const perm = await DeviceOrientationEvent.requestPermission();
-          if (perm !== 'granted') throw new Error('Motion permission denied');
-        }
-
-        window.addEventListener('deviceorientation', (e) => {
-          if (e.webkitCompassHeading !== undefined) {
-            heading = e.webkitCompassHeading;
-          } else if (e.alpha !== null) {
-            heading = 360 - e.alpha;
-          }
-          if (e.beta !== null) pitch = e.beta;
-          headingEl.textContent = Math.round(heading);
-          pitchEl.textContent = Math.round(pitch);
-        });
-
-        msgEl.textContent = 'Point your phone at the sky';
-        startBtn.style.display = 'none';
-        draw();
       } catch (err) {
-        msgEl.textContent = 'Error: ' + err.message;
+        msgEl.textContent = 'No location: ' + locErrorText(err);
+        startBtn.disabled = false;
+        return;
       }
-    };
+
+      msgEl.textContent = motionOK
+        ? 'Point your phone at the sky'
+        : 'Point your phone at the sky (compass blocked — fixed view)';
+      startBtn.style.display = 'none';
+      draw();
+    }
   </script>
 </body>
 </html>
