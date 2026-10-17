@@ -649,17 +649,18 @@ function mengerRender(level) {
   return cubes.length;
 }
 
-function starLen(n) { return Math.min(1500, 420 + n * 55); } // lines lengthen per tap
+function starLen(n) { return Math.min(1700, 420 + n * 70); } // lines lengthen per tap
 function starRender(n, M) {
   // STAR: straight line segments arranged like a pinwheel. starts with 5 short
-  // segments spaced so they don't touch; every tap adds a segment (bisecting the
-  // largest gap, so they stay evenly spread forever) and lengthens every segment —
-  // soon they weave into each other and the overlaps turn into geometric rosettes.
+  // segments; every tap adds a segment (bisecting the largest gap, so they stay
+  // evenly spread forever) and lengthens every segment — they weave into dense
+  // geometric rosettes with a small dark hole in the middle.
   vReset();
   const pal = PALETTES[palIdx];
   const count = M.S0 + n;
   const L = starLen(n), HL = L / 2;
-  const RHO = 640; // orbit radius
+  const RHO = 260; // tight orbit → small middle gap, heavy overlap at the edges
+  const TILT = 18 * Math.PI / 180, CT = Math.cos(TILT), ST = Math.sin(TILT);
   const angs = M.angs;
   while (angs.length < count) { // new segment bisects the largest angular gap — even spread, existing ones never move
     let best = 0, bg = -1;
@@ -674,15 +675,17 @@ function starRender(n, M) {
   for (let i = 0; i < count; i++) {
     const a = angs[i];
     const cxp = Math.cos(a) * RHO, cyp = Math.sin(a) * RHO;
-    const tx = -Math.sin(a) * M.dir, ty = Math.cos(a) * M.dir; // tangent → pinwheel lay
+    const tx = -Math.sin(a) * M.dir, ty = Math.cos(a) * M.dir; // tangent
+    const ux = -Math.cos(a), uy = -Math.sin(a); // inward radial
+    const dx = tx * CT + ux * ST, dy = ty * CT + uy * ST; // tilted chord → denser weave
     const hue = (pal.hues[i % pal.hues.length] + i * 47) % 360;
     vctx.strokeStyle = "hsla(" + hue + "," + pal.sat + "%,68%,0.95)"; // crisp single pass — no glow wash
     vctx.lineWidth = 5;
     vctx.beginPath();
-    vctx.moveTo(cxp - tx * HL, cyp - ty * HL);
-    vctx.lineTo(cxp + tx * HL, cyp + ty * HL);
+    vctx.moveTo(cxp - dx * HL, cyp - dy * HL);
+    vctx.lineTo(cxp + dx * HL, cyp + dy * HL);
     vctx.stroke();
-    vTouch(cxp - tx * HL, cyp - ty * HL); vTouch(cxp + tx * HL, cyp + ty * HL);
+    vTouch(cxp - dx * HL, cyp - dy * HL); vTouch(cxp + dx * HL, cyp + dy * HL);
   }
   return count;
 }
