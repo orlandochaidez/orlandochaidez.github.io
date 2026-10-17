@@ -649,19 +649,19 @@ function mengerRender(level) {
   return cubes.length;
 }
 
-function starSweep(n) { return Math.min(200, 42 + n * 6) * Math.PI / 180; } // arcs lengthen per tap, cap before it becomes a ring
+function starLen(n) { return Math.min(1500, 420 + n * 55); } // lines lengthen per tap
 function starRender(n, M) {
-  // STAR: curved arcs orbiting a center like a pinwheel. starts with 5 short arcs
-  // spaced so they don't touch; every tap adds an arc (bisecting the largest gap,
-  // so they stay evenly spread forever) and lengthens every arc — soon they weave
-  // into each other and the overlaps turn into moiré rosettes.
+  // STAR: straight line segments arranged like a pinwheel. starts with 5 short
+  // segments spaced so they don't touch; every tap adds a segment (bisecting the
+  // largest gap, so they stay evenly spread forever) and lengthens every segment —
+  // soon they weave into each other and the overlaps turn into geometric rosettes.
   vReset();
   const pal = PALETTES[palIdx];
   const count = M.S0 + n;
-  const sweep = starSweep(n);
+  const L = starLen(n), HL = L / 2;
   const RHO = 640; // orbit radius
   const angs = M.angs;
-  while (angs.length < count) { // new arc bisects the largest angular gap — even spread, existing arcs never move
+  while (angs.length < count) { // new segment bisects the largest angular gap — even spread, existing ones never move
     let best = 0, bg = -1;
     for (let i = 0; i < angs.length; i++) {
       let g = angs[(i + 1) % angs.length] - angs[i];
@@ -670,23 +670,19 @@ function starRender(n, M) {
     }
     angs.splice(best + 1, 0, angs[best] + bg / 2);
   }
-  const pts = Math.max(48, Math.min(240, Math.round(sweep * 180 / Math.PI * 1.2)));
-  vctx.lineCap = vctx.lineJoin = "round";
+  vctx.lineCap = "round";
   for (let i = 0; i < count; i++) {
-    const a0 = angs[i];
+    const a = angs[i];
+    const cxp = Math.cos(a) * RHO, cyp = Math.sin(a) * RHO;
+    const tx = -Math.sin(a) * M.dir, ty = Math.cos(a) * M.dir; // tangent → pinwheel lay
     const hue = (pal.hues[i % pal.hues.length] + i * 47) % 360;
     vctx.strokeStyle = "hsla(" + hue + "," + pal.sat + "%,68%,0.95)"; // crisp single pass — no glow wash
     vctx.lineWidth = 5;
     vctx.beginPath();
-    for (let k = 0; k <= pts; k++) {
-      const t = k / pts;
-      const r = RHO * (1 + 0.08 * (t - 0.5)); // gentle outward drift → pinwheel energy
-      const an = a0 + M.dir * t * sweep;
-      const X = Math.cos(an) * r, Y = Math.sin(an) * r;
-      if (k === 0) vctx.moveTo(X, Y); else vctx.lineTo(X, Y);
-      vTouch(X, Y);
-    }
+    vctx.moveTo(cxp - tx * HL, cyp - ty * HL);
+    vctx.lineTo(cxp + tx * HL, cyp + ty * HL);
     vctx.stroke();
+    vTouch(cxp - tx * HL, cyp - ty * HL); vTouch(cxp + tx * HL, cyp + ty * HL);
   }
   return count;
 }
@@ -963,7 +959,7 @@ MODES.tree = Object.assign(vectorMode("Tree", "tap grows branches · ❖ grows r
   rootTap() { if (rootN < ROOT_MAX) { rootN++; vNeedCrisp = true; } }
 });
 MODES.star = {
-  name: "Star", hint: "tap to add arcs · pinch to zoom · drag to pan",
+  name: "Star", hint: "tap to add lines · pinch to zoom · drag to pan",
   n: 0, S0: 5, dir: 1, angs: null, rot: 0,
   enter() {
     this.n = 0; this.S0 = 5;
@@ -979,7 +975,7 @@ MODES.star = {
   wheelVec: vecWheel,
   vecDraw() { starRender(this.n, this); },
   draw() { vectorFrame(); },
-  stats() { return "STAR · " + (this.S0 + this.n) + " arcs · " + PALETTES[palIdx].name; }
+  stats() { return "STAR · " + (this.S0 + this.n) + " lines · " + PALETTES[palIdx].name; }
 };
 MODES.sierpinski = vectorMode("Sierpinski", "tap to split it deeper", 12, sierpinskiTri,
   n => "SIERPINSKI · iteration " + n + " · " + Math.pow(3, n).toLocaleString("en-US") + " triangles · " + PALETTES[palIdx].name);
