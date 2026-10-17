@@ -148,7 +148,8 @@ function vRenderCrisp() {
   c.setTransform(1, 0, 0, 1, 0, 0);
   c.globalCompositeOperation = "source-over";
   c.clearRect(0, 0, vlc.width, vlc.height);
-  c.globalCompositeOperation = "lighter";
+  // NOTE: stays source-over (no "lighter"): additive blending turned hundreds of
+  // overlapping lines white. clean lines keep their exact color at any density.
   c.lineCap = c.lineJoin = "round";
   vApplyCam(c);
   MODES[cur].vecDraw();
