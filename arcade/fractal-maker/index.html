@@ -54,6 +54,7 @@
 <div id="hint">tap &nbsp;·&nbsp; click &nbsp;·&nbsp; hold &nbsp;to grow</div>
 <div id="controls">
   <button id="btnNew">&#10022; New</button>
+  <button id="btnRoots" style="display:none">&#10070; Roots</button>
   <button id="btnPal">&#9681; Colors</button>
   <button id="btnSave">&#10515; Save</button>
 </div>
@@ -699,7 +700,51 @@ function mengerRender(level) {
 }
 
 /* ==================== MODES ==================== */
-let treeSeed = 0, treeP = null;
+let treeSeed = 0, treeP = null, rootP = null, rootN = 0;
+const ROOT_MAX = 10;
+function rootFull(n) {
+  // the root system: one taproot splitting 1 → 2 → 4 → 8, fanning down and out
+  // with its own gnarlier botany — dimmer, earthier tones than the canopy
+  const pal = PALETTES[palIdx];
+  const RP = rootP;
+  const rrng = mulberry32((treeSeed ^ 0x51ab3d) >>> 0); // own stream: roots never reshape the canopy
+  const levels = [], tips = [];
+  let rtips = 0;
+  (function branch(x, y, a, len, w, d, i) {
+    const nx = x + Math.cos(a) * len, ny = y + Math.sin(a) * len;
+    (levels[d] = levels[d] || []).push(x, y, nx, ny);
+    vTouch(nx, ny);
+    if (d >= n) { rtips++; (tips[d] = tips[d] || []).push(nx, ny); return; }
+    const nl = len * RP.ratio, nw = w * RP.wRatio;
+    for (let s = 0; s < 2; s++) {
+      const spread = RP.angle * (1 + (rrng() - 0.5) * 0.3);
+      const c = (rrng() - 0.5) * RP.curl;
+      branch(nx, ny, a + (s === 0 ? -spread : spread) + RP.asym + c, nl, nw, d + 1, i * 2 + s);
+    }
+  })(0, 548, Math.PI / 2, 200, 20, 0, 0);
+  vctx.lineCap = "round";
+  let w = 20;
+  for (let d = 0; d < levels.length; d++) {
+    const L = levels[d];
+    if (!L) continue;
+    const hue = (pal.hues[(d + 1) % pal.hues.length] + d * 31) % 360;
+    vctx.strokeStyle = "hsla(" + hue.toFixed(1) + "," + pal.sat + "%," + Math.min(44, 26 + d * 2.4).toFixed(1) + "%,0.92)";
+    vctx.lineWidth = Math.max(0.5, w);
+    vctx.beginPath();
+    for (let k = 0; k < L.length; k += 4) { vctx.moveTo(L[k], L[k + 1]); vctx.lineTo(L[k + 2], L[k + 3]); }
+    vctx.stroke();
+    const T = tips[d];
+    if (T && T.length) {
+      const br = Math.max(0.9, w * 0.7);
+      vctx.fillStyle = "hsla(" + hue.toFixed(1) + "," + pal.sat + "%,52%,0.85)";
+      vctx.beginPath();
+      for (let k = 0; k < T.length; k += 2) { vctx.moveTo(T[k] + br, T[k + 1]); vctx.arc(T[k], T[k + 1], br, 0, TAU); }
+      vctx.fill();
+    }
+    w *= RP.wRatio;
+  }
+  return rtips;
+}
 function treeFull(n) {
   // recursive fractal tree, drawn in world coords; segments batched per depth
   // (one path per generation) so even 65k branches render in a blink
@@ -861,8 +906,8 @@ MODES.cantor = vectorMode("Cantor", "tap to divide it", 11, cantorRender,
   n => "CANTOR SET · row " + n + " · " + PALETTES[palIdx].name);
 MODES.menger = vectorMode("Menger", "tap to carve it deeper", 3, mengerRender,
   n => "MENGER SPONGE · level " + n + " · " + PALETTES[palIdx].name);
-MODES.tree = Object.assign(vectorMode("Tree", "tap to grow it deeper", 16, treeFull,
-  n => "FRACTAL TREE · generation " + n + " · " + PALETTES[palIdx].name), {
+MODES.tree = Object.assign(vectorMode("Tree", "tap grows branches · ❖ grows roots", 16, treeFull,
+  n => "FRACTAL TREE · gen " + n + " · roots " + rootN + " · " + PALETTES[palIdx].name), {
   enter() {
     // every tree rolls its own botany: angle, taper, asymmetry, curl
     treeSeed = (Math.random() * 0xffffff) | 0;
@@ -873,8 +918,19 @@ MODES.tree = Object.assign(vectorMode("Tree", "tap to grow it deeper", 16, treeF
       wRatio: 0.62 + rng() * 0.12,
       curl: (rng() - 0.5) * 0.45
     };
+    // ...and its own root botany: wider fan, gnarlier curl
+    rootP = {
+      angle: (30 + rng() * 18) * Math.PI / 180,
+      asym: (rng() - 0.5) * 0.5,
+      ratio: 0.66 + rng() * 0.10,
+      wRatio: 0.64 + rng() * 0.10,
+      curl: (rng() - 0.5) * 0.9
+    };
+    rootN = 0;
     this.n = 0; introBias = 0; camLock = false; cam = { x: 0, y: 0, z: maxZ }; vNeedCrisp = true;
-  }
+  },
+  vecDraw() { treeFull(this.n); rootFull(rootN); },
+  rootTap() { if (rootN < ROOT_MAX) { rootN++; vNeedCrisp = true; } }
 });
 MODES.sierpinski = {
   name: "Sierpinski", hint: "tap · hold to scatter · pinch to zoom · drag to pan", st: null,
@@ -897,6 +953,7 @@ function setMode(id) {
   camLock = false; vBasis = null; vNeedCrisp = false;
   clearTimeout(wheelT);
   cur = id;
+  document.getElementById("btnRoots").style.display = id === "tree" ? "" : "none";
   ripples = [];
   document.querySelectorAll("#modes button").forEach(b => b.classList.toggle("on", b.dataset.id === id));
   const M = MODES[id];
@@ -1097,6 +1154,10 @@ document.addEventListener("gesturestart", function (e) { e.preventDefault(); });
 document.getElementById("btnNew").addEventListener("click", function (e) {
   e.stopPropagation(); MODES[cur].reset(); updateStats(); flashPalette();
 });
+document.getElementById("btnRoots").addEventListener("click", function (e) {
+  e.stopPropagation();
+  if (cur === "tree") { MODES.tree.rootTap(); updateStats(); }
+});
 document.getElementById("btnPal").addEventListener("click", function (e) {
   e.stopPropagation();
   palIdx = (palIdx + 1) % PALETTES.length;
@@ -1116,6 +1177,7 @@ document.getElementById("btnSave").addEventListener("click", function (e) {
 window.addEventListener("keydown", function (e) {
   if (e.code === "Space") { e.preventDefault(); MODES[cur].tap(vw / 2, vh / 2); }
   else if (e.key === "n" || e.key === "N") MODES[cur].reset();
+  else if (e.key === "r" || e.key === "R") document.getElementById("btnRoots").click();
   else if (e.key === "c" || e.key === "C") document.getElementById("btnPal").click();
   else if (e.key >= "1" && e.key <= "9") setMode(ORDER[+e.key - 1]);
   else if (e.key === "0") setMode(ORDER[9]);
