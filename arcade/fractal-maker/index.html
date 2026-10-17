@@ -646,13 +646,13 @@ function mengerRender(level) {
   return cubes.length;
 }
 
-function starLen(n) { return Math.min(700, 240 + n * 24); } // lines lengthen per tap
-function starRho(i) { const f = (i * 0.6180339887 + 0.5) % 1; return 25 + 145 * f; } // orbit radius 25..170, golden-ratio spread
+function starLen(n) { return Math.min(1200, 500 + n * 30); } // lines lengthen per tap
+function starRho(i) { const f = (i * 0.6180339887 + 0.5) % 1; return 10 + 50 * f; } // orbit radius 10..60 — every line crosses the interior
 function starRender(n, M) {
-  // STAR: straight chords woven into a dense ball. each line sits at a golden-angle
-  // offset on its own orbit radius (also golden-ratio spread, 25..170), tilted like
-  // a pinwheel. every tap adds 6 lines and lengthens them all — they cross through
-  // the interior into a dense colorful ball with a tiny dark heart.
+  // STAR: straight chords woven into a dense ball. every line is centered near the
+  // middle (orbit radius 10..60, golden-ratio spread) on a golden-angle offset,
+  // tilted like a pinwheel. every tap adds 6 lines and lengthens them all — they
+  // all cross through the interior into a dense colorful ball with a tiny dark heart.
   vReset();
   const pal = PALETTES[palIdx];
   const count = M.S0 + 6 * n;
