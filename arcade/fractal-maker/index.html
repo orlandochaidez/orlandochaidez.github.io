@@ -535,7 +535,7 @@ function dragonRender(n) {
   const H = pal.hues.length, bands = H * 2; // two rainbow cycles along the path
   const ghost = pal.name === "GHOST";
   vctx.lineJoin = vctx.lineCap = "round"; // rounded joints = the dots in the reference
-  vctx.lineWidth = Math.min(8, Math.max(0.8, S * 0.12)); // hella skinny — fine filigree at depth, never blobby
+  vctx.lineWidth = Math.min(6, Math.max(0.5, S * 0.1)); // ultra-thin — hairlines at depth, razor sharp on zoom
   let bi = -1;
   for (let i = 0; i < segs; i++) {
     const b = Math.floor(i / segs * bands);
