@@ -647,34 +647,25 @@ function mengerRender(level) {
 }
 
 function starLen(n) { return Math.min(700, 240 + n * 24); } // lines lengthen per tap
+function starRho(i) { const f = (i * 0.6180339887 + 0.5) % 1; return 25 + 145 * f; } // orbit radius 25..170, golden-ratio spread
 function starRender(n, M) {
-  // STAR: straight line segments woven into a dense ball. starts with 5 short
-  // segments; every tap adds 6 segments (bisecting the largest gaps, so they stay
-  // evenly spread forever) and lengthens every segment — they cross through the
-  // interior and weave into a dense colorful ball with a small dark hole.
+  // STAR: straight chords woven into a dense ball. each line sits at a golden-angle
+  // offset on its own orbit radius (also golden-ratio spread, 25..170), tilted like
+  // a pinwheel. every tap adds 6 lines and lengthens them all — they cross through
+  // the interior into a dense colorful ball with a tiny dark heart.
   vReset();
   const pal = PALETTES[palIdx];
   const count = M.S0 + 6 * n;
   const L = starLen(n), HL = L / 2;
-  const RHO = 150; // tight orbit → small middle gap
-  const TILT = 35 * Math.PI / 180, CT = Math.cos(TILT), ST = Math.sin(TILT); // deep chords → lines cross the interior
-  const angs = M.angs;
-  while (angs.length < count) { // new segment bisects the largest angular gap — even spread, existing ones never move
-    let best = 0, bg = -1;
-    for (let i = 0; i < angs.length; i++) {
-      let g = angs[(i + 1) % angs.length] - angs[i];
-      if (g <= 0) g += TAU;
-      if (g > bg) { bg = g; best = i; }
-    }
-    angs.splice(best + 1, 0, angs[best] + bg / 2);
-  }
+  const TILT = 35 * Math.PI / 180, CT = Math.cos(TILT), ST = Math.sin(TILT);
   vctx.lineCap = "round";
   for (let i = 0; i < count; i++) {
-    const a = angs[i];
-    const cxp = Math.cos(a) * RHO, cyp = Math.sin(a) * RHO;
+    const a = M.rot + i * GOLDEN; // golden angle — even spread, existing lines never move
+    const rho = starRho(i);
+    const cxp = Math.cos(a) * rho, cyp = Math.sin(a) * rho;
     const tx = -Math.sin(a) * M.dir, ty = Math.cos(a) * M.dir; // tangent
     const ux = -Math.cos(a), uy = -Math.sin(a); // inward radial
-    const dx = tx * CT + ux * ST, dy = ty * CT + uy * ST; // tilted chord → denser weave
+    const dx = tx * CT + ux * ST, dy = ty * CT + uy * ST; // tilted chord
     const hue = (pal.hues[i % pal.hues.length] + i * 47) % 360;
     vctx.strokeStyle = "hsla(" + hue + "," + pal.sat + "%,68%,0.95)"; // crisp single pass — no glow wash
     vctx.lineWidth = 5;
@@ -960,13 +951,11 @@ MODES.tree = Object.assign(vectorMode("Tree", "tap grows branches · ❖ grows r
 });
 MODES.star = {
   name: "Star", hint: "tap to add lines · pinch to zoom · drag to pan",
-  n: 0, S0: 5, dir: 1, angs: null, rot: 0,
+  n: 0, S0: 5, dir: 1, rot: 0,
   enter() {
     this.n = 0; this.S0 = 5;
     this.dir = Math.random() < 0.5 ? 1 : -1; // pinwheel spins either way
     this.rot = Math.random() * TAU;
-    this.angs = [];
-    for (let i = 0; i < this.S0; i++) this.angs.push(this.rot + i * TAU / this.S0);
     introBias = 0; camLock = false; cam = { x: 0, y: 0, z: maxZ }; vNeedCrisp = true;
   },
   tap(x, y) { this.n++; vNeedCrisp = true; ripples.push({ x, y, t0: performance.now() }); },
