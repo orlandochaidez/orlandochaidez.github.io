@@ -645,18 +645,18 @@ function mengerRender(level) {
   return cubes.length;
 }
 
-function starLen(n) { return Math.min(1000, 320 + n * 34); } // lines lengthen per tap
+function starLen(n) { return Math.min(700, 240 + n * 24); } // lines lengthen per tap
 function starRender(n, M) {
-  // STAR: straight line segments arranged like a pinwheel. starts with 5 short
-  // segments; every tap adds 4 segments (bisecting the largest gaps, so they stay
-  // evenly spread forever) and lengthens every segment — they weave into a dense
-  // colorful ball with a small dark hole in the middle.
+  // STAR: straight line segments woven into a dense ball. starts with 5 short
+  // segments; every tap adds 6 segments (bisecting the largest gaps, so they stay
+  // evenly spread forever) and lengthens every segment — they cross through the
+  // interior and weave into a dense colorful ball with a small dark hole.
   vReset();
   const pal = PALETTES[palIdx];
-  const count = M.S0 + 4 * n;
+  const count = M.S0 + 6 * n;
   const L = starLen(n), HL = L / 2;
-  const RHO = 260; // tight orbit → small middle gap, heavy overlap at the edges
-  const TILT = 18 * Math.PI / 180, CT = Math.cos(TILT), ST = Math.sin(TILT);
+  const RHO = 150; // tight orbit → small middle gap
+  const TILT = 35 * Math.PI / 180, CT = Math.cos(TILT), ST = Math.sin(TILT); // deep chords → lines cross the interior
   const angs = M.angs;
   while (angs.length < count) { // new segment bisects the largest angular gap — even spread, existing ones never move
     let best = 0, bg = -1;
@@ -974,7 +974,7 @@ MODES.star = {
   wheelVec: vecWheel,
   vecDraw() { starRender(this.n, this); },
   draw() { vectorFrame(); },
-  stats() { return "STAR · " + (this.S0 + 4 * this.n) + " lines · " + PALETTES[palIdx].name; }
+  stats() { return "STAR · " + (this.S0 + 6 * this.n) + " lines · " + PALETTES[palIdx].name; }
 };
 MODES.sierpinski = vectorMode("Sierpinski", "tap to split it deeper", 12, sierpinskiTri,
   n => "SIERPINSKI · iteration " + n + " · " + Math.pow(3, n).toLocaleString("en-US") + " triangles · " + PALETTES[palIdx].name);
