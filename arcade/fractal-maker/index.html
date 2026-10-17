@@ -35,6 +35,7 @@
     font-size:12.5px; letter-spacing:.14em; padding:11px 18px; border-radius:999px; cursor:pointer;
     text-transform:uppercase; font-weight:600; transition:transform .12s, background .2s; white-space:nowrap; }
   #controls button:active { transform:scale(.94); background:rgba(40,44,80,.7); }
+  #btn3D.on { color:#070a18; background:#8ef; border-color:#8ef; }
   #hint { position:fixed; bottom:calc(env(safe-area-inset-bottom, 0px) + 76px); left:50%; transform:translateX(-50%);
     color:rgba(255,255,255,.8); font-size:12.5px; letter-spacing:.18em; pointer-events:none; user-select:none; -webkit-user-select:none;
     text-shadow:0 2px 10px rgba(0,0,0,.9); transition:opacity .8s; animation:breathe 2.6s ease-in-out infinite; white-space:nowrap; z-index:5; }
@@ -64,6 +65,7 @@
 <div id="controls">
   <button id="btnNew">&#10022; New</button>
   <button id="btnFit">&#9956; Fit</button>
+  <button id="btn3D" style="display:none">&#11042; 3D</button>
   <button id="btnRoots" style="display:none">&#10070; Roots</button>
   <button id="btnPal">&#9681; Colors</button>
   <button id="btnSave">&#10515; Save</button>
@@ -88,7 +90,10 @@
    300ms after it settles, the mode re-renders crisp at the new view.
    Manual pinch/drag/wheel freezes the auto camera (it stays where you put it);
    ✦ or mode switch hands control back to the auto follow.
-   TREE now grows to 16 generations (65,536 tips), batched one path per depth.
+   TREE grows to 18 generations (262,144 tips), batched one path per depth.
+   BLOOM 3D: the ⬢ 3D button (Bloom only) switches to an orbit camera —
+   same garden in true 3D. Drag orbits, pinch/wheel/Z/X dolly, arrows orbit,
+   ⛶ Fit reframes. 2D math is byte-for-byte unchanged.
    ============================================================ */
 const TAU = Math.PI * 2;
 const GOLDEN = Math.PI * (3 - Math.sqrt(5)); // 137.508° — nature's favorite angle
@@ -108,7 +113,7 @@ const stage = document.getElementById("stage");
 const ctx = stage.getContext("2d");
 let vw = 0, vh = 0, dpr = 1, bg = null, maxZ = 1;
 
-let seed, rng, P0, turtles, palIdx;
+let seed, rng, zrng, P0, turtles, palIdx;
 let minX, maxX, minY, maxY, segs, taps;
 let cam, introBias, lastTip;
 let holding = false, lastHold = 0;
@@ -135,6 +140,12 @@ function hsl(h, s, l) { // h 0-360, s/l 0-100 → [r,g,b] 0-255
 }
 
 function vTouch(x, y) { if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y; }
+let bMinZ = 0, bMaxZ = 0;
+function vTouch3(x, y, z) {
+  vTouch(x, y);
+  if (z < bMinZ) bMinZ = z;
+  if (z > bMaxZ) bMaxZ = z;
+}
 function vReset() { minX = 1e9; maxX = -1e9; minY = 1e9; maxY = -1e9; }
 function vEnsure() {
   const W = Math.max(2, Math.round(vw * dpr)), H = Math.max(2, Math.round(vh * dpr));
@@ -240,18 +251,19 @@ function vecWheel(f, mx, my) {
 // razor-sharp at any zoom — no magnified bitmaps, ever
 const BSEG_CAP = 400000;
 let bstore = null, bsegN = 0;
-function bloomStore(x1, y1, x2, y2, w, gen, t) {
-  if (!bstore) bstore = new Float32Array(BSEG_CAP * 7);
+function bloomStore(x1, y1, z1, x2, y2, z2, w, gen, t) {
+  if (!bstore || bstore.length < BSEG_CAP * 9) bstore = new Float32Array(BSEG_CAP * 9);
   if (bsegN >= BSEG_CAP) return;
-  const o = bsegN * 7;
-  bstore[o] = x1; bstore[o + 1] = y1; bstore[o + 2] = x2; bstore[o + 3] = y2;
-  bstore[o + 4] = w; bstore[o + 5] = gen; bstore[o + 6] = t;
+  const o = bsegN * 9;
+  bstore[o] = x1; bstore[o + 1] = y1; bstore[o + 2] = z1;
+  bstore[o + 3] = x2; bstore[o + 4] = y2; bstore[o + 5] = z2;
+  bstore[o + 6] = w; bstore[o + 7] = gen; bstore[o + 8] = t;
   bsegN++;
 }
 function bloomRestroke() {
   const pal = PALETTES[palIdx];
   for (let k = 0; k < bsegN; k++) {
-    const o = k * 7, gen = bstore[o + 5] | 0, t = bstore[o + 6];
+    const o = k * 9, gen = bstore[o + 7] | 0, t = bstore[o + 8];
     const hue = (pal.hues[gen % pal.hues.length] + t * 0.12 + gen * 17) % 360;
     vctx.strokeStyle = "hsla(" + hue.toFixed(1) + "," + pal.sat + "%," +
       Math.min(74, 54 + gen * 2.2).toFixed(1) + "%,0.85)";
@@ -274,6 +286,7 @@ function bloomVecDraw() {
 function bloomNew() {
   seed = (Math.random() * 0xffffff) | 0;
   rng = mulberry32(seed);
+  zrng = mulberry32((seed ^ 0x9e3779b9) >>> 0);
   P0 = {
     baseTurn:  (rng() - 0.5) * 0.24,
     waveAmp:   0.25 + rng() * 0.75,
@@ -284,15 +297,27 @@ function bloomNew() {
     stepLen:   6.5 + rng() * 5,
     lenDecay:  0.962 + rng() * 0.025
   };
+  // z wander uses its own stream so the 2D garden stays pixel-identical
+  P0.pitchAmp = 0.35 + zrng() * 0.5;
+  P0.pitchFreq = 0.02 + zrng() * 0.05;
+  P0.pitchJitter = 0.3 + zrng() * 0.4;
+  P0.lift = (zrng() - 0.35) * 0.9;
   palIdx = (rng() * PALETTES.length) | 0;
   turtles = [{ x: START_X, y: 0, a: (rng() - 0.5) * 0.6, gen: 0, t: 0, phase: rng() * TAU, alive: true }];
-  lastTip = { x: START_X, y: 0, a: 0 };
+  turtles[0].z = 0;
+  turtles[0].p = (zrng() - 0.5) * 0.3;
+  turtles[0].pphase = zrng() * TAU;
+  lastTip = { x: START_X, y: 0, a: 0, z: 0 };
   minX = maxX = START_X; minY = maxY = 0;
+  bMinZ = bMaxZ = 0;
   segs = 0; taps = 0; introBias = 1; ripples = [];
   bsegN = 0;
   camLock = false;
   cam = { x: START_X, y: 0, z: maxZ };
   vNeedCrisp = true;
+  b3d.lock = false;
+  b3dNeed = true;
+  if (b3d.on) b3dFit();
 }
 function bloomGrow(px, py) {
   taps++;
@@ -313,28 +338,33 @@ function bloomGrow(px, py) {
       tu.t++;
       const nx = tu.x + Math.cos(tu.a) * len;
       const ny = tu.y + Math.sin(tu.a) * len;
+      tu.p += P0.pitchAmp * 0.3 * Math.sin(tu.t * P0.pitchFreq + tu.pphase) + (zrng() - 0.5) * P0.pitchJitter;
+      tu.p = Math.max(-1.2, Math.min(1.2, tu.p));
+      const nz = tu.z + (Math.sin(tu.p) + P0.lift * 0.15) * len;
       const w = Math.max(0.5, 5.2 * Math.pow(0.78, tu.gen) + 0.5);
       const hue = (pal.hues[tu.gen % pal.hues.length] + tu.t * 0.12 + tu.gen * 17) % 360;
-      vctx.strokeStyle = "hsla(" + hue.toFixed(1) + "," + pal.sat + "%," +
-        Math.min(74, 54 + tu.gen * 2.2).toFixed(1) + "%,0.85)";
-      vctx.lineWidth = w;
-      vctx.beginPath();
-      vctx.moveTo(tu.x, tu.y);
-      vctx.lineTo(nx, ny);
-      vctx.stroke();
-      bloomStore(tu.x, tu.y, nx, ny, w, tu.gen, tu.t);
-      tu.x = nx; tu.y = ny; segs++;
-      vTouch(nx, ny);
+      if (!b3d.on) {
+        vctx.strokeStyle = "hsla(" + hue.toFixed(1) + "," + pal.sat + "%," +
+          Math.min(74, 54 + tu.gen * 2.2).toFixed(1) + "%,0.85)";
+        vctx.lineWidth = w;
+        vctx.beginPath();
+        vctx.moveTo(tu.x, tu.y);
+        vctx.lineTo(nx, ny);
+        vctx.stroke();
+      }
+      bloomStore(tu.x, tu.y, tu.z, nx, ny, nz, w, tu.gen, tu.t);
+      tu.x = nx; tu.y = ny; tu.z = nz; segs++;
+      vTouch3(nx, ny, nz);
       const bp = P0.branchP * (1 - tu.gen / MAXG);
       if (rng() < bp && aliveCount + kids.length < MAXT) {
         const dir = rng() < 0.5 ? -1 : 1;
         const ka = rng() < 0.14
           ? tu.a + dir * Math.PI * 0.5 * (0.8 + rng() * 0.4)
           : tu.a + dir * P0.branchAng * (0.75 + rng() * 0.5);
-        kids.push({ x: tu.x, y: tu.y, a: ka, gen: tu.gen + 1, t: 0, phase: rng() * TAU, alive: true });
+        kids.push({ x: tu.x, y: tu.y, z: tu.z, a: ka, gen: tu.gen + 1, t: 0, phase: rng() * TAU, alive: true, p: tu.p * 0.7, pphase: zrng() * TAU });
       }
       if (rng() < 0.0025) tu.alive = false;
-      lastTip.x = nx; lastTip.y = ny; lastTip.a = tu.a;
+      lastTip.x = nx; lastTip.y = ny; lastTip.z = nz; lastTip.a = tu.a;
     }
   }
   if (kids.length) { turtles.push.apply(turtles, kids); aliveCount += kids.length; }
@@ -345,10 +375,169 @@ function bloomGrow(px, py) {
     aliveCount = MAXT;
   }
   if (aliveCount === 0) {
-    turtles.push({ x: lastTip.x, y: lastTip.y, a: lastTip.a + (rng() - 0.5), gen: 0, t: 0, phase: rng() * TAU, alive: true });
+    turtles.push({ x: lastTip.x, y: lastTip.y, z: lastTip.z || 0, a: lastTip.a + (rng() - 0.5), gen: 0, t: 0, phase: rng() * TAU, alive: true, p: (zrng() - 0.5) * 0.3, pphase: zrng() * TAU });
   }
   if (px !== undefined) ripples.push({ x: px, y: py, t0: performance.now() });
   introBias = Math.max(0, introBias - 0.3);
+  if (b3d.on) b3dNeed = true;
+}
+
+/* ================= BLOOM 3D (same garden, orbit camera) ================= */
+let b3d = { on: false, yaw: 0.6, pitch: 0.5, dist: 1000, tx: 0, ty: 0, tz: 0, k: 1, lock: false };
+let b3dNeed = true, b3dSettleT = null, b3dLast = null;
+function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+function b3dProject(x, y, z) {
+  let x1 = x - b3d.tx;
+  let y1 = -(y - b3d.ty); // canvas y is down; 3D +y is up, so the garden isn't flipped
+  let z1 = z - b3d.tz;
+  const cy = Math.cos(b3d.yaw), sy = Math.sin(b3d.yaw);
+  const x2 = x1 * cy + z1 * sy;
+  let z2 = -x1 * sy + z1 * cy;
+  const cp = Math.cos(b3d.pitch), sp = Math.sin(b3d.pitch);
+  const y2 = y1 * cp - z2 * sp;
+  z2 = y1 * sp + z2 * cp;
+  if (b3d.dist - z2 < 1) return null;
+  const s = b3d.dist / Math.max(1, b3d.dist - z2);
+  return { x: vw / 2 + x2 * s * b3d.k, y: vh / 2 - y2 * s * b3d.k, s: s, d: z2 };
+}
+let b3dBuf = null;
+function b3dEnsureBuf(n) {
+  if (b3dBuf && b3dBuf.n >= n) return;
+  const cap = Math.max(n, 8192);
+  b3dBuf = { n: cap, depth: new Float32Array(cap), xy: new Float32Array(cap * 4), lw: new Float32Array(cap), st: new Uint32Array(cap) };
+}
+function b3dSpan() {
+  const dx = Math.max(1, maxX - minX), dy = Math.max(1, maxY - minY), dz = Math.max(1, bMaxZ - bMinZ);
+  return Math.max(12, 0.5 * Math.hypot(dx, dy, dz));
+}
+function b3dFit() {
+  b3d.tx = (minX + maxX) / 2;
+  b3d.ty = (minY + maxY) / 2;
+  b3d.tz = (bMinZ + bMaxZ) / 2;
+  const R = b3dSpan();
+  const half = Math.min(vw, vh) * 0.42;
+  b3d.k = Math.min(maxZ, half / R);
+  b3d.dist = clamp(R / (Math.tan(20 * Math.PI / 180) * 0.85), 50, 20000);
+  b3d.lock = false;
+  b3dNeed = true;
+}
+function b3dSnap() {
+  b3dLast = { yaw: b3d.yaw, pitch: b3d.pitch, dist: b3d.dist, tx: b3d.tx, ty: b3d.ty, tz: b3d.tz, k: b3d.k, n: bsegN };
+}
+function b3dMoved() {
+  if (!b3dLast) return true;
+  const a = b3d, b = b3dLast;
+  return Math.abs(a.yaw - b.yaw) > 1e-4 || Math.abs(a.pitch - b.pitch) > 1e-4 ||
+    Math.abs(a.dist - b.dist) > 0.05 || Math.abs(a.tx - b.tx) > 0.05 ||
+    Math.abs(a.ty - b.ty) > 0.05 || Math.abs(a.tz - b.tz) > 0.05 ||
+    Math.abs(a.k - b.k) / Math.max(1e-9, b.k) > 1e-4 || b.n !== bsegN;
+}
+function b3dBlit() {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.globalCompositeOperation = "source-over";
+  ctx.drawImage(vlc, 0, 0, vw, vh);
+}
+function b3dRender(full) {
+  vEnsure();
+  const c = vctx;
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  c.globalCompositeOperation = "source-over";
+  c.clearRect(0, 0, vlc.width, vlc.height);
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.lineCap = c.lineJoin = "round";
+  if (bstore && bsegN) {
+    const pal = PALETTES[palIdx];
+    const step = full ? 1 : Math.max(1, Math.ceil(bsegN / 40000));
+    b3dEnsureBuf(Math.ceil(bsegN / step));
+    const depth = b3dBuf.depth, xy = b3dBuf.xy, lwA = b3dBuf.lw, st = b3dBuf.st;
+    const yawC = Math.cos(b3d.yaw), yawS = Math.sin(b3d.yaw);
+    const pitC = Math.cos(b3d.pitch), pitS = Math.sin(b3d.pitch);
+    const dist = b3d.dist, k = b3d.k, tx = b3d.tx, ty = b3d.ty, tz = b3d.tz;
+    let count = 0;
+    for (let kseg = 0; kseg < bsegN; kseg += step) {
+      const o = kseg * 9;
+      const ax = bstore[o] - tx, ay = -(bstore[o + 1] - ty), az = bstore[o + 2] - tz;
+      const bx = bstore[o + 3] - tx, by = -(bstore[o + 4] - ty), bz = bstore[o + 5] - tz;
+      let az1 = -ax * yawS + az * yawC, bz1 = -bx * yawS + bz * yawC;
+      const ax1 = ax * yawC + az * yawS, bx1 = bx * yawC + bz * yawS;
+      const ay2 = ay * pitC - az1 * pitS, by2 = by * pitC - bz1 * pitS;
+      az1 = ay * pitS + az1 * pitC; bz1 = by * pitS + bz1 * pitC;
+      if (dist - az1 < 1 || dist - bz1 < 1) continue;
+      const s1 = dist / Math.max(1, dist - az1), s2 = dist / Math.max(1, dist - bz1);
+      const i = count++;
+      depth[i] = (az1 + bz1) * 0.5;
+      const q = i * 4;
+      xy[q] = vw / 2 + ax1 * s1 * k; xy[q + 1] = vh / 2 - ay2 * s1 * k;
+      xy[q + 2] = vw / 2 + bx1 * s2 * k; xy[q + 3] = vh / 2 - by2 * s2 * k;
+      const gen = bstore[o + 7] | 0, t = bstore[o + 8];
+      const hue = (pal.hues[gen % pal.hues.length] + t * 0.12 + gen * 17) % 360;
+      const hq = Math.round((((hue % 360) + 360) % 360) / 6);
+      const lw = Math.max(0.5, bstore[o + 6] * 0.5 * (s1 + s2));
+      const wqi = Math.max(1, Math.round(lw));
+      lwA[i] = wqi;
+      st[i] = (gen & 15) | (hq << 4) | (wqi << 12);
+    }
+    let order = null;
+    if (full && count > 1 && count <= 80000) {
+      order = new Array(count);
+      for (let i = 0; i < count; i++) order[i] = i;
+      order.sort(function (i, j) { return depth[i] - depth[j]; });
+    }
+    let path = null, prev = -1, prevW = 0, style = "";
+    const flush = function () {
+      if (!path) return;
+      c.strokeStyle = style;
+      c.lineWidth = prevW;
+      c.stroke(path);
+      path = null;
+    };
+    for (let n = 0; n < count; n++) {
+      const i = order ? order[n] : n;
+      if (st[i] !== prev) {
+        flush();
+        prev = st[i];
+        prevW = lwA[i];
+        const gen = prev & 15, hq = (prev >>> 4) & 255;
+        style = "hsla(" + (hq * 6) + "," + pal.sat + "%," + Math.min(74, 54 + gen * 2.2).toFixed(1) + "%,0.85)";
+        path = new Path2D();
+      }
+      const q = i * 4;
+      path.moveTo(xy[q], xy[q + 1]);
+      path.lineTo(xy[q + 2], xy[q + 3]);
+    }
+    flush();
+  }
+  b3dSnap();
+  b3dNeed = false;
+  b3dBlit();
+}
+function b3dMotion() {
+  clearTimeout(b3dSettleT);
+  b3dSettleT = setTimeout(function () { b3dNeed = true; }, 300);
+}
+function b3dFrame() {
+  let moving = false;
+  if (!b3d.lock && segs > 0) {
+    const tx = (minX + maxX) / 2, ty = (minY + maxY) / 2, tz = (bMinZ + bMaxZ) / 2;
+    const R = b3dSpan();
+    const half = Math.min(vw, vh) * 0.42;
+    const tk = Math.min(maxZ, half / R);
+    const td = clamp(R / (Math.tan(20 * Math.PI / 180) * 0.85), 50, 20000);
+    const dtx = tx - b3d.tx, dty = ty - b3d.ty, dtz = tz - b3d.tz, dtd = td - b3d.dist, dtk = tk - b3d.k;
+    moving = Math.abs(dtx) > 0.5 || Math.abs(dty) > 0.5 || Math.abs(dtz) > 0.5 || Math.abs(dtd) > td * 0.002 || Math.abs(dtk) > tk * 0.002;
+    b3d.tx += dtx * 0.09; b3d.ty += dty * 0.09; b3d.tz += dtz * 0.09;
+    b3d.dist += dtd * 0.09; b3d.k += dtk * 0.09;
+  }
+  if (moving) b3dMotion();
+  if (b3dNeed || !b3dLast) b3dRender(true);
+  else if (b3dMoved()) b3dRender(false);
+  else b3dBlit();
+}
+function b3dHint() {
+  MODES.bloom.hint = b3d.on
+    ? "tap to grow · drag to orbit · pinch to zoom"
+    : "tap · click · hold to grow · pinch to zoom · drag to pan";
+  if (cur === "bloom") document.getElementById("hint").innerHTML = MODES.bloom.hint;
 }
 
 /* ============ ESCAPE-TIME ENGINE (mandelbrot / julia) ============ */
@@ -804,10 +993,23 @@ MODES.bloom = {
   tap(x, y) { bloomGrow(x, y); if (taps === 3) document.getElementById("hint").classList.add("gone"); },
   holdTick() { bloomGrow(); },
   reset() { bloomNew(); },
-  onPalette() { vNeedCrisp = true; },
+  onPalette() { if (b3d.on) b3dNeed = true; else vNeedCrisp = true; },
   wheelVec: vecWheel,
   vecDraw() { bloomVecDraw(); },
   draw(now) {
+    if (b3d.on) {
+      b3dFrame();
+      if (taps === 0) {
+        const p = b3dProject(START_X, 0, 0);
+        if (p) {
+          const pr = (now / 900) % 1;
+          ctx.strokeStyle = "rgba(160,220,255," + ((1 - pr) * 0.7).toFixed(3) + ")";
+          ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.arc(p.x, p.y, 14 + pr * 46, 0, TAU); ctx.stroke();
+        }
+      }
+      return;
+    }
     vectorFrame();
     if (taps === 0) {
       const K = cam.z * usr.z;
@@ -819,7 +1021,7 @@ MODES.bloom = {
       ctx.beginPath(); ctx.arc(sx, sy, 14 + pr * 46, 0, TAU); ctx.stroke();
     }
   },
-  stats() { return "#" + seed.toString(16).padStart(6, "0") + " · " + taps + " taps · " + segs.toLocaleString("en-US") + " segs · " + PALETTES[palIdx].name; }
+  stats() { return "#" + seed.toString(16).padStart(6, "0") + " · " + taps + " taps · " + segs.toLocaleString("en-US") + " segs · " + PALETTES[palIdx].name + (b3d.on ? " · 3D" : ""); }
 };
 
 function escMode(kind, name, hint, baseIter, iterStep, maxCap) {
@@ -1003,6 +1205,7 @@ function setMode(id) {
   clearTimeout(wheelT);
   cur = id;
   document.getElementById("btnRoots").style.display = id === "tree" ? "" : "none";
+  document.getElementById("btn3D").style.display = id === "bloom" ? "" : "none";
   ripples = [];
   document.querySelectorAll("#modes button").forEach(b => b.classList.toggle("on", b.dataset.id === id));
   const M = MODES[id];
@@ -1054,6 +1257,10 @@ function resize() {
   stage.style.width = vw + "px"; stage.style.height = vh + "px";
   buildBg();
   maxZ = Math.min(vw, vh) / 560;
+  if (cur === "bloom" && b3d.on) {
+    if (!b3d.lock) b3dFit();
+    else b3dNeed = true;
+  }
 }
 window.addEventListener("resize", resize);
 
@@ -1090,7 +1297,7 @@ function startPinch() {
   pinchSt = {
     d0: Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 1,
     m0x: (p[0].x + p[1].x) / 2, m0y: (p[0].y + p[1].y) / 2,
-    v0: null, u0: { z: usr.z, ox: usr.ox, oy: usr.oy }, nV: null
+    v0: null, u0: { z: usr.z, ox: usr.ox, oy: usr.oy }, nV: null, d3: b3d.dist
   };
   const M = MODES[cur];
   if (M.isEscape) pinchSt.v0 = escViewOf(M);
@@ -1102,6 +1309,12 @@ function movePinch() {
   const m1x = (p[0].x + p[1].x) / 2, m1y = (p[0].y + p[1].y) / 2;
   const M = MODES[cur];
   const f = d1 / pinchSt.d0;
+  if (cur === "bloom" && b3d.on) {
+    b3d.dist = clamp(pinchSt.d3 / f, 50, 20000);
+    b3d.lock = true;
+    b3dMotion();
+    return;
+  }
   if (M.isEscape) {
     const z = cFromCss(pinchSt.m0x, pinchSt.m0y, pinchSt.v0);
     const nV = viewForAnchor(z, m1x, m1y, Math.max(1e-9, pinchSt.v0.size / f));
@@ -1116,6 +1329,13 @@ function movePinch() {
   }
 }
 function movePan(x, y) {
+  if (cur === "bloom" && b3d.on) {
+    b3d.yaw += (x - downInfo.lx) * 0.008;
+    b3d.pitch = clamp(b3d.pitch + (y - downInfo.ly) * 0.008, -1.4, 1.4);
+    b3d.lock = true;
+    b3dMotion();
+    return;
+  }
   const M = MODES[cur];
   if (!panSt) {
     panSt = { x0: downInfo.x, y0: downInfo.y, v0: M.isEscape ? escViewOf(M) : null, nV: null };
@@ -1184,6 +1404,12 @@ stage.addEventListener("wheel", function (e) {
   e.preventDefault();
   const M = MODES[cur];
   const f = Math.exp(-e.deltaY * 0.0012);
+  if (cur === "bloom" && b3d.on) {
+    b3d.dist = clamp(b3d.dist / f, 50, 20000);
+    b3d.lock = true;
+    b3dMotion();
+    return;
+  }
   if (M.isEscape) {
     const V = { cx: M.cx, cy: M.cy, size: M.size };
     const z = cFromCss(e.clientX, e.clientY, V);
@@ -1206,10 +1432,21 @@ document.getElementById("btnNew").addEventListener("click", function (e) {
 document.getElementById("btnFit").addEventListener("click", function (e) {
   e.stopPropagation(); fitView();
 });
+document.getElementById("btn3D").addEventListener("click", function (e) {
+  e.stopPropagation();
+  if (cur !== "bloom") return;
+  b3d.on = !b3d.on;
+  if (b3d.on) b3dFit();
+  else { vNeedCrisp = true; vBasis = null; }
+  this.classList.toggle("on", b3d.on);
+  b3dHint();
+  updateStats();
+});
 // ⛶ Fit: reframe the whole fractal on screen WITHOUT touching growth —
 // unlike ✦ New it never resets iterations, re-rolls seeds, or changes Julia's constant
 function fitView() {
   const M = MODES[cur];
+  if (cur === "bloom" && b3d.on) { b3dFit(); updateStats(); return; }
   if (M.isEscape) {
     if (cur === "mandelbrot") { M.cx = -0.5; M.cy = 0; } else { M.cx = 0; M.cy = 0; }
     M.size = 3.4; VG = null; escStart(M.job());
@@ -1247,11 +1484,21 @@ window.addEventListener("keydown", function (e) {
   else if (e.key === "z" || e.key === "Z") keyZoom(1.4);       // keyboard zoom in (desktop)
   else if (e.key === "x" || e.key === "X") keyZoom(1 / 1.4);  // keyboard zoom out (desktop)
   else if (e.key === "f" || e.key === "F") fitView();         // fit whole fractal on screen
+  else if (cur === "bloom" && b3d.on && e.key === "ArrowLeft") { e.preventDefault(); b3d.yaw -= 0.08; b3d.lock = true; b3dMotion(); }
+  else if (cur === "bloom" && b3d.on && e.key === "ArrowRight") { e.preventDefault(); b3d.yaw += 0.08; b3d.lock = true; b3dMotion(); }
+  else if (cur === "bloom" && b3d.on && e.key === "ArrowUp") { e.preventDefault(); b3d.pitch = clamp(b3d.pitch - 0.06, -1.4, 1.4); b3d.lock = true; b3dMotion(); }
+  else if (cur === "bloom" && b3d.on && e.key === "ArrowDown") { e.preventDefault(); b3d.pitch = clamp(b3d.pitch + 0.06, -1.4, 1.4); b3d.lock = true; b3dMotion(); }
   else if (e.key >= "1" && e.key <= "9") setMode(ORDER[+e.key - 1]);
 });
 
 // keyboard zoom — same code path as the wheel, anchored at screen center
 function keyZoom(f) {
+  if (cur === "bloom" && b3d.on) {
+    b3d.dist = clamp(b3d.dist / f, 50, 20000);
+    b3d.lock = true;
+    b3dMotion();
+    return;
+  }
   const M = MODES[cur], mx = vw / 2, my = vh / 2;
   if (M.isEscape) {
     const V = { cx: M.cx, cy: M.cy, size: M.size };
