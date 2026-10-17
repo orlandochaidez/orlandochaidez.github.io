@@ -498,19 +498,15 @@ function kochRender(n) {
   }
   const S = 760;
   vctx.lineJoin = vctx.lineCap = "round";
-  for (let pass = 0; pass < 2; pass++) {
-    vctx.strokeStyle = pass === 0
-      ? "hsla(" + pal.hues[0] + "," + pal.sat + "%,55%,0.28)"
-      : "hsla(" + ((pal.hues[1] + n * 24) % 360) + "," + pal.sat + "%,68%,0.95)";
-    vctx.lineWidth = pass === 0 ? 26 : 7;
-    vctx.beginPath();
-    pts.forEach((p, i) => {
-      const X = p[0] * S, Y = p[1] * S;
-      vTouch(X, Y);
-      if (i === 0) vctx.moveTo(X, Y); else vctx.lineTo(X, Y);
-    });
-    vctx.stroke();
-  }
+  vctx.strokeStyle = "hsla(" + ((pal.hues[1] + n * 24) % 360) + "," + pal.sat + "%,68%,0.95)"; // crisp single pass — no glow wash
+  vctx.lineWidth = 7;
+  vctx.beginPath();
+  pts.forEach((p, i) => {
+    const X = p[0] * S, Y = p[1] * S;
+    vTouch(X, Y);
+    if (i === 0) vctx.moveTo(X, Y); else vctx.lineTo(X, Y);
+  });
+  vctx.stroke();
   return pts.length;
 }
 function dragonRender(n) {
@@ -538,19 +534,15 @@ function dragonRender(n) {
   const S = 1500 / Math.max(mxx - mnx, mxy - mny, 1);
   const ox = -(mnx + mxx) / 2 * S, oy = -(mny + mxy) / 2 * S;
   vctx.lineJoin = vctx.lineCap = "round";
-  for (let pass = 0; pass < 2; pass++) {
-    vctx.strokeStyle = pass === 0
-      ? "hsla(" + pal.hues[2 % pal.hues.length] + "," + pal.sat + "%,55%,0.25)"
-      : "hsla(" + ((pal.hues[0] + n * 30) % 360) + "," + pal.sat + "%,66%,0.95)";
-    vctx.lineWidth = pass === 0 ? 20 : 6;
-    vctx.beginPath();
-    pts.forEach((p, i) => {
-      const X = p[0] * S + ox, Y = p[1] * S + oy;
-      vTouch(X, Y);
-      if (i === 0) vctx.moveTo(X, Y); else vctx.lineTo(X, Y);
-    });
-    vctx.stroke();
-  }
+  vctx.strokeStyle = "hsla(" + ((pal.hues[0] + n * 30) % 360) + "," + pal.sat + "%,66%,0.95)"; // crisp single pass — no glow wash
+  vctx.lineWidth = 6;
+  vctx.beginPath();
+  pts.forEach((p, i) => {
+    const X = p[0] * S + ox, Y = p[1] * S + oy;
+    vTouch(X, Y);
+    if (i === 0) vctx.moveTo(X, Y); else vctx.lineTo(X, Y);
+  });
+  vctx.stroke();
   return fcount;
 }
 function sierpinskiTri(n) {
@@ -680,25 +672,21 @@ function starRender(n, M) {
   }
   const pts = Math.max(48, Math.min(240, Math.round(sweep * 180 / Math.PI * 1.2)));
   vctx.lineCap = vctx.lineJoin = "round";
-  for (let pass = 0; pass < 2; pass++) {
-    for (let i = 0; i < count; i++) {
-      const a0 = angs[i];
-      const hue = (pal.hues[i % pal.hues.length] + i * 47) % 360;
-      vctx.strokeStyle = pass === 0
-        ? "hsla(" + hue + "," + pal.sat + "%,55%,0.20)"
-        : "hsla(" + hue + "," + pal.sat + "%,68%,0.95)";
-      vctx.lineWidth = pass === 0 ? 15 : 5;
-      vctx.beginPath();
-      for (let k = 0; k <= pts; k++) {
-        const t = k / pts;
-        const r = RHO * (1 + 0.08 * (t - 0.5)); // gentle outward drift → pinwheel energy
-        const an = a0 + M.dir * t * sweep;
-        const X = Math.cos(an) * r, Y = Math.sin(an) * r;
-        if (k === 0) vctx.moveTo(X, Y); else vctx.lineTo(X, Y);
-        vTouch(X, Y);
-      }
-      vctx.stroke();
+  for (let i = 0; i < count; i++) {
+    const a0 = angs[i];
+    const hue = (pal.hues[i % pal.hues.length] + i * 47) % 360;
+    vctx.strokeStyle = "hsla(" + hue + "," + pal.sat + "%,68%,0.95)"; // crisp single pass — no glow wash
+    vctx.lineWidth = 5;
+    vctx.beginPath();
+    for (let k = 0; k <= pts; k++) {
+      const t = k / pts;
+      const r = RHO * (1 + 0.08 * (t - 0.5)); // gentle outward drift → pinwheel energy
+      const an = a0 + M.dir * t * sweep;
+      const X = Math.cos(an) * r, Y = Math.sin(an) * r;
+      if (k === 0) vctx.moveTo(X, Y); else vctx.lineTo(X, Y);
+      vTouch(X, Y);
     }
+    vctx.stroke();
   }
   return count;
 }
