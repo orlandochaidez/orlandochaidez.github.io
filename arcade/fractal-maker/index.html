@@ -70,7 +70,7 @@
    SIERPINSKI tap to split the triangle deeper (1 → 3 → 9 → 27…)
    CANTOR     tap to divide the Cantor set
    MENGER     tap to carve the Menger sponge deeper
-   SPIRAL     tap to add golden-spiral arms, forever (r = φ^(2θ/π))
+   STAR       tap to add pinwheel arcs (they lengthen + weave forever)
    VECTOR MODES (Bloom, Tree, Snowflake, Dragon, Sierpinski, Cantor, Menger)
    draw geometry in WORLD coords straight to a device-pixel cache canvas,
    so lines stay razor sharp at ANY zoom — there is no bitmap to magnify.
@@ -657,33 +657,42 @@ function mengerRender(level) {
   return cubes.length;
 }
 
-const PHI = (1 + Math.sqrt(5)) / 2; // the golden ratio
-function spiralRender(n, M) {
-  // golden spiral arms: r = φ^(2θ/π) — true golden growth, ×φ every quarter turn.
-  // arms sit on golden-angle offsets (137.5°); every tap adds one arm and coils
-  // every arm a little tighter. radius is normalized so it never blows up —
-  // taps add *detail*, forever, instead of zooming out to nothing.
+function starSweep(n) { return Math.min(200, 42 + n * 6) * Math.PI / 180; } // arcs lengthen per tap, cap before it becomes a ring
+function starRender(n, M) {
+  // STAR: curved arcs orbiting a center like a pinwheel. starts with 5 short arcs
+  // spaced so they don't touch; every tap adds an arc (bisecting the largest gap,
+  // so they stay evenly spread forever) and lengthens every arc — soon they weave
+  // into each other and the overlaps turn into moiré rosettes.
   vReset();
   const pal = PALETTES[palIdx];
-  const arms = M.S0 + n;
-  const turns = 1.25 + 0.18 * n;
-  const thMax = turns * Math.PI * 2;
-  const LR = Math.log(900), K = 2 * Math.log(PHI) / Math.PI; // log-space: no overflow, ever
-  const ptsPer = Math.min(720, Math.max(120, Math.round(48 * turns)));
+  const count = M.S0 + n;
+  const sweep = starSweep(n);
+  const RHO = 640; // orbit radius
+  const angs = M.angs;
+  while (angs.length < count) { // new arc bisects the largest angular gap — even spread, existing arcs never move
+    let best = 0, bg = -1;
+    for (let i = 0; i < angs.length; i++) {
+      let g = angs[(i + 1) % angs.length] - angs[i];
+      if (g <= 0) g += TAU;
+      if (g > bg) { bg = g; best = i; }
+    }
+    angs.splice(best + 1, 0, angs[best] + bg / 2);
+  }
+  const pts = Math.max(48, Math.min(240, Math.round(sweep * 180 / Math.PI * 1.2)));
   vctx.lineCap = vctx.lineJoin = "round";
   for (let pass = 0; pass < 2; pass++) {
-    for (let i = 0; i < arms; i++) {
-      const base = M.rot + i * GOLDEN * Math.PI / 180;
+    for (let i = 0; i < count; i++) {
+      const a0 = angs[i];
       const hue = (pal.hues[i % pal.hues.length] + i * 47) % 360;
       vctx.strokeStyle = pass === 0
-        ? "hsla(" + hue + "," + pal.sat + "%,55%,0.22)"
-        : "hsla(" + hue + "," + pal.sat + "%,66%,0.95)";
-      vctx.lineWidth = pass === 0 ? 18 : 6;
+        ? "hsla(" + hue + "," + pal.sat + "%,55%,0.20)"
+        : "hsla(" + hue + "," + pal.sat + "%,68%,0.95)";
+      vctx.lineWidth = pass === 0 ? 15 : 5;
       vctx.beginPath();
-      for (let k = 0; k <= ptsPer; k++) {
-        const th = thMax * k / ptsPer;
-        const r = Math.exp(LR - K * (thMax - th));
-        const an = base + th;
+      for (let k = 0; k <= pts; k++) {
+        const t = k / pts;
+        const r = RHO * (1 + 0.08 * (t - 0.5)); // gentle outward drift → pinwheel energy
+        const an = a0 + M.dir * t * sweep;
         const X = Math.cos(an) * r, Y = Math.sin(an) * r;
         if (k === 0) vctx.moveTo(X, Y); else vctx.lineTo(X, Y);
         vTouch(X, Y);
@@ -691,7 +700,7 @@ function spiralRender(n, M) {
       vctx.stroke();
     }
   }
-  return arms;
+  return count;
 }
 
 /* ==================== MODES ==================== */
@@ -787,7 +796,7 @@ function treeFull(n) {
 }
 const MODES = {};
 let cur = "bloom";
-const ORDER = ["bloom", "tree", "spiral", "mandelbrot", "julia", "snowflake", "dragon", "sierpinski", "cantor", "menger"];
+const ORDER = ["bloom", "tree", "star", "mandelbrot", "julia", "snowflake", "dragon", "sierpinski", "cantor", "menger"];
 
 MODES.bloom = {
   name: "Bloom", hint: "tap · click · hold to grow · pinch to zoom · drag to pan",
@@ -965,22 +974,24 @@ MODES.tree = Object.assign(vectorMode("Tree", "tap grows branches · ❖ grows r
   vecDraw() { treeFull(this.n); rootFull(rootN); },
   rootTap() { if (rootN < ROOT_MAX) { rootN++; vNeedCrisp = true; } }
 });
-MODES.spiral = {
-  name: "Spiral", hint: "tap to add a spiral · pinch to zoom · drag to pan",
-  n: 0, S0: 6, rot: 0,
+MODES.star = {
+  name: "Star", hint: "tap to add arcs · pinch to zoom · drag to pan",
+  n: 0, S0: 5, dir: 1, angs: null, rot: 0,
   enter() {
-    this.n = 0;
-    this.S0 = 5 + ((Math.random() * 2) | 0); // 5 or 6 starting arms
+    this.n = 0; this.S0 = 5;
+    this.dir = Math.random() < 0.5 ? 1 : -1; // pinwheel spins either way
     this.rot = Math.random() * TAU;
+    this.angs = [];
+    for (let i = 0; i < this.S0; i++) this.angs.push(this.rot + i * TAU / this.S0);
     introBias = 0; camLock = false; cam = { x: 0, y: 0, z: maxZ }; vNeedCrisp = true;
   },
   tap(x, y) { this.n++; vNeedCrisp = true; ripples.push({ x, y, t0: performance.now() }); },
   reset() { this.enter(); },
   onPalette() { vNeedCrisp = true; },
   wheelVec: vecWheel,
-  vecDraw() { spiralRender(this.n, this); },
+  vecDraw() { starRender(this.n, this); },
   draw() { vectorFrame(); },
-  stats() { return "GOLDEN SPIRAL · " + (this.S0 + this.n) + " arms · " + PALETTES[palIdx].name; }
+  stats() { return "STAR · " + (this.S0 + this.n) + " arcs · " + PALETTES[palIdx].name; }
 };
 MODES.sierpinski = vectorMode("Sierpinski", "tap to split it deeper", 12, sierpinskiTri,
   n => "SIERPINSKI · iteration " + n + " · " + Math.pow(3, n).toLocaleString("en-US") + " triangles · " + PALETTES[palIdx].name);
