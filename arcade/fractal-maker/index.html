@@ -741,7 +741,7 @@ function rootFull(n) {
 }
 function treeFull(n) {
   // recursive fractal tree, drawn in world coords; segments batched per depth
-  // (one path per generation) so even 65k branches render in a blink
+  // (one path per generation) so even 262k branches render in a blink
   vReset(); vTouch(0, 540);
   const pal = PALETTES[palIdx];
   const TP = treeP;
@@ -760,7 +760,7 @@ function treeFull(n) {
       const c = (trng() - 0.5) * TP.curl;
       branch(nx, ny, a + (s === 0 ? -spread : spread) + TP.asym + c, nl, nw, d + 1, ci);
     }
-  })(0, 540, -Math.PI / 2, 330, 26, 0, 0);
+  })(0, 540, -Math.PI / 2, 440, 26, 0, 0);
   vctx.lineCap = "round";
   let w = 26;
   for (let d = 0; d < levels.length; d++) {
@@ -938,7 +938,7 @@ MODES.cantor = vectorMode("Cantor", "tap to divide it", 11, cantorRender,
   n => "CANTOR SET · row " + n + " · " + PALETTES[palIdx].name);
 MODES.menger = vectorMode("Menger", "tap to carve it deeper", 3, mengerRender,
   n => "MENGER SPONGE · level " + n + " · " + PALETTES[palIdx].name);
-MODES.tree = Object.assign(vectorMode("Tree", "tap grows branches · ❖ grows roots", 16, treeFull,
+MODES.tree = Object.assign(vectorMode("Tree", "tap grows branches · ❖ grows roots", 18, treeFull,
   n => "FRACTAL TREE · gen " + n + " · roots " + rootN + " · " + PALETTES[palIdx].name), {
   enter() {
     // every tree rolls its own botany: angle, taper, asymmetry, curl
@@ -946,7 +946,7 @@ MODES.tree = Object.assign(vectorMode("Tree", "tap grows branches · ❖ grows r
     treeP = {
       angle: (18 + rng() * 14) * Math.PI / 180,
       asym: (rng() - 0.5) * 0.35,
-      ratio: 0.68 + rng() * 0.12,
+      ratio: 0.72 + rng() * 0.12,
       wRatio: 0.62 + rng() * 0.12,
       curl: (rng() - 0.5) * 0.45
     };
