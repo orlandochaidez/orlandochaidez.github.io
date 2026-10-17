@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>AR Sky</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #000; color: #fff; font-family: system-ui, sans-serif; overflow: hidden; height: 100vh; }
+    #canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+    #hud { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 8px; font-size: 14px; z-index: 10; }
+    #status { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); padding: 12px 20px; border-radius: 20px; text-align: center; }
+    button { background: #4a9eff; color: white; border: none; padding: 10px 16px; border-radius: 6px; margin: 4px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div id="hud">
+    <div>Lat: <span id="lat">-</span></div>
+    <div>Lon: <span id="lon">-</span></div>
+    <div>Heading: <span id="heading">-</span>°</div>
+    <div>Pitch: <span id="pitch">-</span>°</div>
+  </div>
+  <div id="status">
+    <button id="startBtn">Start AR Sky</button>
+    <div id="msg">Grant location + motion permissions</div>
+  </div>
+  <canvas id="canvas"></canvas>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const latEl = document.getElementById('lat');
+    const lonEl = document.getElementById('lon');
+    const headingEl = document.getElementById('heading');
+    const pitchEl = document.getElementById('pitch');
+    const msgEl = document.getElementById('msg');
+    const startBtn = document.getElementById('startBtn');
+
+    let lat = null, lon = null, heading = 0, pitch = 0;
+
+    const brightStars = [
+      {ra: 6.752, dec: -16.72, mag: -1.46, name: "Sirius"},
+      {ra: 5.242, dec: -8.20, mag: 0.18, name: "Rigel"},
+      {ra: 5.919, dec: 7.41, mag: 0.42, name: "Betelgeuse"},
+      {ra: 4.598, dec: 16.51, mag: 0.85, name: "Aldebaran"},
+      {ra: 7.655, dec: 5.23, mag: 0.34, name: "Procyon"},
+      {ra: 14.261, dec: 19.18, mag: -0.05, name: "Arcturus"},
+      {ra: 18.616, dec: 38.78, mag: 0.03, name: "Vega"},
+      {ra: 20.691, dec: 45.28, mag: 1.25, name: "Deneb"},
+      {ra: 19.846, dec: 8.87, mag: 0.77, name: "Altair"},
+      {ra: 2.530, dec: 89.26, mag: 1.98, name: "Polaris"}
+    ];
+
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    function getLST(lon) {
+      const now = new Date();
+      const jd = now.getTime() / 86400000 + 2440587.5;
+      const d = jd - 2451545.0;
+      let gmst = 18.697374558 + 24.06570982441908 * d;
+      gmst = ((gmst % 24) + 24) % 24;
+      let lst = gmst + lon / 15;
+      return ((lst % 24) + 24) % 24;
+    }
+
+    function raDecToAltAz(ra, dec, lat, lon) {
+      const lst = getLST(lon);
+      const ha = (lst - ra) * 15 * Math.PI / 180;
+      const decRad = dec * Math.PI / 180;
+      const latRad = lat * Math.PI / 180;
+      const sinAlt = Math.sin(decRad) * Math.sin(latRad) + Math.cos(decRad) * Math.cos(latRad) * Math.cos(ha);
+      const alt = Math.asin(sinAlt) * 180 / Math.PI;
+      const cosAz = (Math.sin(decRad) - Math.sin(latRad) * sinAlt) / (Math.cos(latRad) * Math.cos(Math.asin(sinAlt)));
+      let az = Math.acos(Math.max(-1, Math.min(1, cosAz))) * 180 / Math.PI;
+      if (Math.sin(ha) > 0) az = 360 - az;
+      return { alt, az };
+    }
+
+    function project(alt, az, heading, pitch, w, h) {
+      const fov = 60;
+      const relAz = (az - heading + 360) % 360;
+      const relAzNorm = relAz > 180 ? relAz - 360 : relAz;
+      const relAlt = alt - pitch;
+      const x = w / 2 + (relAzNorm / (fov / 2)) * (w / 2);
+      const y = h / 2 - (relAlt / (fov / 2)) * (h / 2);
+      return { x, y, visible: Math.abs(relAzNorm) < fov && Math.abs(relAlt) < fov };
+    }
+
+    function draw() {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      if (lat === null) return;
+
+      brightStars.forEach(star => {
+        const { alt, az } = raDecToAltAz(star.ra, star.dec, lat, lon);
+        const p = project(alt, az, heading, pitch, canvas.width, canvas.height);
+        if (p.visible && alt > -5) {
+          const size = Math.max(2, 8 - star.mag * 2);
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+          ctx.fillStyle = '#fff';
+          ctx.fill();
+          ctx.font = '12px sans-serif';
+          ctx.fillText(star.name, p.x + 8, p.y);
+        }
+      });
+
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+      ctx.beginPath();
+      ctx.moveTo(canvas.width/2 - 20, canvas.height/2);
+      ctx.lineTo(canvas.width/2 + 20, canvas.height/2);
+      ctx.moveTo(canvas.width/2, canvas.height/2 - 20);
+      ctx.lineTo(canvas.width/2, canvas.height/2 + 20);
+      ctx.stroke();
+
+      requestAnimationFrame(draw);
+    }
+
+    startBtn.onclick = async () => {
+      msgEl.textContent = 'Requesting permissions...';
+      try {
+        const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej));
+        lat = pos.coords.latitude;
+        lon = pos.coords.longitude;
+        latEl.textContent = lat.toFixed(4);
+        lonEl.textContent = lon.toFixed(4);
+
+        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+          const perm = await DeviceOrientationEvent.requestPermission();
+          if (perm !== 'granted') throw new Error('Motion permission denied');
+        }
+
+        window.addEventListener('deviceorientation', (e) => {
+          if (e.webkitCompassHeading !== undefined) {
+            heading = e.webkitCompassHeading;
+          } else if (e.alpha !== null) {
+            heading = 360 - e.alpha;
+          }
+          if (e.beta !== null) pitch = e.beta;
+          headingEl.textContent = Math.round(heading);
+          pitchEl.textContent = Math.round(pitch);
+        });
+
+        msgEl.textContent = 'Point your phone at the sky';
+        startBtn.style.display = 'none';
+        draw();
+      } catch (err) {
+        msgEl.textContent = 'Error: ' + err.message;
+      }
+    };
+  </script>
+</body>
+</html>
