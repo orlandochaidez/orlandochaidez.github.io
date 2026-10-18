@@ -819,38 +819,103 @@ function escDraw() {
 }
 
 /* ==================== VECTOR FRACTALS ==================== */
-function kochRender(n) {
+/* ==================== UNIQUE SNOWFLAKE GENERATOR ==================== */
+let flakeSeed = 1;
+function flakeRoll() { flakeSeed = (Math.random() * 0xffffff) | 0; }
+function flakeRender(n) {
+  // Every visit rolls a fresh seed → a mathematically unique snowflake.
+  // One arm's edge is grown with the seeded RNG (randomized Koch bumps:
+  // random height, in/out, apex slide, occasional flat stretch), then
+  // rotated ×60° for perfect 6-fold symmetry like real ice crystals.
+  // Inner dendrite veins branch at ±60° (hexagonal lattice). Hairlines stay
+  // ~1.2 screen px at any zoom, so you can dive into the unique detail.
   vReset();
   const pal = PALETTES[palIdx];
-  let pts = [[0, -1], [0.8660254, 0.5], [-0.8660254, 0.5], [0, -1]];
-  const cx = 0, cy = 0;
-  for (let it = 0; it < n; it++) {
-    const out = [pts[0]];
-    for (let i = 0; i < pts.length - 1; i++) {
-      const x0 = pts[i][0], y0 = pts[i][1], x1 = pts[i + 1][0], y1 = pts[i + 1][1];
-      const ax = x0 + (x1 - x0) / 3, ay = y0 + (y1 - y0) / 3;
-      const bx = x0 + 2 * (x1 - x0) / 3, by = y0 + 2 * (y1 - y0) / 3;
-      const mx = (ax + bx) / 2, my = (ay + by) / 2;
-      const dx = bx - ax, dy = by - ay, len = Math.hypot(dx, dy) || 1;
-      const h = len * Math.sqrt(3) / 2, nx = -dy / len, ny = dx / len;
-      const c1x = mx + nx * h, c1y = my + ny * h, c2x = mx - nx * h, c2y = my - ny * h;
-      const d1 = (c1x - cx) ** 2 + (c1y - cy) ** 2, d2 = (c2x - cx) ** 2 + (c2y - cy) ** 2;
-      out.push([ax, ay], d1 > d2 ? [c1x, c1y] : [c2x, c2y], [bx, by], [x1, y1]);
+  const R = 760, depth = Math.min(6, 2 + n);
+  const z = Math.max(1e-6, cam.z * usr.z);
+  const rng = mulberry32(flakeSeed);
+  const hue = (pal.hues[1] + depth * 24) % 360;
+
+  // ---- boundary: one RNG-grown arm ----
+  const arm = [R, 0];
+  (function edge(x1, y1, x2, y2, d) {
+    if (d <= 0) { arm.push(x2, y2); return; }
+    const dx = x2 - x1, dy = y2 - y1;
+    const len = Math.hypot(dx, dy) || 1;
+    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+    const mh = Math.hypot(mx, my) || 1;
+    const ox = mx / mh, oy = my / mh; // outward = away from center
+    const p1x = x1 + dx / 3, p1y = y1 + dy / 3;
+    const p2x = x1 + 2 * dx / 3, p2y = y1 + 2 * dy / 3;
+    if (rng() < 0.14) { // flat stretch — lets smooth arcs survive
+      edge(x1, y1, p1x, p1y, d - 1);
+      edge(p1x, p1y, p2x, p2y, d - 1);
+      edge(p2x, p2y, x2, y2, d - 1);
+    } else { // bump: random height, side, apex slide
+      const side = rng() < 0.62 ? 1 : -1; // bias outward
+      const h = len * (0.12 + rng() * 0.32);
+      const slide = (rng() - 0.5) * 0.5;
+      const ax = mx + ox * h * side + dx * slide * 0.25;
+      const ay = my + oy * h * side + dy * slide * 0.25;
+      edge(x1, y1, p1x, p1y, d - 1);
+      edge(p1x, p1y, ax, ay, d - 1);
+      edge(ax, ay, p2x, p2y, d - 1);
+      edge(p2x, p2y, x2, y2, d - 1);
     }
-    pts = out;
+  })(R, 0, R * 0.5, R * 0.8660254, depth);
+  const armPts = arm.length / 2;
+
+  // ---- veins: one RNG-grown spoke (dendrite), rotated ×6 ----
+  const vsegs = [0, 0, R * 0.66, 0];
+  const VL = R * 0.66;
+  for (let i = 0; i < 3; i++) {
+    const t = 0.30 + 0.45 * ((i + 0.25 + rng() * 0.5) / 3);
+    const bx = VL * t;
+    for (const s of [1, -1]) {
+      const ba = s * (0.96 + rng() * 0.26); // ±55–70° off the spoke
+      const bl = VL * (0.30 + rng() * 0.16) * (1 - t * 0.45);
+      const ex = bx + Math.cos(ba) * bl, ey = Math.sin(ba) * bl;
+      vsegs.push(bx, 0, ex, ey);
+      const tx = bx + Math.cos(ba) * bl * 0.55, ty = Math.sin(ba) * bl * 0.55;
+      for (const s2 of [1, -1]) { // twiglets
+        const ta = ba + s2 * (1.02 + rng() * 0.2);
+        const tl = bl * 0.42;
+        vsegs.push(tx, ty, tx + Math.cos(ta) * tl, ty + Math.sin(ta) * tl);
+      }
+    }
   }
-  const S = 760;
+
+  vTouch(-R * 1.45, 0); vTouch(R * 1.45, 0); vTouch(0, -R * 1.45); vTouch(0, R * 1.45);
   vctx.lineJoin = vctx.lineCap = "round";
-  vctx.strokeStyle = "hsla(" + ((pal.hues[1] + n * 24) % 360) + "," + pal.sat + "%,68%,0.95)"; // crisp single pass — no glow wash
-  vctx.lineWidth = 7;
+  // boundary — one continuous 6-arm polyline
+  vctx.strokeStyle = "hsla(" + hue + "," + pal.sat + "%,68%,0.95)";
+  vctx.lineWidth = 1.35 / z;
   vctx.beginPath();
-  pts.forEach((p, i) => {
-    const X = p[0] * S, Y = p[1] * S;
-    vTouch(X, Y);
-    if (i === 0) vctx.moveTo(X, Y); else vctx.lineTo(X, Y);
-  });
+  let first = true;
+  for (let k = 0; k < 6; k++) {
+    const c = Math.cos(k * Math.PI / 3), s = Math.sin(k * Math.PI / 3);
+    for (let i = (k === 0 ? 0 : 1); i < armPts; i++) {
+      const rx = arm[2 * i] * c - arm[2 * i + 1] * s;
+      const ry = arm[2 * i] * s + arm[2 * i + 1] * c;
+      if (first) { vctx.moveTo(rx, ry); first = false; }
+      else vctx.lineTo(rx, ry);
+    }
+  }
+  vctx.closePath();
   vctx.stroke();
-  return pts.length;
+  // veins — dimmer hairlines
+  vctx.strokeStyle = "hsla(" + hue + "," + pal.sat + "%,60%,0.9)";
+  vctx.lineWidth = 1.0 / z;
+  vctx.beginPath();
+  for (let k = 0; k < 6; k++) {
+    const c = Math.cos(k * Math.PI / 3), s = Math.sin(k * Math.PI / 3);
+    for (let i = 0; i < vsegs.length; i += 4) {
+      vctx.moveTo(vsegs[i] * c - vsegs[i + 1] * s, vsegs[i] * s + vsegs[i + 1] * c);
+      vctx.lineTo(vsegs[i + 2] * c - vsegs[i + 3] * s, vsegs[i + 2] * s + vsegs[i + 3] * c);
+    }
+  }
+  vctx.stroke();
+  return 6 * (armPts - 1) + (vsegs.length / 4) * 6;
 }
 function dragonRender(n) {
   // Heighway dragon by paperfold doubling. n=0 draws the seed L (2 lines);
@@ -1954,8 +2019,13 @@ function vectorMode(name, hint, maxN, render, fmtStats) {
     stats() { return fmtStats(this.n); }
   };
 }
-MODES.snowflake = vectorMode("Snowflake", "tap to fold it deeper", 7, kochRender,
-  n => "KOCH SNOWFLAKE · iteration " + n + " · " + PALETTES[palIdx].name);
+MODES.snowflake = Object.assign(vectorMode("Snowflake", "tap to fold it deeper · ✦ new flake", 4, flakeRender,
+  n => "SNOWFLAKE · #" + flakeSeed.toString(16).padStart(6, "0") + " · depth " + Math.min(6, 2 + n) + " · " + PALETTES[palIdx].name), {
+  enter() {
+    flakeRoll(); // every visit rolls a fresh unique flake
+    this.n = 0; introBias = 0; camLock = false; cam = { x: 0, y: 0, z: maxZ }; vNeedCrisp = true;
+  }
+});
 MODES.dragon = vectorMode("Dragon", "tap to fold it deeper", 18, dragonRender,
   n => "DRAGON CURVE · iteration " + (n + 1) + " · " + (2 << n).toLocaleString("en-US") + " lines · " + PALETTES[palIdx].name);
 MODES.cantor = vectorMode("Cantor", "tap to divide it", 22, cantorRender,
