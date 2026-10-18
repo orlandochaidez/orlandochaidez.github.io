@@ -43,9 +43,10 @@
   #hint.gone { opacity:0 !important; animation:none; }
   @media (max-width:480px) {
     /* small phones: compact the chrome so no button gets cut off */
-    #controls { gap:6px; padding:0 10px; max-width:100vw; flex-wrap:wrap; justify-content:center; }
-    #controls button { font-size:11px; letter-spacing:.08em; padding:9px 13px; }
-    #hint { bottom:calc(env(safe-area-inset-bottom, 0px) + 122px); font-size:11px; }
+    #controls { gap:6px; padding:0 8px; max-width:100vw; flex-wrap:nowrap; justify-content:center; }
+    #controls button { font-size:10px; letter-spacing:.05em; padding:8px 10px; white-space:nowrap; }
+    #hint { bottom:calc(env(safe-area-inset-bottom, 0px) + 88px); font-size:10.5px; letter-spacing:.08em;
+      white-space:normal; text-align:center; max-width:88vw; line-height:1.7; }
     #modes button { font-size:10px; padding:6px 10px; }
     #hud h1 { font-size:13px; }
     #stats { font-size:10.5px; }
@@ -2079,7 +2080,7 @@ function setMode(id) {
   clearTimeout(wheelT);
   cur = id;
   document.getElementById("btnRoots").style.display = id === "tree" ? "" : "none";
-  document.getElementById("btn3D").style.display = (id === "bloom" || id === "menger") ? "" : "none";
+  document.getElementById("btn3D").style.display = id === "menger" ? "" : "none"; // 3D parked for bloom for now — menger keeps it
   if (id !== "menger") m3d.on = false;
   document.getElementById("btn3D").classList.toggle("on", (id === "bloom" && b3d.on) || (id === "menger" && m3d.on));
   ripples = [];
