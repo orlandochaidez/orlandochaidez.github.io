@@ -1041,6 +1041,8 @@ function escMode(kind, name, hint, baseIter, iterStep, maxCap) {
     pump() { pumpEscape(); },
     onPalette() { escStart(this.job()); },
     probeAt() { return { n: 0 }; },
+    boundaryProbe(re, im) { return mProbe(re, im, 300); }, // deep boundary probe for rebirth (per-set override)
+    rebirthBox: { re0: -2, reW: 3, im0: -1.2, imW: 2.4 },  // fallback hunt region for rebirth (per-set override)
     grownPct() { return Math.round(Math.min(1, this.g.reveal / 1.15) * 100); },
     seedNewRegion() {
       // fully grown? pick a fresh interesting patch of boundary and start growing there
@@ -1076,20 +1078,21 @@ function escMode(kind, name, hint, baseIter, iterStep, maxCap) {
     rebirth() {
       // the set is self-similar: grab a fresh boundary patch right where you are
       // and keep diving — to the eye, the zoom never stops
+      const box = this.rebirthBox;
       let span = this.size * 8, found = false;
       for (let round = 0; round < 3 && !found; round++) {
         for (let t = 0; t < 120; t++) {
           const re = this.cx + (Math.random() - 0.5) * span;
           const im = this.cy + (Math.random() - 0.5) * span;
-          const pr = mProbe(re, im, 300);
+          const pr = this.boundaryProbe(re, im);
           if (pr.n > 25 && pr.n < 200) { this.cx = re; this.cy = im; found = true; break; }
         }
         span *= 10;
       }
-      if (!found) { // dove into the dead interior? grab any good boundary patch on the whole set
+      if (!found) { // dove into a dead zone? grab any good boundary patch on the whole set
         for (let t = 0; t < 400; t++) {
-          const re = -2 + Math.random() * 3, im = -1.2 + Math.random() * 2.4;
-          const pr = mProbe(re, im, 300);
+          const re = box.re0 + Math.random() * box.reW, im = box.im0 + Math.random() * box.imW;
+          const pr = this.boundaryProbe(re, im);
           if (pr.n > 25 && pr.n < 200) { this.cx = re; this.cy = im; found = true; break; }
         }
       }
@@ -1119,14 +1122,22 @@ MODES.mandelbrot = Object.assign(escMode("mandelbrot", "Mandelbrot", "tap to div
     return "MANDELBROT · zoom " + zs + " · iter " + this.job().maxIter + " · ∞ dive · " + PALETTES[palIdx].name;
   }
 });
-MODES.julia = Object.assign(escMode("julia", "Julia", "tap to grow it · ✦ for a new constant", 14, 16, 190), {
+MODES.julia = Object.assign(escMode("julia", "Julia", "tap to dive deeper · pinch to zoom · ✦ new constant", 60, 0, 2500), {
+  dive: true,
   resetView() {
     const c = JULIA_PRETTY[(Math.random() * JULIA_PRETTY.length) | 0];
     this.cRe = c[0]; this.cIm = c[1]; this.cx = 0; this.cy = 0; this.size = 3.4;
   },
+  enter() { this.resetView(); this.g = { reveal: 2, maxIter: this.baseIter }; escStart(this.job()); }, // one whole Julia set, fully rendered
   probeAt(re, im) { return jProbe(re, im, this.cRe, this.cIm, 60); },
+  boundaryProbe(re, im) { return jProbe(re, im, this.cRe, this.cIm, 300); },
+  rebirthBox: { re0: -2, reW: 4, im0: -2, imW: 4 },
   reset() { this.enter(); },
-  stats() { return ESC_STATS("JULIA", this, "c=" + this.cRe.toFixed(3) + (this.cIm >= 0 ? "+" : "") + this.cIm.toFixed(3) + "i"); }
+  stats() {
+    const z = this.zoom();
+    const zs = z >= 1e6 ? z.toExponential(1) + "×" : Math.round(z).toLocaleString("en-US") + "×";
+    return "JULIA · c=" + this.cRe.toFixed(3) + (this.cIm >= 0 ? "+" : "") + this.cIm.toFixed(3) + "i · zoom " + zs + " · iter " + this.job().maxIter + " · ∞ dive · " + PALETTES[palIdx].name;
+  }
 });
 
 function vectorMode(name, hint, maxN, render, fmtStats) {
