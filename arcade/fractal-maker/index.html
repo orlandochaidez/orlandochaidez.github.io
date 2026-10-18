@@ -82,7 +82,7 @@
    SIERPINSKI tap to split the triangle deeper (1 → 3 → 9 → 27…)
    CANTOR     tap to divide the Cantor set
    MENGER     tap to carve the Menger sponge deeper
-   STAR       tap to add pinwheel arcs (they lengthen + weave forever)
+   GOLDEN     Seedline golden spiral: one mark, tap/hold packs new seeds on the golden angle
    FERN       Seedline fern: one mark, tap/hold grows curling fronds with new heads
    VECTOR MODES (Bloom, Tree, Snowflake, Dragon, Sierpinski, Cantor, Menger)
    draw geometry in WORLD coords straight to a device-pixel cache canvas,
@@ -974,36 +974,85 @@ function mengerRender(level) {
 }
 
 
-function starLen(n) { return Math.min(1200, 500 + n * 30); } // lines lengthen per tap
-function starRho(i) { const f = (i * 0.6180339887 + 0.5) % 1; return 10 + 50 * f; } // orbit radius 10..60 — every line crosses the interior
-function starRender(n, M) {
-  // STAR: straight chords woven into a dense ball. every line is centered near the
-  // middle (orbit radius 10..60, golden-ratio spread) on a golden-angle offset,
-  // tilted like a pinwheel. every tap adds 6 lines and lengthens them all — they
-  // all cross through the interior into a dense colorful ball with a tiny dark heart.
+/* ==================== SEEDLINE GOLDEN SPIRAL ==================== */
+// phyllotaxis: each new point sits at the golden angle from the last.
+// first tap is one segment; every tap after lays 12 more per arm.
+let goldSeed = 1, goldG = null, goldSegs = 0;
+function goldRoll() {
+  goldSeed = (Math.random() * 0xffffff) | 0;
+  const r = mulberry32(goldSeed);
+  goldG = {
+    chirality: r() < 0.5 ? 1 : -1,
+    angleScale: 0.97 + r() * 0.06,
+    arms: 1 + ((r() * 2) | 0),
+    hueDrift: 34 + r() * 28,
+    hueWalk: 7 + r() * 5
+  };
+}
+function goldenRender(n) {
   vReset();
+  if (!goldG) goldRoll();
   const pal = PALETTES[palIdx];
-  const count = M.S0 + 6 * n;
-  const L = starLen(n), HL = L / 2;
-  const TILT = 35 * Math.PI / 180, CT = Math.cos(TILT), ST = Math.sin(TILT);
-  vctx.lineCap = "round";
-  for (let i = 0; i < count; i++) {
-    const a = M.rot + i * GOLDEN; // golden angle — even spread, existing lines never move
-    const rho = starRho(i);
-    const cxp = Math.cos(a) * rho, cyp = Math.sin(a) * rho;
-    const tx = -Math.sin(a) * M.dir, ty = Math.cos(a) * M.dir; // tangent
-    const ux = -Math.cos(a), uy = -Math.sin(a); // inward radial
-    const dx = tx * CT + ux * ST, dy = ty * CT + uy * ST; // tilted chord
-    const hue = (pal.hues[i % pal.hues.length] + i * 47) % 360;
-    vctx.strokeStyle = "hsla(" + hue + "," + pal.sat + "%,68%,0.95)"; // crisp single pass — no glow wash
-    vctx.lineWidth = 5;
+  const g = goldG;
+  if (n <= 0) {
+    vTouch(-0.4, -0.4); vTouch(0.4, 0.4);
+    vctx.fillStyle = "hsla(" + pal.hues[0] + "," + pal.sat + "%,74%,0.95)";
     vctx.beginPath();
-    vctx.moveTo(cxp - dx * HL, cyp - dy * HL);
-    vctx.lineTo(cxp + dx * HL, cyp + dy * HL);
-    vctx.stroke();
-    vTouch(cxp - dx * HL, cyp - dy * HL); vTouch(cxp + dx * HL, cyp + dy * HL);
+    vctx.arc(0, 0, 0.12, 0, TAU);
+    vctx.fill();
+    goldSegs = 0;
+    return 0;
   }
-  return count;
+  const arms = [];
+  for (let a = 0; a < g.arms; a++) arms.push([{ x: 0, y: 0 }]);
+  const segs = [];
+  for (let generation = 1; generation <= n; generation++) {
+    const add = generation === 1 ? 1 : 12;
+    const active = generation === 1 ? 1 : arms.length;
+    for (let arm = 0; arm < active; arm++) {
+      const pts = arms[arm];
+      const phase = -GOLDEN * g.angleScale + (arm * Math.PI * 2) / arms.length;
+      for (let k = 0; k < add; k++) {
+        const i = pts.length;
+        const prev = pts[i - 1];
+        const rad = 0.58 * Math.sqrt(i);
+        const ang = (i * GOLDEN * g.angleScale + phase) * g.chirality;
+        const x = Math.cos(ang) * rad;
+        const y = Math.sin(ang) * rad;
+        const nHue = i * 0.55 + arm * 6;
+        let hue = pal.hues[0] + nHue * g.hueWalk + (arm % 2) * g.hueDrift;
+        hue = ((hue % 360) + 360) % 360;
+        segs.push(prev.x, prev.y, x, y, hue, arm === 0 ? 0 : 1);
+        vTouch(prev.x, prev.y); vTouch(x, y);
+        pts.push({ x: x, y: y });
+      }
+    }
+  }
+  goldSegs = segs.length / 6;
+  const z = Math.max(1e-6, cam.z * usr.z);
+  const px = [1.15, 0.9];
+  const lights = [66, 72];
+  vctx.lineCap = "butt";
+  vctx.lineJoin = "bevel";
+  for (let depth = 0; depth <= 1; depth++) {
+    const paths = new Array(60);
+    for (let i = 0; i < segs.length; i += 6) {
+      if (segs[i + 5] !== depth) continue;
+      const hue = segs[i + 4];
+      const b = Math.min(59, (hue / 6) | 0);
+      let path = paths[b];
+      if (!path) path = paths[b] = new Path2D();
+      path.moveTo(segs[i], segs[i + 1]);
+      path.lineTo(segs[i + 2], segs[i + 3]);
+    }
+    vctx.lineWidth = px[depth] / z;
+    for (let b = 0; b < 60; b++) {
+      if (!paths[b]) continue;
+      vctx.strokeStyle = "hsla(" + (b * 6) + "," + pal.sat + "%," + lights[depth] + "%,0.92)";
+      vctx.stroke(paths[b]);
+    }
+  }
+  return goldSegs;
 }
 
 /* ==================== MODES ==================== */
@@ -1489,23 +1538,26 @@ MODES.tree = Object.assign(vectorMode("Tree", "tap grows branches · ❖ grows r
   vecDraw() { treeFull(this.n); rootFull(rootN); },
   rootTap() { if (rootN < ROOT_MAX) { rootN++; vNeedCrisp = true; } }
 });
-MODES.star = {
-  name: "Star", hint: "tap to add lines · pinch to zoom · drag to pan",
-  n: 0, S0: 5, dir: 1, rot: 0,
+MODES.star = Object.assign(vectorMode("Golden", "tap or hold to grow the spiral", 500, goldenRender,
+  n => "GOLDEN · gen " + n + " · " + goldSegs.toLocaleString("en-US") + " segs · " + PALETTES[palIdx].name), {
   enter() {
-    this.n = 0; this.S0 = 5;
-    this.dir = Math.random() < 0.5 ? 1 : -1; // pinwheel spins either way
-    this.rot = Math.random() * TAU;
-    introBias = 0; camLock = false; cam = { x: 0, y: 0, z: maxZ }; vNeedCrisp = true;
+    goldRoll();
+    goldSegs = 0;
+    this.n = 0;
+    introBias = 1;
+    camLock = false;
+    cam = { x: 0, y: 0, z: maxZ };
+    vNeedCrisp = true;
   },
-  tap(x, y) { this.n++; vNeedCrisp = true; ripples.push({ x, y, t0: performance.now() }); },
-  reset() { this.enter(); },
-  onPalette() { vNeedCrisp = true; },
-  wheelVec: vecWheel,
-  vecDraw() { starRender(this.n, this); },
-  draw() { vectorFrame(); },
-  stats() { return "STAR · " + (this.S0 + 6 * this.n) + " lines · " + PALETTES[palIdx].name; }
-};
+  tap(x, y) {
+    if (this.n < this.maxN) { this.n++; vNeedCrisp = true; }
+    introBias = Math.max(0, introBias - 0.34);
+    ripples.push({ x: x, y: y, t0: performance.now() });
+  },
+  holdTick() {
+    if (this.n < this.maxN) { this.n++; vNeedCrisp = true; introBias = Math.max(0, introBias - 0.2); }
+  }
+});
 MODES.sierpinski = Object.assign(vectorMode("Sierpinski", "tap to split it deeper", 16, sierpinskiTri,
   n => "SIERPINSKI · iteration " + n + " · " + Math.pow(3, n).toLocaleString("en-US") + " triangles · " + PALETTES[palIdx].name), {
   enter() { this.n = 2; introBias = 0; camLock = false; cam = { x: 0, y: 0, z: maxZ }; vNeedCrisp = true; } // opens already split — no solid-triangle start
