@@ -204,6 +204,8 @@ function vWarpDraw() {
   const T1x = vw / 2 + usr.ox, T1y = vh / 2 + usr.oy;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.globalCompositeOperation = "source-over";
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
   ctx.translate(T1x - s * T0x + K1 * (vBasis.cx - cam.x), T1y - s * T0y + K1 * (vBasis.cy - cam.y));
   ctx.scale(s, s);
   ctx.drawImage(vlc, 0, 0, vw, vh);
@@ -214,16 +216,29 @@ function vBlit() {
   ctx.drawImage(vlc, 0, 0, vw, vh);
 }
 function vMotion() {
-  // camera is moving — once it settles, re-render crisp if the warp drifted far
+  // camera is moving — once it settles, re-render crisp if the warp drifted far.
+  // Sierpinski settles sooner so finer triangles show up right after you stop.
   clearTimeout(vSettleT);
-  vSettleT = setTimeout(function () { if (vWarpAmount() > 0.12) vNeedCrisp = true; }, 300);
+  const mode = cur;
+  const wait = mode === "sierpinski" ? 150 : 300;
+  const lim = mode === "sierpinski" ? 0.03 : 0.12;
+  vSettleT = setTimeout(function () {
+    if (cur !== mode) return;
+    if (mode === "sierpinski" && PTRS.size > 0) { vMotion(); return; }
+    if (vWarpAmount() > lim) vNeedCrisp = true;
+  }, wait);
 }
 function vectorFrame() {
   let moving = false;
   if (!camLock) moving = cameraTick();
   if (moving) vMotion();
+  // don't magnify the cached gasket more than ~4× — rebuild, then keep warping
+  if (cur === "sierpinski" && vBasis && !vNeedCrisp && vWarpAmount() > 1.45) vNeedCrisp = true;
   if (vNeedCrisp || !vBasis) vRenderCrisp();
-  else if (!vBasisMatches()) vWarpDraw();
+  if (!vBasis) return;
+  // always present the cache this frame. the old crisp-only branch drew nothing
+  // to the screen, so Sierpinski flashed the background on every zoom tick.
+  if (!vBasisMatches()) vWarpDraw();
   else vBlit();
 }
 function cameraTick() {
@@ -267,10 +282,15 @@ function closeSpawnCam() {
   cam = camForBox(spawnFrame());
 }
 function vecWheel(f, mx, my) {
+  let af = f;
+  if (cur === "sierpinski") {
+    const nz = Math.min(1e9, Math.max(0.35, usr.z * f));
+    af = nz / Math.max(1e-9, usr.z);
+  }
   const Cx = vw / 2, Cy = vh / 2;
-  usr.ox = mx - Cx - (mx - Cx - usr.ox) * f;
-  usr.oy = my - Cy - (my - Cy - usr.oy) * f;
-  usr.z *= f;
+  usr.ox = mx - Cx - (mx - Cx - usr.ox) * af;
+  usr.oy = my - Cy - (my - Cy - usr.oy) * af;
+  usr.z *= af;
 }
 
 /* ================= BLOOM (the original infinite garden) ================= */
@@ -895,13 +915,33 @@ function sierContains(px, py, x1, y1, x2, y2, x3, y3) {
   const c = (px - x1) * (y3 - y1) - (x3 - x1) * (py - y1);
   return !((a < 0 || b < 0 || c < 0) && (a > 0 || b > 0 || c > 0));
 }
-function sierZoomAt(sx, sy, f) {
+function sierZoomAt(sx, sy, f, nudge) {
+  // Zoom under the finger and warp the current picture. Do NOT rebuild the mesh
+  // here — that blanked the screen every tick. Detail is filled in once you settle.
   const K = Math.max(1e-12, cam.z * usr.z);
   let wx = cam.x + (sx - vw / 2 - usr.ox) / K;
   let wy = cam.y + (sy - vh / 2 - usr.oy) / K;
+  if (nudge) {
+    const p = sierNudge(wx, wy, K, nudge);
+    wx = p[0]; wy = p[1];
+  }
+  const nz = Math.min(1e9, Math.max(0.35, usr.z * f));
+  const K2 = cam.z * nz;
+  usr.z = nz;
+  usr.ox = sx - vw / 2 - (wx - cam.x) * K2;
+  usr.oy = sy - vh / 2 - (wy - cam.y) * K2;
+  camLock = true;
+  vMotion();
+}
+function sierNudge(wx, wy, K, amount) {
+  // A hole used to snap the camera to a corner, which flung the triangle around.
+  // Drift a little toward the nearest solid child, and only while that hole is big.
   let x1 = -720, y1 = 470, x2 = 720, y2 = 470, x3 = 0, y3 = -770;
-  if (!sierContains(wx, wy, x1, y1, x2, y2, x3, y3)) { wx = -720; wy = 470; }
-  for (let d = 0; d < 46; d++) {
+  if (!sierContains(wx, wy, x1, y1, x2, y2, x3, y3)) {
+    const mx = (x1 + x2 + x3) / 3, my = (y1 + y2 + y3) / 3;
+    return [wx + (mx - wx) * amount, wy + (my - wy) * amount];
+  }
+  for (let depth = 0; depth < 18; depth++) {
     const ax = (x1 + x2) / 2, ay = (y1 + y2) / 2;
     const bx = (x2 + x3) / 2, by = (y2 + y3) / 2;
     const cxm = (x3 + x1) / 2, cym = (y3 + y1) / 2;
@@ -912,22 +952,49 @@ function sierZoomAt(sx, sy, f) {
       if (sierContains(wx, wy, k[0], k[1], k[2], k[3], k[4], k[5])) { hit = k; break; }
     }
     if (!hit) {
-      let best = 1e18, vx = x1, vy = y1;
-      const vs = [[x1, y1], [x2, y2], [x3, y3]];
+      const side = Math.hypot(x2 - x1, y2 - y1) * K;
+      if (side < 40) return [wx, wy];
+      let best = 1e18, tx = wx, ty = wy;
       for (let i = 0; i < 3; i++) {
-        const dd = (vs[i][0] - wx) * (vs[i][0] - wx) + (vs[i][1] - wy) * (vs[i][1] - wy);
-        if (dd < best) { best = dd; vx = vs[i][0]; vy = vs[i][1]; }
+        const k = kids[i];
+        const mx = (k[0] + k[2] + k[4]) / 3, my = (k[1] + k[3] + k[5]) / 3;
+        const dd = (mx - wx) * (mx - wx) + (my - wy) * (my - wy);
+        if (dd < best) { best = dd; tx = mx; ty = my; }
       }
-      wx = vx; wy = vy;
-      break;
+      return [wx + (tx - wx) * amount, wy + (ty - wy) * amount];
     }
     x1 = hit[0]; y1 = hit[1]; x2 = hit[2]; y2 = hit[3]; x3 = hit[4]; y3 = hit[5];
   }
-  usr.z = Math.min(1e12, usr.z * f);
-  const K2 = cam.z * usr.z;
-  usr.ox = sx - vw / 2 - (wx - cam.x) * K2;
-  usr.oy = sy - vh / 2 - (wy - cam.y) * K2;
+  return [wx, wy];
+}
+function sierClip(pts) {
+  const edges = [
+    { inside: function (p) { return p[0] >= -40; }, hit: function (a, b) { const t = (-40 - a[0]) / (b[0] - a[0] || 1e-12); return [-40, a[1] + (b[1] - a[1]) * t]; } },
+    { inside: function (p) { return p[0] <= vw + 40; }, hit: function (a, b) { const t = (vw + 40 - a[0]) / (b[0] - a[0] || 1e-12); return [vw + 40, a[1] + (b[1] - a[1]) * t]; } },
+    { inside: function (p) { return p[1] >= -40; }, hit: function (a, b) { const t = (-40 - a[1]) / (b[1] - a[1] || 1e-12); return [a[0] + (b[0] - a[0]) * t, -40]; } },
+    { inside: function (p) { return p[1] <= vh + 40; }, hit: function (a, b) { const t = (vh + 40 - a[1]) / (b[1] - a[1] || 1e-12); return [a[0] + (b[0] - a[0]) * t, vh + 40]; } }
+  ];
+  for (let e = 0; e < 4; e++) {
+    const out = [], n = pts.length;
+    if (n < 3) return null;
+    const edge = edges[e];
+    for (let i = 0; i < n; i++) {
+      const a = pts[i], b = pts[(i + 1) % n];
+      const ina = edge.inside(a), inb = edge.inside(b);
+      if (ina && inb) out.push(b);
+      else if (ina && !inb) out.push(edge.hit(a, b));
+      else if (!ina && inb) { out.push(edge.hit(a, b)); out.push(b); }
+    }
+    pts = out;
+  }
+  return pts.length >= 3 ? pts : null;
+}
+function sierHome() {
+  introBias = 0;
   camLock = true;
+  usr = { z: 1, ox: 0, oy: 0 };
+  const fit = Math.min(vw / (1440 * 1.28), vh / (1240 * 1.28));
+  cam = { x: 0, y: -150, z: Math.max(1e-4, fit) };
   vNeedCrisp = true;
 }
 function sierpinskiTri() {
@@ -959,11 +1026,22 @@ function sierpinskiTri() {
     const sw = sx1 - sx0;
     const pending = q.length - head;
     if (d >= 48 || sw < minPx || pending >= 7000) {
-      path.moveTo((x1 - cx) * K + ox, (y1 - cy) * K + oy);
-      path.lineTo((x2 - cx) * K + ox, (y2 - cy) * K + oy);
-      path.lineTo((x3 - cx) * K + ox, (y3 - cy) * K + oy);
-      path.closePath();
-      sierCount++;
+      const s1 = (x1 - cx) * K + ox, t1 = (y1 - cy) * K + oy;
+      const s2 = (x2 - cx) * K + ox, t2 = (y2 - cy) * K + oy;
+      const s3 = (x3 - cx) * K + ox, t3 = (y3 - cy) * K + oy;
+      const far = Math.abs(s1) > 8000 || Math.abs(t1) > 8000 || Math.abs(s2) > 8000 || Math.abs(t2) > 8000 || Math.abs(s3) > 8000 || Math.abs(t3) > 8000;
+      if (!far) {
+        path.moveTo(s1, t1); path.lineTo(s2, t2); path.lineTo(s3, t3); path.closePath();
+        sierCount++;
+      } else {
+        const poly = sierClip([[s1, t1], [s2, t2], [s3, t3]]);
+        if (poly) {
+          path.moveTo(poly[0][0], poly[0][1]);
+          for (let i = 1; i < poly.length; i++) path.lineTo(poly[i][0], poly[i][1]);
+          path.closePath();
+          sierCount++;
+        }
+      }
       continue;
     }
     const mx12 = (x1 + x2) / 2, my12 = (y1 + y2) / 2;
@@ -1942,14 +2020,13 @@ MODES.star = Object.assign(vectorMode("Golden", "tap or hold to grow the spiral"
     if (this.n < this.maxN) { this.n++; vNeedCrisp = true; introBias = Math.max(0, introBias - 0.2); }
   }
 });
-MODES.sierpinski = Object.assign(vectorMode("Sierpinski", "zoom in · finer triangles appear as you get closer", 1, sierpinskiTri,
+MODES.sierpinski = Object.assign(vectorMode("Sierpinski", "finer triangles as you zoom", 1, sierpinskiTri,
   function () { return "SIERPINSKI · " + sierCount.toLocaleString("en-US") + " showing · " + sierZoomLabel() + " · " + PALETTES[palIdx].name; }), {
-  enter() { this.n = 0; introBias = 0; camLock = false; cam = { x: 0, y: 0, z: maxZ }; vNeedCrisp = true; },
-  tap(x, y) { sierZoomAt(x, y, 1.7); ripples.push({ x: x, y: y, t0: performance.now() }); },
-  holdTick() { sierZoomAt(vw / 2, vh / 2, 1.08); },
-  draw() {
-    if (!vBasis || !vBasisMatches()) vNeedCrisp = true;
-    vectorFrame();
+  enter() { sierHome(); },
+  tap(x, y) { sierZoomAt(x, y, 1.7, 0.55); ripples.push({ x: x, y: y, t0: performance.now() }); },
+  holdTick() {
+    const x = downInfo ? downInfo.x : vw / 2, y = downInfo ? downInfo.y : vh / 2;
+    sierZoomAt(x, y, 1.04, 0.1);
   }
 });
 
@@ -2138,9 +2215,14 @@ function movePinch() {
     escFollow();
   } else {
     const u0 = pinchSt.u0, Cx = vw / 2, Cy = vh / 2;
-    usr.z = u0.z * f;
-    usr.ox = m1x - Cx - (pinchSt.m0x - Cx - u0.ox) * f;
-    usr.oy = m1y - Cy - (pinchSt.m0y - Cy - u0.oy) * f;
+    let af = f;
+    if (cur === "sierpinski") {
+      const nz = Math.min(1e9, Math.max(0.35, u0.z * f));
+      af = nz / Math.max(1e-9, u0.z);
+      usr.z = nz;
+    } else usr.z = u0.z * f;
+    usr.ox = m1x - Cx - (pinchSt.m0x - Cx - u0.ox) * af;
+    usr.oy = m1y - Cy - (pinchSt.m0y - Cy - u0.oy) * af;
     camLock = true; vMotion();
   }
 }
@@ -2289,6 +2371,8 @@ function fitView() {
   if (M.isEscape) {
     if (cur === "mandelbrot") { M.cx = -0.5; M.cy = 0; } else { M.cx = 0; M.cy = 0; }
     M.size = 3.4; VG = null; escStart(M.job());
+  } else if (cur === "sierpinski") {
+    sierHome();
   } else {
     introBias = 0; camLock = false;
     usr = { z: 1, ox: 0, oy: 0 }; vNeedCrisp = true;
