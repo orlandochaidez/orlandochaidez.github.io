@@ -83,6 +83,7 @@
    CANTOR     tap to divide the Cantor set
    MENGER     tap to carve the Menger sponge deeper
    STAR       tap to add pinwheel arcs (they lengthen + weave forever)
+   FERN       Seedline fern: one mark, tap/hold grows curling fronds with new heads
    VECTOR MODES (Bloom, Tree, Snowflake, Dragon, Sierpinski, Cantor, Menger)
    draw geometry in WORLD coords straight to a device-pixel cache canvas,
    so lines stay razor sharp at ANY zoom — there is no bitmap to magnify.
@@ -842,12 +843,107 @@ function mengerCubes(level) {
   }
   return cubes;
 }
+
+/* ================= MENGER 3D (orbit + pan camera, true projected cubes) ================= */
+let m3d = { on: false, yaw: 0.65, pitch: 0.42, dist: 1800, tx: 0, ty: 0, tz: 0, k: 1, lock: false };
+let m3dNeed = true;
+function m3dProject(x, y, z) {
+  let x1 = x - m3d.tx, y1 = -(y - m3d.ty), z1 = z - m3d.tz;
+  const cy = Math.cos(m3d.yaw), sy = Math.sin(m3d.yaw);
+  const x2 = x1 * cy + z1 * sy;
+  let z2 = -x1 * sy + z1 * cy;
+  const cp = Math.cos(m3d.pitch), sp = Math.sin(m3d.pitch);
+  const y2 = y1 * cp - z2 * sp;
+  z2 = y1 * sp + z2 * cp;
+  if (m3d.dist - z2 < 2) return null;
+  const s = m3d.dist / Math.max(2, m3d.dist - z2);
+  return { x: vw / 2 + x2 * s * m3d.k, y: vh / 2 - y2 * s * m3d.k, s, d: z2 };
+}
+function m3dFit() {
+  m3d.tx = 0; m3d.ty = 0; m3d.tz = 0;
+  const R = 850;
+  const half = Math.min(vw, vh) * 0.36;
+  m3d.k = half / R;
+  m3d.dist = clamp(R / (Math.tan(24 * Math.PI / 180) * 0.75), 280, 12000);
+  m3d.lock = false;
+  m3dNeed = true;
+}
+function m3dMotion() {
+  m3dNeed = true;
+}
+
+function mengerRender3D(level) {
+  const pal = PALETTES[palIdx];
+  const cubes = mengerCubes(level);
+  const grid = Math.pow(3, level);
+  const scale = 1200 / grid; // size of each small cube in world units
+  const off = (grid - 1) / 2;
+  const hue = pal.hues[0];
+
+  // collect projected faces for painter's sort
+  const faces = [];
+  for (const c of cubes) {
+    const cx = (c.x - off) * scale;
+    const cy = (c.y - off) * scale;
+    const cz = (c.z - off) * scale;
+    const h = scale * 0.48;
+    // 6 faces of the cube (center + half-size)
+    const verts = [
+      // front, back, left, right, top, bottom — we'll project corners
+    ];
+    // define the 8 corners relative — project all of them
+    const corners = [
+      [-h, -h, -h], [h, -h, -h], [h, h, -h], [-h, h, -h],
+      [-h, -h,  h], [h, -h,  h], [h, h,  h], [-h, h,  h]
+    ].map(([dx, dy, dz]) => m3dProject(cx + dx, cy + dy, cz + dz));
+    if (corners.some(p => !p)) continue;
+
+    // faces: [indices, shade]
+    const faceDefs = [
+      [[0,1,2,3], 0.75], // back-ish
+      [[4,5,6,7], 1.0],
+      [[0,1,5,4], 0.55],
+      [[2,3,7,6], 0.85],
+      [[0,3,7,4], 0.65],
+      [[1,2,6,5], 0.95]
+    ];
+    for (const [idx, shade] of faceDefs) {
+      const pts = idx.map(i => corners[i]);
+      if (pts.some(p => !p)) continue;
+      const avgD = pts.reduce((s, p) => s + p.d, 0) / 4;
+      faces.push({ pts, shade, avgD, hue });
+    }
+  }
+
+  // painter's algorithm: far to near
+  faces.sort((a, b) => b.avgD - a.avgD);
+
+  vctx.setTransform(1, 0, 0, 1, 0, 0);
+  vctx.clearRect(0, 0, vlc.width, vlc.height);
+  vctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  vctx.lineJoin = "round";
+  for (const f of faces) {
+    const light = 40 + f.shade * 40;
+    vctx.fillStyle = "hsla(" + hue + "," + pal.sat + "%," + light.toFixed(0) + "%,1)";
+    vctx.beginPath();
+    f.pts.forEach((p, i) => { if (i === 0) vctx.moveTo(p.x, p.y); else vctx.lineTo(p.x, p.y); });
+    vctx.closePath();
+    vctx.fill();
+    vctx.strokeStyle = "hsla(" + hue + "," + (pal.sat * 0.6) + "%,20%,0.4)";
+    vctx.lineWidth = 0.6;
+    vctx.stroke();
+  }
+  return cubes.length;
+}
+
 function mengerRender(level) {
+  if (m3d.on) return mengerRender3D(level);
+  // original 2D isometric
   vReset();
   const pal = PALETTES[palIdx];
   const cubes = mengerCubes(level);
   const grid = Math.pow(3, level);
-  const uu = 1350 / (grid * 1.75); // world units per grid cell
+  const uu = 1350 / (grid * 1.75);
   const X = [0.8660254 * uu, 0.5 * uu], Z = [-0.8660254 * uu, 0.5 * uu], Y = [0, -uu], D = [0, uu];
   const off = grid / 2;
   const hue = pal.hues[0];
@@ -855,7 +951,6 @@ function mengerRender(level) {
   vctx.lineJoin = "round";
   for (const c of cubes) {
     const gx = c.x - off + 0.5, gy = c.y - off + 1.5, gz = c.z - off + 0.5;
-    // top vertex T of this cubelet
     const Tx = (gx * X[0] + gz * Z[0] + gy * Y[0]);
     const Ty = (gx * X[1] + gz * Z[1] + gy * Y[1]);
     const Ax = Tx + X[0], Ay = Ty + X[1];
@@ -877,6 +972,7 @@ function mengerRender(level) {
   }
   return cubes.length;
 }
+
 
 function starLen(n) { return Math.min(1200, 500 + n * 30); } // lines lengthen per tap
 function starRho(i) { const f = (i * 0.6180339887 + 0.5) % 1; return 10 + 50 * f; } // orbit radius 10..60 — every line crosses the interior
@@ -1001,9 +1097,181 @@ function treeFull(n) {
   }
   return tips;
 }
+
+/* ==================== SEEDLINE FERN ==================== */
+// same growth as the Seedline fern: one stem, side fronds every 2 steps,
+// a second head at frond age 3, and new curling leaders every 10 steps.
+let fernSeed = 1, fernG = null, fernSegs = 0;
+function fernRoll() {
+  fernSeed = (Math.random() * 0xffffff) | 0;
+  const r = mulberry32(fernSeed);
+  fernG = {
+    chirality: r() < 0.5 ? 1 : -1,
+    hueDrift: 34 + r() * 28,
+    hueWalk: 6 + r() * 8
+  };
+}
+function fernRender(n) {
+  vReset();
+  if (!fernG) fernRoll();
+  const pal = PALETTES[palIdx];
+  const g = fernG;
+  if (n <= 0) {
+    vTouch(-0.55, -0.55); vTouch(0.55, 0.55);
+    vctx.fillStyle = "hsla(" + pal.hues[0] + "," + pal.sat + "%,74%,0.95)";
+    vctx.beginPath();
+    vctx.arc(0, 0, 0.16, 0, TAU);
+    vctx.fill();
+    fernSegs = 0;
+    return 0;
+  }
+  const segs = [];
+  const MAX_TURTLES = 1400;
+  const turtles = [{ x: 0, y: 0, angle: 0, length: 1, depth: 0, age: 0, chirality: g.chirality, turnScale: 1, side: 1, hue: 0, alive: true }];
+  function pushSeg(x1, y1, x2, y2, hue, depth) {
+    segs.push(x1, y1, x2, y2, hue, depth);
+    vTouch(x1, y1); vTouch(x2, y2);
+  }
+  function step(turtle, babies) {
+    const drawn = Math.max(0.04, Math.min(turtle.length, 250000));
+    const x2 = turtle.x + Math.cos(turtle.angle) * drawn;
+    const y2 = turtle.y + Math.sin(turtle.angle) * drawn;
+    if (!isFinite(x2) || !isFinite(y2)) { turtle.alive = false; return; }
+    let hue = (turtle.hue + turtle.age * g.hueWalk * 0.45 + turtle.depth * 16) % 360;
+    if (hue < 0) hue += 360;
+    pushSeg(turtle.x, turtle.y, x2, y2, hue, turtle.depth);
+    turtle.x = x2; turtle.y = y2; turtle.age += 1;
+    if (turtle.depth === 0) {
+      turtle.angle += 0.05 * turtle.chirality;
+      turtle.length = drawn * 1.02;
+    } else {
+      turtle.angle += 0.52 * turtle.chirality * turtle.turnScale;
+      turtle.length = drawn * 0.9;
+    }
+    const stem = turtle.depth === 0;
+    let stems = 0;
+    for (let i = 0; i < turtles.length; i++) if (turtles[i].alive && turtles[i].depth === 0) stems++;
+    if (stem && turtle.age % 2 === 0) {
+      const side = turtle.side || 1;
+      turtle.side = -side;
+      babies.push({
+        x: turtle.x, y: turtle.y,
+        angle: turtle.angle + 0.95 * side,
+        length: drawn * 0.72,
+        depth: 1, age: 0,
+        chirality: turtle.chirality,
+        turnScale: 1.15,
+        side: -side,
+        hue: (turtle.hue + g.hueDrift * (1 + (turtle.age % 5))) % 360,
+        alive: true
+      });
+    }
+    if (turtle.depth === 1 && turtle.age === 3) {
+      babies.push({
+        x: turtle.x, y: turtle.y,
+        angle: turtle.angle + 0.8 * turtle.chirality,
+        length: drawn * 0.62,
+        depth: 2, age: 0,
+        chirality: turtle.chirality,
+        turnScale: 1.2,
+        side: -1,
+        hue: (turtle.hue + g.hueDrift) % 360,
+        alive: true
+      });
+    }
+    if (stem && turtle.age % 10 === 0 && stems < 7) {
+      const side = turtle.side || 1;
+      turtles.push({
+        x: turtle.x, y: turtle.y,
+        angle: turtle.angle + 0.85 * side,
+        length: drawn * 0.72,
+        depth: 0, age: 0,
+        chirality: -turtle.chirality,
+        turnScale: 1,
+        side: -side,
+        hue: (turtle.hue + g.hueDrift * 2) % 360,
+        alive: true
+      });
+    }
+    if (turtle.depth > 0 && turtle.age > 9) turtle.alive = false;
+    if (turtle.depth > 1 && turtle.age > 4) turtle.alive = false;
+  }
+  function burst(baby, steps) {
+    const nested = [];
+    for (let k = 0; k < steps && baby.alive; k++) step(baby, nested);
+    for (let i = 0; i < nested.length; i++) {
+      const sub = nested[i];
+      if (turtles.length >= MAX_TURTLES) break;
+      for (let k = 0; k < 4 && sub.alive; k++) step(sub, []);
+      if (sub.alive && sub.depth < 2) turtles.push(sub);
+    }
+    if (baby.alive && baby.depth < 2 && turtles.length < MAX_TURTLES) turtles.push(baby);
+  }
+  for (let generation = 1; generation <= n; generation++) {
+    let anyStem = false;
+    for (let i = 0; i < turtles.length; i++) if (turtles[i].alive && turtles[i].depth === 0) anyStem = true;
+    if (!anyStem) {
+      let host = turtles[0], best = -1;
+      for (let i = 0; i < turtles.length; i++) {
+        const t = turtles[i], d = t.x * t.x + t.y * t.y;
+        if (d > best) { best = d; host = t; }
+      }
+      const span = Math.max(1, maxX - minX, maxY - minY);
+      turtles.push({
+        x: host.x, y: host.y,
+        angle: Math.atan2(host.y, host.x),
+        length: span * 0.08,
+        depth: 0, age: 0,
+        chirality: -host.chirality,
+        turnScale: 1, side: 1,
+        hue: (host.hue + g.hueDrift) % 360,
+        alive: true
+      });
+    }
+    const cohort = [];
+    for (let i = 0; i < turtles.length; i++) if (turtles[i].alive && turtles[i].depth === 0) cohort.push(turtles[i]);
+    const steps = generation === 1 ? 1 : 4;
+    for (let c = 0; c < cohort.length; c++) {
+      const turtle = cohort[c];
+      for (let s = 0; s < steps; s++) {
+        if (!turtle.alive) break;
+        const spawned = [];
+        step(turtle, spawned);
+        for (let b = 0; b < spawned.length; b++) burst(spawned[b], 10);
+      }
+    }
+  }
+  fernSegs = segs.length / 6;
+  const span = Math.max(1, maxX - minX, maxY - minY);
+  const widths = [span * 0.011, span * 0.0065, span * 0.004];
+  const lights = [64, 70, 76];
+  vctx.lineCap = "round";
+  vctx.lineJoin = "round";
+  for (let depth = 0; depth <= 2; depth++) {
+    const paths = new Array(60);
+    for (let i = 0; i < segs.length; i += 6) {
+      if (segs[i + 5] !== depth) continue;
+      const hue = ((segs[i + 4] % 360) + 360) % 360;
+      const b = Math.min(59, (hue / 6) | 0);
+      let path = paths[b];
+      if (!path) path = paths[b] = new Path2D();
+      path.moveTo(segs[i], segs[i + 1]);
+      path.lineTo(segs[i + 2], segs[i + 3]);
+    }
+    vctx.lineWidth = Math.max(0.35, widths[depth]);
+    for (let b = 0; b < 60; b++) {
+      if (!paths[b]) continue;
+      const hue = (pal.hues[0] + b * 6) % 360;
+      vctx.strokeStyle = "hsla(" + hue + "," + pal.sat + "%," + lights[depth] + "%,0.92)";
+      vctx.stroke(paths[b]);
+    }
+  }
+  return fernSegs;
+}
+
 const MODES = {};
 let cur = "bloom";
-const ORDER = ["bloom", "tree", "star", "mandelbrot", "julia", "snowflake", "dragon", "sierpinski", "cantor", "menger"];
+const ORDER = ["bloom", "tree", "star", "mandelbrot", "julia", "snowflake", "dragon", "sierpinski", "cantor", "menger", "fern"];
 
 MODES.bloom = {
   name: "Bloom", hint: "tap · click · hold to grow · pinch to zoom · drag to pan",
@@ -1177,8 +1445,23 @@ MODES.dragon = vectorMode("Dragon", "tap to fold it deeper", 18, dragonRender,
   n => "DRAGON CURVE · iteration " + (n + 1) + " · " + (2 << n).toLocaleString("en-US") + " lines · " + PALETTES[palIdx].name);
 MODES.cantor = vectorMode("Cantor", "tap to divide it", 22, cantorRender,
   n => "CANTOR SET · row " + n + " · " + Math.pow(2, n).toLocaleString("en-US") + " segments · " + PALETTES[palIdx].name);
-MODES.menger = vectorMode("Menger", "tap to carve it deeper", 3, mengerRender,
-  n => "MENGER SPONGE · level " + n + " · " + PALETTES[palIdx].name);
+MODES.menger = Object.assign(vectorMode("Menger", "tap to carve deeper · 1-finger spin · 2-finger pan+zoom · ⬢ 3D", 3, mengerRender,
+  n => "MENGER SPONGE · level " + n + (m3d.on ? " · 3D" : "") + " · " + PALETTES[palIdx].name), {
+  draw() {
+    if (m3d.on) {
+      if (m3dNeed || !vBasis) {
+        vEnsure();
+        mengerRender3D(this.n);
+        vBasis = { cx: 0, cy: 0, cz: 1, ox: 0, oy: 0, oz: 1 };
+        m3dNeed = false;
+      }
+      vBlit();
+      return;
+    }
+    vectorFrame();
+  },
+  onPalette() { if (m3d.on) m3dNeed = true; else vNeedCrisp = true; }
+});
 MODES.tree = Object.assign(vectorMode("Tree", "tap grows branches · ❖ grows roots", 18, treeFull,
   n => "FRACTAL TREE · gen " + n + " · roots " + rootN + " · " + PALETTES[palIdx].name), {
   enter() {
@@ -1227,6 +1510,27 @@ MODES.sierpinski = Object.assign(vectorMode("Sierpinski", "tap to split it deepe
   enter() { this.n = 2; introBias = 0; camLock = false; cam = { x: 0, y: 0, z: maxZ }; vNeedCrisp = true; } // opens already split — no solid-triangle start
 });
 
+MODES.fern = Object.assign(vectorMode("Fern", "tap or hold to grow the fern", 80, fernRender,
+  n => "FERN · gen " + n + " · " + fernSegs.toLocaleString("en-US") + " segs · " + PALETTES[palIdx].name), {
+  enter() {
+    fernRoll();
+    fernSegs = 0;
+    this.n = 0;
+    introBias = 1;
+    camLock = false;
+    cam = { x: 0, y: 0, z: maxZ };
+    vNeedCrisp = true;
+  },
+  tap(x, y) {
+    if (this.n < this.maxN) { this.n++; vNeedCrisp = true; }
+    introBias = Math.max(0, introBias - 0.34);
+    ripples.push({ x: x, y: y, t0: performance.now() });
+  },
+  holdTick() {
+    if (this.n < this.maxN) { this.n++; vNeedCrisp = true; introBias = Math.max(0, introBias - 0.2); }
+  }
+});
+
 /* ==================== UI ==================== */
 function setMode(id) {
   ESC.job = null;
@@ -1236,7 +1540,9 @@ function setMode(id) {
   clearTimeout(wheelT);
   cur = id;
   document.getElementById("btnRoots").style.display = id === "tree" ? "" : "none";
-  document.getElementById("btn3D").style.display = id === "bloom" ? "" : "none";
+  document.getElementById("btn3D").style.display = (id === "bloom" || id === "menger") ? "" : "none";
+  if (id !== "menger") m3d.on = false;
+  document.getElementById("btn3D").classList.toggle("on", (id === "bloom" && b3d.on) || (id === "menger" && m3d.on));
   ripples = [];
   document.querySelectorAll("#modes button").forEach(b => b.classList.toggle("on", b.dataset.id === id));
   const M = MODES[id];
@@ -1328,7 +1634,8 @@ function startPinch() {
   pinchSt = {
     d0: Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 1,
     m0x: (p[0].x + p[1].x) / 2, m0y: (p[0].y + p[1].y) / 2,
-    v0: null, u0: { z: usr.z, ox: usr.ox, oy: usr.oy }, nV: null, d3: b3d.dist
+    v0: null, u0: { z: usr.z, ox: usr.ox, oy: usr.oy }, nV: null,
+    d3: b3d.dist, m3dDist: m3d.dist, m3dTx: m3d.tx, m3dTy: m3d.ty
   };
   const M = MODES[cur];
   if (M.isEscape) pinchSt.v0 = escViewOf(M);
@@ -1346,6 +1653,17 @@ function movePinch() {
     b3dMotion();
     return;
   }
+  if (cur === "menger" && m3d.on) {
+    // 2-finger: pinch changes distance (zoom), simultaneous translation pans the camera
+    const zoomF = Math.max(0.4, Math.min(2.5, f));
+    m3d.dist = clamp(pinchSt.m3dDist / zoomF, 180, 14000);
+    const panScale = m3d.dist * 0.0018;
+    m3d.tx = pinchSt.m3dTx + (m1x - pinchSt.m0x) * panScale;
+    m3d.ty = pinchSt.m3dTy - (m1y - pinchSt.m0y) * panScale;
+    m3d.lock = true;
+    m3dNeed = true;
+    return;
+  }
   if (M.isEscape) {
     const z = cFromCss(pinchSt.m0x, pinchSt.m0y, pinchSt.v0);
     const nV = viewForAnchor(z, m1x, m1y, Math.max(1e-9, pinchSt.v0.size / f));
@@ -1356,7 +1674,7 @@ function movePinch() {
     usr.z = u0.z * f;
     usr.ox = m1x - Cx - (pinchSt.m0x - Cx - u0.ox) * f;
     usr.oy = m1y - Cy - (pinchSt.m0y - Cy - u0.oy) * f;
-    camLock = true; vMotion(); // user took the camera — freeze the auto follow
+    camLock = true; vMotion();
   }
 }
 function movePan(x, y) {
@@ -1365,6 +1683,13 @@ function movePan(x, y) {
     b3d.pitch = clamp(b3d.pitch + (y - downInfo.ly) * 0.008, -1.4, 1.4);
     b3d.lock = true;
     b3dMotion();
+    return;
+  }
+  if (cur === "menger" && m3d.on) {
+    m3d.yaw += (x - downInfo.lx) * 0.012;
+    m3d.pitch = clamp(m3d.pitch + (y - downInfo.ly) * 0.010, -1.35, 1.35);
+    m3d.lock = true;
+    m3dNeed = true;
     return;
   }
   const M = MODES[cur];
@@ -1441,6 +1766,12 @@ stage.addEventListener("wheel", function (e) {
     b3dMotion();
     return;
   }
+  if (cur === "menger" && m3d.on) {
+    m3d.dist = clamp(m3d.dist / f, 180, 14000);
+    m3d.lock = true;
+    m3dNeed = true;
+    return;
+  }
   if (M.isEscape) {
     const V = { cx: M.cx, cy: M.cy, size: M.size };
     const z = cFromCss(e.clientX, e.clientY, V);
@@ -1465,12 +1796,16 @@ document.getElementById("btnFit").addEventListener("click", function (e) {
 });
 document.getElementById("btn3D").addEventListener("click", function (e) {
   e.stopPropagation();
-  if (cur !== "bloom") return;
-  b3d.on = !b3d.on;
-  if (b3d.on) b3dFit();
-  else { vNeedCrisp = true; vBasis = null; }
-  this.classList.toggle("on", b3d.on);
-  b3dHint();
+  if (cur === "bloom") {
+    b3d.on = !b3d.on;
+    if (b3d.on) b3dFit();
+    else { vNeedCrisp = true; vBasis = null; }
+  } else if (cur === "menger") {
+    m3d.on = !m3d.on;
+    if (m3d.on) m3dFit();
+    else vNeedCrisp = true;
+  } else return;
+  this.classList.toggle("on", (cur === "bloom" && b3d.on) || (cur === "menger" && m3d.on));
   updateStats();
 });
 // ⛶ Fit: reframe the whole fractal on screen WITHOUT touching growth —
@@ -1478,6 +1813,7 @@ document.getElementById("btn3D").addEventListener("click", function (e) {
 function fitView() {
   const M = MODES[cur];
   if (cur === "bloom" && b3d.on) { b3dFit(); updateStats(); return; }
+  if (cur === "menger" && m3d.on) { m3dFit(); updateStats(); return; }
   if (M.isEscape) {
     if (cur === "mandelbrot") { M.cx = -0.5; M.cy = 0; } else { M.cx = 0; M.cy = 0; }
     M.size = 3.4; VG = null; escStart(M.job());
@@ -1519,6 +1855,10 @@ window.addEventListener("keydown", function (e) {
   else if (cur === "bloom" && b3d.on && e.key === "ArrowRight") { e.preventDefault(); b3d.yaw += 0.08; b3d.lock = true; b3dMotion(); }
   else if (cur === "bloom" && b3d.on && e.key === "ArrowUp") { e.preventDefault(); b3d.pitch = clamp(b3d.pitch - 0.06, -1.4, 1.4); b3d.lock = true; b3dMotion(); }
   else if (cur === "bloom" && b3d.on && e.key === "ArrowDown") { e.preventDefault(); b3d.pitch = clamp(b3d.pitch + 0.06, -1.4, 1.4); b3d.lock = true; b3dMotion(); }
+  else if (cur === "menger" && m3d.on && e.key === "ArrowLeft") { e.preventDefault(); m3d.yaw -= 0.08; m3d.lock = true; m3dNeed = true; }
+  else if (cur === "menger" && m3d.on && e.key === "ArrowRight") { e.preventDefault(); m3d.yaw += 0.08; m3d.lock = true; m3dNeed = true; }
+  else if (cur === "menger" && m3d.on && e.key === "ArrowUp") { e.preventDefault(); m3d.pitch = clamp(m3d.pitch - 0.06, -1.3, 1.3); m3d.lock = true; m3dNeed = true; }
+  else if (cur === "menger" && m3d.on && e.key === "ArrowDown") { e.preventDefault(); m3d.pitch = clamp(m3d.pitch + 0.06, -1.3, 1.3); m3d.lock = true; m3dNeed = true; }
   else if (e.key >= "1" && e.key <= "9") setMode(ORDER[+e.key - 1]);
 });
 
@@ -1528,6 +1868,12 @@ function keyZoom(f) {
     b3d.dist = clamp(b3d.dist / f, 50, 20000);
     b3d.lock = true;
     b3dMotion();
+    return;
+  }
+  if (cur === "menger" && m3d.on) {
+    m3d.dist = clamp(m3d.dist / f, 180, 14000);
+    m3d.lock = true;
+    m3dNeed = true;
     return;
   }
   const M = MODES[cur], mx = vw / 2, my = vh / 2;
@@ -1556,3 +1902,4 @@ requestAnimationFrame(frame);
 </script>
 </body>
 </html>
+
