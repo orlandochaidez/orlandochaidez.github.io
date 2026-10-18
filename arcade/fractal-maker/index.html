@@ -75,8 +75,8 @@
 /* ============================================================
    FRACTAL MAKER v2 — a whole gallery of fractals in one page.
    BLOOM      the original: infinite tap-to-grow golden-angle garden
-   MANDELBROT tap to dive 2.5× deeper (infinite: reseeds past 1e10×) · ✦ resets
-   JULIA      tap to morph the constant c   (escape-time)
+   MANDELBROT pinch or scroll to zoom, sharper as it settles, detail appears the deeper you go (reseeds past 1e12×)
+   JULIA      same camera · tap dives · ✦ rolls a new constant
    SNOWFLAKE  tap to fold the Koch snowflake deeper
    DRAGON     tap to fold the dragon curve deeper
    SIERPINSKI tap to split the triangle deeper (1 → 3 → 9 → 27…)
@@ -584,131 +584,213 @@ function b3dHint() {
 }
 
 /* ============ ESCAPE-TIME ENGINE (mandelbrot / julia) ============ */
-const ESC = { cvs: null, x: null, img: null, W: 0, H: 0, job: null };
+const ESC = { cvs: null, x: null, img: null, W: 0, H: 0, job: null, shown: null, rv: null, quality: "", side: 0, sq: "" };
+let VG = null;
 const JULIA_PRETTY = [
   [-0.7, 0.27015], [-0.8, 0.156], [-0.7269, 0.1889], [-0.835, -0.2321],
   [0.285, 0.01], [-0.4, 0.6], [-0.70176, -0.3842], [-0.75, 0.11]
 ];
-let fineT = null; // idle timer that kicks off the crisp refine pass
+let fineT = null, escKickT = 0;
+const ESC_LIMIT = 1e12; // float64 stays honest about here — past it, rebirth keeps the dive going
+function escIters(zoom, cap) {
+  const logz = Math.log10(Math.max(1, zoom));
+  const maxIter = Math.min(cap, Math.max(100, Math.round(90 + 125 * logz)));
+  const fastIter = Math.min(maxIter, Math.round(70 + 24 * logz), 240);
+  return { maxIter, fastIter };
+}
+function escDims(quality) {
+  const sharp = Math.min(typeof dpr === "number" ? dpr : 1, 2);
+  const mul = quality === "fine" ? sharp : Math.min(sharp, 1) * 0.7;
+  const cap = quality === "fine" ? 1200 : 440;
+  let W = Math.max(2, vw * mul), H = Math.max(2, vh * mul);
+  const cf = Math.min(1, cap / Math.max(W, H));
+  W = Math.max(2, Math.round(W * cf));
+  H = Math.max(2, Math.round(H * cf));
+  return [W, H];
+}
 function escStart(job, quality) {
   clearTimeout(fineT);
   quality = quality || "fast";
-  const sc = quality === "fine" ? 0.75 : 0.4; // fast preview while interacting, crisp refine when idle
-  let W = Math.round(vw * sc), H = Math.round(vh * sc);
-  const cf = Math.min(1, 900 / W, 900 / H);
-  W = Math.max(120, Math.round(W * cf)); H = Math.max(120, Math.round(H * cf));
+  const wh = escDims(quality);
+  const W = wh[0], H = wh[1];
   ESC.W = W; ESC.H = H;
   ESC.cvs = document.createElement("canvas");
   ESC.cvs.width = W; ESC.cvs.height = H;
-  ESC.x = ESC.cvs.getContext("2d");
+  ESC.x = ESC.cvs.getContext("2d", { alpha: false });
   ESC.img = ESC.x.createImageData(W, H);
   const d = ESC.img.data;
-  for (let i = 3; i < d.length; i += 4) d[i] = 0;
+  for (let i = 0; i < d.length; i += 4) { d[i] = 4; d[i + 1] = 5; d[i + 2] = 14; d[i + 3] = 255; }
   job.W = W; job.H = H; job.row = 0;
   job.unit = job.size / W;
   job.quality = quality;
+  job.iters = quality === "fast" ? (job.fastIter || job.maxIter) : job.maxIter;
   ESC.job = job;
-  ESC.rv = { cx: job.cx, cy: job.cy, size: job.size }; // the view this bitmap was rendered with
-  VG = null;
+  ESC.quality = quality;
+  if (!ESC.shown) {
+    ESC.shown = ESC.cvs;
+    ESC.rv = { cx: job.cx, cy: job.cy, size: job.size };
+    ESC.sq = quality;
+    ESC.side = Math.max(W, H);
+  }
 }
 function scheduleFine() {
-  // after the fast preview finishes and things go quiet, re-render crisp
   clearTimeout(fineT);
   fineT = setTimeout(function () {
     const M = MODES[cur];
-    if (M && M.isEscape && !ESC.job && !VG && PTRS.size === 0) escStart(M.job(), "fine");
-  }, 500);
+    if (!M || !M.isEscape || ESC.job || PTRS.size > 0) return;
+    if (M.dive && M.zoom() >= ESC_LIMIT) M.rebirth();
+    const t = escTarget();
+    if (ESC.rv && t && escDrift(ESC.rv, t) > 0.05) { escStart(escLiveJob(), "fast"); return; }
+    if (ESC.quality !== "fine") escStart(escLiveJob(), "fine");
+  }, 140);
 }
-// ---- iteration probes (shared by the renderer and the region sampler) ----
 function mProbe(cr, ci, maxIter) {
   let zr = 0, zi = 0, n = 0, r2 = 0;
   const q = (cr - 0.25) * (cr - 0.25) + ci * ci;
   if (q * (q + (cr - 0.25)) < 0.25 * ci * ci || (cr + 1) * (cr + 1) + ci * ci < 0.0625) return { n: maxIter, r2: 0 };
+  let pr = 0, pi = 0, check = 16;
   while (n < maxIter && (r2 = zr * zr + zi * zi) <= 4) {
     const t = zr * zr - zi * zi + cr;
     zi = 2 * zr * zi + ci; zr = t; n++;
+    if (zr === pr && zi === pi) return { n: maxIter, r2: 0 };
+    if (n === check) { pr = zr; pi = zi; check <<= 1; }
   }
   return { n, r2 };
 }
 function jProbe(zr, zi, cRe, cIm, maxIter) {
-  let n = 0, r2 = 0;
+  let n = 0, r2 = 0, pr = zr, pi = zi, check = 16;
   while (n < maxIter && (r2 = zr * zr + zi * zi) <= 4) {
     const t = zr * zr - zi * zi + cRe;
     zi = 2 * zr * zi + cIm; zr = t; n++;
+    if (zr === pr && zi === pi) return { n: maxIter, r2: 0 };
+    if (n === check) { pr = zr; pi = zi; check <<= 1; }
   }
   return { n, r2 };
 }
 function escColor(pal, n, sn, maxIter) {
-  if (n >= maxIter) return [6, 7, 18];
-  const t = sn / maxIter;
-  const c = hsl((pal.hues[0] + t * 300) % 360, pal.sat, 10 + t * 58);
-  return c;
+  if (n >= maxIter) return [5, 6, 16];
+  const hue = (pal.hues[0] + sn * 9) % 360;
+  const light = 38 + 22 * (0.5 + 0.5 * Math.sin(sn * 0.33));
+  return hsl(hue < 0 ? hue + 360 : hue, pal.sat, light);
+}
+function escTakeFrame(job) {
+  const nv = { cx: job.cx, cy: job.cy, size: job.size };
+  if (!ESC.rv || ESC.shown === ESC.cvs) return true;
+  const target = escTarget() || nv;
+  if (escDrift(nv, target) > escDrift(ESC.rv, target) + 0.08) return false;
+  if (job.quality === "fine") return true;
+  const mag = Math.max(ESC.rv.size / nv.size, nv.size / ESC.rv.size);
+  const oldSide = ESC.side || 700;
+  const newSide = Math.max(job.W, job.H);
+  return (oldSide / mag) < newSide * 0.92;
 }
 function pumpEscape() {
   const J = ESC.job;
   if (!J) return;
   const t0 = performance.now();
-  const W = ESC.W, H = ESC.H, data = ESC.img.data;
+  const W = J.W, H = J.H, data = ESC.img.data;
   const pal = PALETTES[palIdx];
-  const R2 = (J.reveal * Math.hypot(W, H) / 2) ** 2; // grow-from-seed mask
-  const HW = W / 2, HH = H / 2;
+  const iters = J.iters || J.maxIter;
+  const show = ESC.shown === ESC.cvs;
   let py = J.row;
-  while (py < H && performance.now() - t0 < 12) {
-    const dy = py - HH;
+  while (py < H && performance.now() - t0 < 11) {
+    const i0 = J.cy - (py - H / 2) * J.unit;
     for (let px = 0; px < W; px++) {
+      const r0 = J.cx + (px - W / 2) * J.unit;
+      const pr2 = J.kind === "mandelbrot" ? mProbe(r0, i0, iters) : jProbe(r0, i0, J.cRe, J.cIm, iters);
+      let sn = pr2.n;
+      if (pr2.n < iters && pr2.r2 > 1) sn = pr2.n + 1 - Math.log2(0.5 * Math.log(pr2.r2) / Math.LN2);
+      const c = escColor(pal, pr2.n, sn, iters);
       const o = (py * W + px) * 4;
-      const dx = px - HW;
-      if (dx * dx + dy * dy > R2) continue; // not grown here yet
-      const r0 = J.cx + dx * J.unit;
-      const i0 = J.cy - dy * J.unit;
-      let r, g, b;
-      {
-        const pr2 = J.kind === "mandelbrot" ? mProbe(r0, i0, J.maxIter) : jProbe(r0, i0, J.cRe, J.cIm, J.maxIter);
-        let sn = pr2.n;
-        if (pr2.n < J.maxIter && pr2.r2 > 1) sn = pr2.n + 1 - Math.log2(0.5 * Math.log(pr2.r2) / Math.LN2);
-        const c = escColor(pal, pr2.n, sn, J.maxIter);
-        r = c[0]; g = c[1]; b = c[2];
-      }
-      data[o] = r; data[o + 1] = g; data[o + 2] = b; data[o + 3] = 255;
+      data[o] = c[0]; data[o + 1] = c[1]; data[o + 2] = c[2]; data[o + 3] = 255;
     }
     py++;
   }
   J.row = py;
-  ESC.x.putImageData(ESC.img, 0, 0);
+  if (show || py >= H) ESC.x.putImageData(ESC.img, 0, 0);
   if (py >= H) {
+    if (escTakeFrame(J)) {
+      ESC.shown = ESC.cvs;
+      ESC.rv = { cx: J.cx, cy: J.cy, size: J.size };
+      ESC.sq = J.quality;
+      ESC.side = Math.max(J.W, J.H);
+    }
     ESC.job = null;
-    if (J.quality === "fast") scheduleFine(); // preview done → sharpen when idle
+    if (J.quality === "fast") scheduleFine();
   }
 }
-// ---- free zoom & pan: warp the rendered bitmap live, commit on release ----
-let VG = null; // {s, ax, ay} in CSS px — display each bitmap point p as ax + (p-ax)*s
+function escLimitSize(size) {
+  if (!(size > 1e-18)) return 1e-18;
+  return size > 8 ? 8 : size;
+}
 function cFromCss(px, py, V) {
-  const rx = px * (ESC.W / vw), ry = py * (ESC.H / vh);
-  const unit = V.size / ESC.W;
-  return [V.cx + (rx - ESC.W / 2) * unit, V.cy - (ry - ESC.H / 2) * unit];
+  return [V.cx + (px / vw - 0.5) * V.size, V.cy - (py / vh - 0.5) * V.size * (vh / vw)];
 }
 function viewForAnchor(z, axCss, ayCss, size) {
-  const unit = size / ESC.W;
-  const rx = axCss * (ESC.W / vw), ry = ayCss * (ESC.H / vh);
-  return { cx: z[0] - (rx - ESC.W / 2) * unit, cy: z[1] + (ry - ESC.H / 2) * unit, size };
+  return {
+    cx: z[0] - (axCss / vw - 0.5) * size,
+    cy: z[1] + (ayCss / vh - 0.5) * size * (vh / vw),
+    size: size
+  };
 }
 function warpFor(oV, nV) {
-  // bitmap was rendered as oV — warp it so it previews nV
   const s = oV.size / nV.size;
-  if (Math.abs(s - 1) < 1e-6 && Math.abs(oV.cx - nV.cx) < 1e-12 && Math.abs(oV.cy - nV.cy) < 1e-12) return null;
-  const unitN = nV.size / ESC.W, R = vw / ESC.W;
-  const Ax = (oV.cx - nV.cx) / unitN * R;
-  const Ay = -(oV.cy - nV.cy) / unitN * R;
-  return { s, ax: vw / 2 + Ax / (1 - s), ay: vh / 2 + Ay / (1 - s) };
+  const dx = (oV.cx - nV.cx) / nV.size * vw;
+  const dy = -(oV.cy - nV.cy) / nV.size * vw;
+  if (Math.abs(s - 1) < 2e-4) {
+    if (Math.abs(dx) < 0.35 && Math.abs(dy) < 0.35) return null;
+    return { pan: true, dx: dx, dy: dy };
+  }
+  return { pan: false, s: s, ax: vw / 2 + dx / (1 - s), ay: vh / 2 + dy / (1 - s) };
+}
+function escTarget() {
+  if (pinchSt && pinchSt.nV) return pinchSt.nV;
+  if (panSt && panSt.nV) return panSt.nV;
+  const M = MODES[cur];
+  return M ? { cx: M.cx, cy: M.cy, size: M.size } : null;
+}
+function escDrift(a, b) {
+  const s = a.size / b.size;
+  const pan = Math.hypot(a.cx - b.cx, a.cy - b.cy) / Math.max(1e-18, b.size);
+  return Math.max(Math.abs(Math.log(Math.max(1e-9, s))), pan * 1.4);
+}
+function escLiveJob() {
+  const M = MODES[cur];
+  const job = M.job();
+  const t = escTarget();
+  if (t) {
+    job.cx = t.cx; job.cy = t.cy; job.size = t.size;
+    const it = escIters(3.4 / Math.max(1e-18, t.size), M.maxCap);
+    job.maxIter = it.maxIter; job.fastIter = it.fastIter;
+  }
+  return job;
+}
+function escFollow() {
+  const M = MODES[cur];
+  if (!M || !M.isEscape) return;
+  const t = escTarget();
+  if (!t || !isFinite(t.size) || t.size <= 0) return;
+  const now = performance.now();
+  const base = ESC.job ? { cx: ESC.job.cx, cy: ESC.job.cy, size: ESC.job.size } : ESC.rv;
+  const d = base ? escDrift(base, t) : 99;
+  if (ESC.job && d > 0.62 && now - escKickT > 260) { escKickT = now; escStart(escLiveJob(), "fast"); return; }
+  if (!ESC.job && d > 0.22 && now - escKickT > 70) { escKickT = now; escStart(escLiveJob(), "fast"); }
 }
 function escDraw() {
-  if (!ESC.cvs) return;
+  const cvs = ESC.shown || ESC.cvs;
+  const base = ESC.rv;
+  if (!cvs || !base) return;
+  const t = escTarget() || base;
+  const warp = warpFor(base, t);
   ctx.save();
-  if (VG) { ctx.translate(VG.ax, VG.ay); ctx.scale(VG.s, VG.s); ctx.translate(-VG.ax, -VG.ay); }
-  ctx.drawImage(ESC.cvs, 0, 0, vw, vh);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  if (warp && warp.pan) ctx.translate(warp.dx, warp.dy);
+  else if (warp) { ctx.translate(warp.ax, warp.ay); ctx.scale(warp.s, warp.s); ctx.translate(-warp.ax, -warp.ay); }
+  ctx.drawImage(cvs, 0, 0, vw, vh);
   ctx.restore();
   const M = MODES[cur];
-  if (M && M.flashT) { // rebirth flash: a quick white-out sells the "warp deeper" jump
+  if (M && M.flashT) {
     const dt = (performance.now() - M.flashT) / 450;
     if (dt >= 1) M.flashT = 0;
     else { ctx.fillStyle = "rgba(255,255,255," + (0.85 * (1 - dt)).toFixed(3) + ")"; ctx.fillRect(0, 0, vw, vh); }
@@ -1672,10 +1754,8 @@ function escMode(kind, name, hint, baseIter, iterStep, maxCap) {
     cx: 0, cy: 0, size: 3.4, cRe: 0, cIm: 0, poly: 0, g: null, flashT: 0,
     zoom() { return 3.4 / this.size; },
     job() {
-      // detail keeps resolving as you zoom: iterations scale with depth (float64 view → ~trillion× zoom)
-      const zoomNeed = Math.round(60 + 90 * Math.log10(Math.max(1, this.zoom())));
-      const maxIter = Math.min(this.maxCap, Math.max(this.g.maxIter, zoomNeed));
-      return { kind, maxIter, reveal: this.dive ? 2 : this.g.reveal, cx: this.cx, cy: this.cy, size: this.size, cRe: this.cRe, cIm: this.cIm, poly: this.poly };
+      const it = escIters(this.zoom(), this.maxCap);
+      return { kind, maxIter: it.maxIter, fastIter: it.fastIter, reveal: 2, cx: this.cx, cy: this.cy, size: this.size, cRe: this.cRe, cIm: this.cIm, poly: this.poly };
     },
     enter() { this.resetView(); this.g = { reveal: 0.22, maxIter: this.baseIter }; escStart(this.job()); },
     resetView() {},
@@ -1712,9 +1792,9 @@ function escMode(kind, name, hint, baseIter, iterStep, maxCap) {
       // infinite dive: 2.5× deeper, anchored exactly on the tap point
       const V = { cx: this.cx, cy: this.cy, size: this.size };
       const z = cFromCss(x, y, V);
-      const nV = viewForAnchor(z, x, y, V.size / 2.5);
+      const nV = viewForAnchor(z, x, y, escLimitSize(V.size / 2.5));
       this.cx = nV.cx; this.cy = nV.cy; this.size = nV.size;
-      if (this.zoom() >= 1e10) this.rebirth(); // past float64's honest range → reseed deeper, the dive never ends
+      if (this.zoom() >= ESC_LIMIT) this.rebirth(); // past float64's honest range → reseed deeper, the dive never ends
       escStart(this.job());
     },
     rebirth() {
@@ -1744,7 +1824,7 @@ function escMode(kind, name, hint, baseIter, iterStep, maxCap) {
     gestPreview(nV) { VG = warpFor(ESC.rv, nV); },
     gestCommit(nV) {
       this.cx = nV.cx; this.cy = nV.cy; this.size = nV.size; VG = null;
-      if (this.dive && this.zoom() >= 1e10) this.rebirth();
+      if (this.dive && this.zoom() >= ESC_LIMIT) this.rebirth();
       escStart(this.job());
     },
     stats() { return ""; }
@@ -1752,7 +1832,7 @@ function escMode(kind, name, hint, baseIter, iterStep, maxCap) {
 }
 const ESC_STATS = (label, M, extra) =>
   label + (extra ? " · " + extra : "") + " · iter " + M.g.maxIter + " · " + M.grownPct() + "% grown · " + PALETTES[palIdx].name;
-MODES.mandelbrot = Object.assign(escMode("mandelbrot", "Mandelbrot", "tap to dive deeper · pinch to zoom · ✦ reset", 60, 0, 2500), {
+MODES.mandelbrot = Object.assign(escMode("mandelbrot", "Mandelbrot", "pinch or scroll to zoom · tap dives", 80, 0, 2200), {
   dive: true,
   resetView() { this.cx = -0.5; this.cy = 0; this.size = 3.4; },
   enter() { this.resetView(); this.g = { reveal: 2, maxIter: this.baseIter }; escStart(this.job()); }, // one whole Mandelbrot, fully rendered
@@ -1764,7 +1844,7 @@ MODES.mandelbrot = Object.assign(escMode("mandelbrot", "Mandelbrot", "tap to div
     return "MANDELBROT · zoom " + zs + " · iter " + this.job().maxIter + " · ∞ dive · " + PALETTES[palIdx].name;
   }
 });
-MODES.julia = Object.assign(escMode("julia", "Julia", "tap to dive deeper · pinch to zoom · ✦ new constant", 60, 0, 2500), {
+MODES.julia = Object.assign(escMode("julia", "Julia", "pinch or scroll to zoom · tap dives", 80, 0, 2200), {
   dive: true,
   resetView() {
     const c = JULIA_PRETTY[(Math.random() * JULIA_PRETTY.length) | 0];
@@ -1914,6 +1994,8 @@ MODES.vine = Object.assign(vectorMode("Vine", "tap or hold to grow the vine", 80
 /* ==================== UI ==================== */
 function setMode(id) {
   ESC.job = null;
+  ESC.shown = null;
+  ESC.rv = null;
   VG = null;
   usr = { z: 1, ox: 0, oy: 0 };
   camLock = false; vBasis = null; vNeedCrisp = false;
@@ -1982,6 +2064,7 @@ function resize() {
     if (!m3d.lock) m3dFit();
     else m3dNeed = true;
   }
+  if (MODES[cur] && MODES[cur].isEscape) escStart(MODES[cur].job(), "fast");
 }
 window.addEventListener("resize", resize);
 
@@ -2049,9 +2132,10 @@ function movePinch() {
   }
   if (M.isEscape) {
     const z = cFromCss(pinchSt.m0x, pinchSt.m0y, pinchSt.v0);
-    const nV = viewForAnchor(z, m1x, m1y, Math.max(1e-9, pinchSt.v0.size / f));
+    const nV = viewForAnchor(z, m1x, m1y, escLimitSize(pinchSt.v0.size / f));
     pinchSt.nV = nV;
     M.gestPreview(nV);
+    escFollow();
   } else {
     const u0 = pinchSt.u0, Cx = vw / 2, Cy = vh / 2;
     usr.z = u0.z * f;
@@ -2083,6 +2167,7 @@ function movePan(x, y) {
     const nV = viewForAnchor(z, x, y, panSt.v0.size);
     panSt.nV = nV;
     M.gestPreview(nV);
+    escFollow();
   } else {
     usr.ox += x - downInfo.lx;
     usr.oy += y - downInfo.ly;
@@ -2141,7 +2226,10 @@ stage.addEventListener("pointercancel", endPointer);
 stage.addEventListener("wheel", function (e) {
   e.preventDefault();
   const M = MODES[cur];
-  const f = Math.exp(-e.deltaY * 0.0012);
+  let dy = e.deltaY;
+  if (e.deltaMode === 1) dy *= 16;
+  else if (e.deltaMode === 2) dy *= vh;
+  const f = Math.exp(-dy * 0.00115);
   if (cur === "bloom" && b3d.on) {
     b3d.dist = clamp(b3d.dist / f, 50, 20000);
     b3d.lock = true;
@@ -2152,14 +2240,21 @@ stage.addEventListener("wheel", function (e) {
   if (M.isEscape) {
     const V = { cx: M.cx, cy: M.cy, size: M.size };
     const z = cFromCss(e.clientX, e.clientY, V);
-    const nV = viewForAnchor(z, e.clientX, e.clientY, Math.max(1e-9, V.size / f));
+    const nV = viewForAnchor(z, e.clientX, e.clientY, escLimitSize(V.size / f));
     M.cx = nV.cx; M.cy = nV.cy; M.size = nV.size;
-    VG = warpFor(ESC.rv, nV);
+    escFollow();
     clearTimeout(wheelT);
-    wheelT = setTimeout(function () { if (M.dive && M.zoom() >= 1e10) M.rebirth(); VG = null; escStart(M.job()); }, 200);
-  } else if (M.wheelVec) {
+    wheelT = setTimeout(function () {
+      const C = MODES[cur];
+      if (!C || !C.isEscape || PTRS.size > 0) return;
+      if (C.dive && C.zoom() >= ESC_LIMIT) C.rebirth();
+      scheduleFine();
+    }, 160);
+    return;
+  }
+  if (M.wheelVec) {
     M.wheelVec(f, e.clientX, e.clientY);
-    camLock = true; vMotion(); // user took the camera — freeze the auto follow
+    camLock = true; vMotion();
   }
 }, { passive: false });
 window.addEventListener("contextmenu", function (e) { e.preventDefault(); });
@@ -2255,14 +2350,21 @@ function keyZoom(f) {
   if (M.isEscape) {
     const V = { cx: M.cx, cy: M.cy, size: M.size };
     const z = cFromCss(mx, my, V);
-    const nV = viewForAnchor(z, mx, my, Math.max(1e-9, V.size / f));
+    const nV = viewForAnchor(z, mx, my, escLimitSize(V.size / f));
     M.cx = nV.cx; M.cy = nV.cy; M.size = nV.size;
-    VG = warpFor(ESC.rv, nV);
+    escFollow();
     clearTimeout(wheelT);
-    wheelT = setTimeout(function () { if (M.dive && M.zoom() >= 1e10) M.rebirth(); VG = null; escStart(M.job()); }, 200);
-  } else if (M.wheelVec) {
+    wheelT = setTimeout(function () {
+      const C = MODES[cur];
+      if (!C || !C.isEscape || PTRS.size > 0) return;
+      if (C.dive && C.zoom() >= ESC_LIMIT) C.rebirth();
+      scheduleFine();
+    }, 160);
+    return;
+  }
+  if (M.wheelVec) {
     M.wheelVec(f, mx, my);
-    camLock = true; vMotion(); // user took the camera — freeze the auto follow
+    camLock = true; vMotion();
   }
 }
 
