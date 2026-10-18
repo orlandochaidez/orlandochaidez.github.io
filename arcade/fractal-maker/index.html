@@ -1242,11 +1242,12 @@ function fernRender(n) {
     }
   }
   fernSegs = segs.length / 6;
-  const span = Math.max(1, maxX - minX, maxY - minY);
-  const widths = [span * 0.011, span * 0.0065, span * 0.004];
+  // stay a fixed hairline on screen — don't thicken in world space as the camera backs up
+  const z = Math.max(1e-6, cam.z * usr.z);
+  const px = [1.15, 0.95, 0.8];
   const lights = [64, 70, 76];
-  vctx.lineCap = "round";
-  vctx.lineJoin = "round";
+  vctx.lineCap = "butt";
+  vctx.lineJoin = "bevel";
   for (let depth = 0; depth <= 2; depth++) {
     const paths = new Array(60);
     for (let i = 0; i < segs.length; i += 6) {
@@ -1258,7 +1259,7 @@ function fernRender(n) {
       path.moveTo(segs[i], segs[i + 1]);
       path.lineTo(segs[i + 2], segs[i + 3]);
     }
-    vctx.lineWidth = Math.max(0.35, widths[depth]);
+    vctx.lineWidth = px[depth] / z;
     for (let b = 0; b < 60; b++) {
       if (!paths[b]) continue;
       const hue = (pal.hues[0] + b * 6) % 360;
