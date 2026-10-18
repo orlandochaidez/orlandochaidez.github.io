@@ -758,17 +758,28 @@ function dragonRender(n) {
 }
 function sierpinskiTri(n) {
   // the classic: every tap splits each triangle into 3 half-size ones at its
-  // corners (1 → 3 → 9 → 27…), middle stays hollow. Recursion prunes
-  // sub-pixel triangles, so deep iterations stay cheap until you zoom in.
+  // corners (1 → 3 → 9 → 27…), middle stays hollow.
+  // Two tricks keep deep iterations crash-free:
+  //  - sub-pixel prune: triangles < 0.5 screen px are drawn whole, not split
+  //  - viewport cull: only triangles touching the screen are drawn at all
+  // Zoom in and the detail is really there — it keeps going inward.
   vReset();
   const pal = PALETTES[palIdx];
   vTouch(-720, 470); vTouch(720, 470); vTouch(0, -770);
   const hue = (pal.hues[0] + n * 36) % 360;
   vctx.fillStyle = "hsla(" + hue + "," + pal.sat + "%,60%,0.95)";
-  const px = 0.5 / Math.max(1e-9, cam.z * usr.z); // world-units per half a screen pixel at this zoom
+  const K = Math.max(1e-9, cam.z * usr.z);
+  const px = 0.5 / K; // world-units per half a screen pixel at this zoom
+  const hw = (vw / 2 + Math.abs(usr.ox)) / K * 1.1 + px; // visible world half-width (+pad)
+  const hh = (vh / 2 + Math.abs(usr.oy)) / K * 1.1 + px;
+  const vx0 = cam.x - hw, vx1 = cam.x + hw, vy0 = cam.y - hh, vy1 = cam.y + hh;
   vctx.beginPath();
   (function sub(x1, y1, x2, y2, x3, y3, d) {
-    if (d >= n || Math.abs(x2 - x1) < px) {
+    const bx0 = Math.min(x1, x2, x3), bx1 = Math.max(x1, x2, x3);
+    if (bx1 < vx0 || bx0 > vx1) return; // whole subtree off-screen — skip it
+    const by0 = Math.min(y1, y2, y3), by1 = Math.max(y1, y2, y3);
+    if (by1 < vy0 || by0 > vy1) return;
+    if (d >= n || (bx1 - bx0) < px) {
       vctx.moveTo(x1, y1); vctx.lineTo(x2, y2); vctx.lineTo(x3, y3); vctx.closePath();
       return;
     }
@@ -1202,7 +1213,7 @@ MODES.star = {
   draw() { vectorFrame(); },
   stats() { return "STAR · " + (this.S0 + 6 * this.n) + " lines · " + PALETTES[palIdx].name; }
 };
-MODES.sierpinski = Object.assign(vectorMode("Sierpinski", "tap to split it deeper", 14, sierpinskiTri,
+MODES.sierpinski = Object.assign(vectorMode("Sierpinski", "tap to split it deeper", 16, sierpinskiTri,
   n => "SIERPINSKI · iteration " + n + " · " + Math.pow(3, n).toLocaleString("en-US") + " triangles · " + PALETTES[palIdx].name), {
   enter() { this.n = 2; introBias = 0; camLock = false; cam = { x: 0, y: 0, z: maxZ }; vNeedCrisp = true; } // opens already split — no solid-triangle start
 });
