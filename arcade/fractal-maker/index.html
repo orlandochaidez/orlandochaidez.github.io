@@ -799,42 +799,102 @@ function dragonRender(n) {
   vTouch(PX(segs), PY(segs));
   return segs;
 }
-function sierpinskiTri(n) {
-  // the classic: every tap splits each triangle into 3 half-size ones at its
-  // corners (1 → 3 → 9 → 27…), middle stays hollow.
-  // Two tricks keep deep iterations crash-free:
-  //  - sub-pixel prune: triangles < 0.5 screen px are drawn whole, not split
-  //  - viewport cull: only triangles touching the screen are drawn at all
-  // Zoom in and the detail is really there — it keeps going inward.
+let sierCount = 0;
+function sierZoomLabel() {
+  const fit = Math.min(vw / (1440 * 1.28), vh / (1240 * 1.28));
+  const z = (cam.z * usr.z) / Math.max(1e-9, fit);
+  if (z >= 1e6) return z.toExponential(1) + "×";
+  if (z >= 100) return Math.round(z).toLocaleString("en-US") + "×";
+  return (Math.round(z * 10) / 10) + "×";
+}
+function sierContains(px, py, x1, y1, x2, y2, x3, y3) {
+  const a = (px - x2) * (y1 - y2) - (x1 - x2) * (py - y2);
+  const b = (px - x3) * (y2 - y3) - (x2 - x3) * (py - y3);
+  const c = (px - x1) * (y3 - y1) - (x3 - x1) * (py - y1);
+  return !((a < 0 || b < 0 || c < 0) && (a > 0 || b > 0 || c > 0));
+}
+function sierZoomAt(sx, sy, f) {
+  const K = Math.max(1e-12, cam.z * usr.z);
+  let wx = cam.x + (sx - vw / 2 - usr.ox) / K;
+  let wy = cam.y + (sy - vh / 2 - usr.oy) / K;
+  let x1 = -720, y1 = 470, x2 = 720, y2 = 470, x3 = 0, y3 = -770;
+  if (!sierContains(wx, wy, x1, y1, x2, y2, x3, y3)) { wx = -720; wy = 470; }
+  for (let d = 0; d < 46; d++) {
+    const ax = (x1 + x2) / 2, ay = (y1 + y2) / 2;
+    const bx = (x2 + x3) / 2, by = (y2 + y3) / 2;
+    const cxm = (x3 + x1) / 2, cym = (y3 + y1) / 2;
+    const kids = [[x1, y1, ax, ay, cxm, cym], [ax, ay, x2, y2, bx, by], [cxm, cym, bx, by, x3, y3]];
+    let hit = null;
+    for (let i = 0; i < 3; i++) {
+      const k = kids[i];
+      if (sierContains(wx, wy, k[0], k[1], k[2], k[3], k[4], k[5])) { hit = k; break; }
+    }
+    if (!hit) {
+      let best = 1e18, vx = x1, vy = y1;
+      const vs = [[x1, y1], [x2, y2], [x3, y3]];
+      for (let i = 0; i < 3; i++) {
+        const dd = (vs[i][0] - wx) * (vs[i][0] - wx) + (vs[i][1] - wy) * (vs[i][1] - wy);
+        if (dd < best) { best = dd; vx = vs[i][0]; vy = vs[i][1]; }
+      }
+      wx = vx; wy = vy;
+      break;
+    }
+    x1 = hit[0]; y1 = hit[1]; x2 = hit[2]; y2 = hit[3]; x3 = hit[4]; y3 = hit[5];
+  }
+  usr.z = Math.min(1e12, usr.z * f);
+  const K2 = cam.z * usr.z;
+  usr.ox = sx - vw / 2 - (wx - cam.x) * K2;
+  usr.oy = sy - vh / 2 - (wy - cam.y) * K2;
+  camLock = true;
+  vNeedCrisp = true;
+}
+function sierpinskiTri() {
+  // Detail comes from zoom, not from a stored iteration. Only triangles that
+  // touch the screen are kept, and only down to ~1.5px, so a deep zoom stays
+  // a few thousand triangles instead of 3^n of them.
   vReset();
-  const pal = PALETTES[palIdx];
   vTouch(-720, 470); vTouch(720, 470); vTouch(0, -770);
-  const hue = (pal.hues[0] + n * 36) % 360;
-  vctx.fillStyle = "hsla(" + hue + "," + pal.sat + "%,60%,0.95)";
-  const K = Math.max(1e-9, cam.z * usr.z);
-  const px = 0.5 / K; // world-units per half a screen pixel at this zoom
-  const hw = (vw / 2 + Math.abs(usr.ox)) / K * 1.1 + px; // visible world half-width (+pad)
-  const hh = (vh / 2 + Math.abs(usr.oy)) / K * 1.1 + px;
-  const vx0 = cam.x - hw, vx1 = cam.x + hw, vy0 = cam.y - hh, vy1 = cam.y + hh;
-  vctx.beginPath();
-  (function sub(x1, y1, x2, y2, x3, y3, d) {
-    const bx0 = Math.min(x1, x2, x3), bx1 = Math.max(x1, x2, x3);
-    if (bx1 < vx0 || bx0 > vx1) return; // whole subtree off-screen — skip it
-    const by0 = Math.min(y1, y2, y3), by1 = Math.max(y1, y2, y3);
-    if (by1 < vy0 || by0 > vy1) return;
-    if (d >= n || (bx1 - bx0) < px) {
-      vctx.moveTo(x1, y1); vctx.lineTo(x2, y2); vctx.lineTo(x3, y3); vctx.closePath();
-      return;
+  const pal = PALETTES[palIdx];
+  const K = Math.max(1e-12, cam.z * usr.z);
+  const ox = vw / 2 + usr.ox, oy = vh / 2 + usr.oy;
+  const cx = cam.x, cy = cam.y;
+  const pad = 16, minPx = 1.5;
+  const q = [[-720, 470, 720, 470, 0, -770, 0]];
+  let head = 0;
+  const path = new Path2D();
+  sierCount = 0;
+  while (head < q.length) {
+    const t = q[head++];
+    const x1 = t[0], y1 = t[1], x2 = t[2], y2 = t[3], x3 = t[4], y3 = t[5], d = t[6];
+    let bx0 = x1, bx1 = x1, by0 = y1, by1 = y1;
+    if (x2 < bx0) bx0 = x2; else if (x2 > bx1) bx1 = x2;
+    if (x3 < bx0) bx0 = x3; else if (x3 > bx1) bx1 = x3;
+    if (y2 < by0) by0 = y2; else if (y2 > by1) by1 = y2;
+    if (y3 < by0) by0 = y3; else if (y3 > by1) by1 = y3;
+    const sx0 = (bx0 - cx) * K + ox, sx1 = (bx1 - cx) * K + ox;
+    const sy0 = (by0 - cy) * K + oy, sy1 = (by1 - cy) * K + oy;
+    if (sx1 < -pad || sx0 > vw + pad || sy1 < -pad || sy0 > vh + pad) continue;
+    const sw = sx1 - sx0;
+    const pending = q.length - head;
+    if (d >= 48 || sw < minPx || pending >= 7000) {
+      path.moveTo((x1 - cx) * K + ox, (y1 - cy) * K + oy);
+      path.lineTo((x2 - cx) * K + ox, (y2 - cy) * K + oy);
+      path.lineTo((x3 - cx) * K + ox, (y3 - cy) * K + oy);
+      path.closePath();
+      sierCount++;
+      continue;
     }
     const mx12 = (x1 + x2) / 2, my12 = (y1 + y2) / 2;
     const mx23 = (x2 + x3) / 2, my23 = (y2 + y3) / 2;
     const mx31 = (x3 + x1) / 2, my31 = (y3 + y1) / 2;
-    sub(x1, y1, mx12, my12, mx31, my31, d + 1);
-    sub(mx12, my12, x2, y2, mx23, my23, d + 1);
-    sub(mx31, my31, mx23, my23, x3, y3, d + 1);
-  })(-720, 470, 720, 470, 0, -770, 0);
-  vctx.fill();
-  return Math.pow(3, n);
+    q.push([x1, y1, mx12, my12, mx31, my31, d + 1]);
+    q.push([mx12, my12, x2, y2, mx23, my23, d + 1]);
+    q.push([mx31, my31, mx23, my23, x3, y3, d + 1]);
+  }
+  vctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  vctx.fillStyle = "hsla(" + pal.hues[0] + "," + pal.sat + "%,58%,0.96)";
+  vctx.fill(path);
+  return sierCount;
 }
 function cantorRender(n) {
   // rows of Cantor dust: row k holds 2^k segments, each a third of its parent.
@@ -1802,9 +1862,15 @@ MODES.star = Object.assign(vectorMode("Golden", "tap or hold to grow the spiral"
     if (this.n < this.maxN) { this.n++; vNeedCrisp = true; introBias = Math.max(0, introBias - 0.2); }
   }
 });
-MODES.sierpinski = Object.assign(vectorMode("Sierpinski", "tap to split it deeper", 16, sierpinskiTri,
-  n => "SIERPINSKI · iteration " + n + " · " + Math.pow(3, n).toLocaleString("en-US") + " triangles · " + PALETTES[palIdx].name), {
-  enter() { this.n = 2; introBias = 0; camLock = false; cam = { x: 0, y: 0, z: maxZ }; vNeedCrisp = true; } // opens already split — no solid-triangle start
+MODES.sierpinski = Object.assign(vectorMode("Sierpinski", "zoom in · finer triangles appear as you get closer", 1, sierpinskiTri,
+  function () { return "SIERPINSKI · " + sierCount.toLocaleString("en-US") + " showing · " + sierZoomLabel() + " · " + PALETTES[palIdx].name; }), {
+  enter() { this.n = 0; introBias = 0; camLock = false; cam = { x: 0, y: 0, z: maxZ }; vNeedCrisp = true; },
+  tap(x, y) { sierZoomAt(x, y, 1.7); ripples.push({ x: x, y: y, t0: performance.now() }); },
+  holdTick() { sierZoomAt(vw / 2, vh / 2, 1.08); },
+  draw() {
+    if (!vBasis || !vBasisMatches()) vNeedCrisp = true;
+    vectorFrame();
+  }
 });
 
 MODES.fern = Object.assign(vectorMode("Fern", "tap or hold to grow the fern", 80, fernRender,
