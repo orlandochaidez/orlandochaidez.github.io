@@ -84,6 +84,7 @@
    MENGER     tap to carve the Menger sponge deeper
    GOLDEN     Seedline golden spiral: one mark, tap/hold packs new seeds on the golden angle
    FERN       Seedline fern: one mark, tap/hold grows curling fronds with new heads
+   VINE       Seedline spiral vine: one mark, tap/hold curls a vine with side tendrils
    VECTOR MODES (Bloom, Tree, Snowflake, Dragon, Sierpinski, Cantor, Menger)
    draw geometry in WORLD coords straight to a device-pixel cache canvas,
    so lines stay razor sharp at ANY zoom — there is no bitmap to magnify.
@@ -231,7 +232,7 @@ function cameraTick() {
   const bbw = Math.max(1, maxX - minX), bbh = Math.max(1, maxY - minY);
   let tz = Math.min(vw / (bbw * 1.28), vh / (bbh * 1.28));
   // golden + fern may zoom in on the first stroke; everything else stays capped
-  if (cur !== "fern" && cur !== "star") tz = Math.min(tz, maxZ);
+  if (!tightCam()) tz = Math.min(tz, maxZ);
   const tx = cxp + introBias * (0.30 * vw / Math.max(tz, 1e-6));
   const dx = tx - cam.x, dy = cyp - cam.y, dz = tz - cam.z;
   const moved = Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5 || Math.abs(dz) > tz * 0.002;
@@ -259,6 +260,7 @@ function holdSpawnFrame() {
   vTouch(b.minX, b.minY);
   vTouch(b.maxX, b.maxY);
 }
+function tightCam() { return cur === "fern" || cur === "star" || cur === "vine"; }
 function closeSpawnCam() {
   introBias = 0;
   camLock = false;
@@ -1343,9 +1345,166 @@ function fernRender(n) {
   return fernSegs;
 }
 
+/* ==================== SEEDLINE SPIRAL VINE ==================== */
+let vineSeed = 1, vineG = null, vineSegs = 0;
+function vineRoll() {
+  vineSeed = (Math.random() * 0xffffff) | 0;
+  const r = mulberry32(vineSeed);
+  vineG = {
+    chirality: r() < 0.5 ? 1 : -1,
+    harmonic: 0.28 + r() * 0.2,
+    hueDrift: 34 + r() * 28,
+    hueWalk: 6 + r() * 8
+  };
+}
+function vineRender(n) {
+  vReset();
+  holdSpawnFrame();
+  if (!vineG) vineRoll();
+  const pal = PALETTES[palIdx];
+  const g = vineG;
+  if (n <= 0) {
+    vctx.fillStyle = "hsla(" + pal.hues[0] + "," + pal.sat + "%,74%,0.95)";
+    vctx.beginPath();
+    vctx.arc(0, 0, 0.07, 0, TAU);
+    vctx.fill();
+    vineSegs = 0;
+    return 0;
+  }
+  const segs = [];
+  const MAX_TURTLES = 1400;
+  const turtles = [{ x: 0, y: 0, angle: 0, length: 1, depth: 0, age: 0, chirality: g.chirality, turnScale: 1, side: 1, hue: 0, alive: true }];
+  function pushSeg(x1, y1, x2, y2, hue, depth) {
+    segs.push(x1, y1, x2, y2, hue, depth);
+    vTouch(x1, y1); vTouch(x2, y2);
+  }
+  function step(turtle, babies) {
+    const drawn = Math.max(0.04, Math.min(turtle.length, 250000));
+    const x2 = turtle.x + Math.cos(turtle.angle) * drawn;
+    const y2 = turtle.y + Math.sin(turtle.angle) * drawn;
+    if (!isFinite(x2) || !isFinite(y2)) { turtle.alive = false; return; }
+    let hue = (turtle.hue + turtle.age * g.hueWalk * 0.45 + turtle.depth * 16) % 360;
+    if (hue < 0) hue += 360;
+    pushSeg(turtle.x, turtle.y, x2, y2, hue, turtle.depth);
+    turtle.x = x2; turtle.y = y2; turtle.age += 1;
+    if (turtle.depth === 0) {
+      turtle.angle += (0.06 + Math.sin(turtle.age * g.harmonic) * 0.2) * turtle.chirality;
+      turtle.length = drawn * 1.025;
+    } else {
+      turtle.angle += 0.86 * turtle.chirality * turtle.turnScale;
+      turtle.length = drawn * 0.84;
+    }
+    const stem = turtle.depth === 0;
+    let stems = 0;
+    for (let i = 0; i < turtles.length; i++) if (turtles[i].alive && turtles[i].depth === 0) stems++;
+    if (stem && turtle.age % 3 === 0) {
+      const side = turtle.side || 1;
+      turtle.side = -side;
+      babies.push({
+        x: turtle.x, y: turtle.y,
+        angle: turtle.angle + 1.15 * side,
+        length: drawn * 0.5,
+        depth: 1, age: 0,
+        chirality: turtle.chirality,
+        turnScale: 1,
+        side: -side,
+        hue: (turtle.hue + g.hueDrift * (1 + (turtle.age % 5))) % 360,
+        alive: true
+      });
+    }
+    if (stem && turtle.age % 8 === 0 && stems < 7) {
+      const side = turtle.side || 1;
+      turtles.push({
+        x: turtle.x, y: turtle.y,
+        angle: turtle.angle + 0.85 * side,
+        length: drawn * 0.72,
+        depth: 0, age: 0,
+        chirality: -turtle.chirality,
+        turnScale: 1,
+        side: -side,
+        hue: (turtle.hue + g.hueDrift * 2) % 360,
+        alive: true
+      });
+    }
+    if (turtle.depth > 0 && turtle.age > 8) turtle.alive = false;
+    if (turtle.depth > 1 && turtle.age > 4) turtle.alive = false;
+  }
+  function burst(baby, steps) {
+    const nested = [];
+    for (let k = 0; k < steps && baby.alive; k++) step(baby, nested);
+    for (let i = 0; i < nested.length; i++) {
+      const sub = nested[i];
+      if (turtles.length >= MAX_TURTLES) break;
+      for (let k = 0; k < 4 && sub.alive; k++) step(sub, []);
+      if (sub.alive && sub.depth < 2) turtles.push(sub);
+    }
+    if (baby.alive && baby.depth < 2 && turtles.length < MAX_TURTLES) turtles.push(baby);
+  }
+  for (let generation = 1; generation <= n; generation++) {
+    let anyStem = false;
+    for (let i = 0; i < turtles.length; i++) if (turtles[i].alive && turtles[i].depth === 0) anyStem = true;
+    if (!anyStem) {
+      let host = turtles[0], best = -1;
+      for (let i = 0; i < turtles.length; i++) {
+        const t = turtles[i], d = t.x * t.x + t.y * t.y;
+        if (d > best) { best = d; host = t; }
+      }
+      const span = Math.max(1, maxX - minX, maxY - minY);
+      turtles.push({
+        x: host.x, y: host.y,
+        angle: Math.atan2(host.y, host.x),
+        length: span * 0.08,
+        depth: 0, age: 0,
+        chirality: -host.chirality,
+        turnScale: 1, side: 1,
+        hue: (host.hue + g.hueDrift) % 360,
+        alive: true
+      });
+    }
+    const cohort = [];
+    for (let i = 0; i < turtles.length; i++) if (turtles[i].alive && turtles[i].depth === 0) cohort.push(turtles[i]);
+    const steps = generation === 1 ? 1 : 4;
+    for (let c = 0; c < cohort.length; c++) {
+      const turtle = cohort[c];
+      for (let s = 0; s < steps; s++) {
+        if (!turtle.alive) break;
+        const spawned = [];
+        step(turtle, spawned);
+        for (let b = 0; b < spawned.length; b++) burst(spawned[b], 9);
+      }
+    }
+  }
+  vineSegs = segs.length / 6;
+  const z = Math.max(1e-6, cam.z * usr.z);
+  const px = [1.15, 0.95, 0.8];
+  const lights = [64, 70, 76];
+  vctx.lineCap = "butt";
+  vctx.lineJoin = "bevel";
+  for (let depth = 0; depth <= 2; depth++) {
+    const paths = new Array(60);
+    for (let i = 0; i < segs.length; i += 6) {
+      if (segs[i + 5] !== depth) continue;
+      const hue = ((segs[i + 4] % 360) + 360) % 360;
+      const b = Math.min(59, (hue / 6) | 0);
+      let path = paths[b];
+      if (!path) path = paths[b] = new Path2D();
+      path.moveTo(segs[i], segs[i + 1]);
+      path.lineTo(segs[i + 2], segs[i + 3]);
+    }
+    vctx.lineWidth = px[depth] / z;
+    for (let b = 0; b < 60; b++) {
+      if (!paths[b]) continue;
+      const hue = (pal.hues[0] + b * 6) % 360;
+      vctx.strokeStyle = "hsla(" + hue + "," + pal.sat + "%," + lights[depth] + "%,0.92)";
+      vctx.stroke(paths[b]);
+    }
+  }
+  return vineSegs;
+}
+
 const MODES = {};
 let cur = "bloom";
-const ORDER = ["bloom", "tree", "star", "mandelbrot", "julia", "snowflake", "dragon", "sierpinski", "cantor", "menger", "fern"];
+const ORDER = ["bloom", "tree", "star", "mandelbrot", "julia", "snowflake", "dragon", "sierpinski", "cantor", "menger", "fern", "vine"];
 
 MODES.bloom = {
   name: "Bloom", hint: "tap · click · hold to grow · pinch to zoom · drag to pan",
@@ -1590,6 +1749,25 @@ MODES.fern = Object.assign(vectorMode("Fern", "tap or hold to grow the fern", 80
   enter() {
     fernRoll();
     fernSegs = 0;
+    this.n = 0;
+    closeSpawnCam();
+    vNeedCrisp = true;
+  },
+  tap(x, y) {
+    if (this.n < this.maxN) { this.n++; vNeedCrisp = true; }
+    introBias = Math.max(0, introBias - 0.34);
+    ripples.push({ x: x, y: y, t0: performance.now() });
+  },
+  holdTick() {
+    if (this.n < this.maxN) { this.n++; vNeedCrisp = true; introBias = Math.max(0, introBias - 0.2); }
+  }
+});
+
+MODES.vine = Object.assign(vectorMode("Vine", "tap or hold to grow the vine", 80, vineRender,
+  n => "VINE · gen " + n + " · " + vineSegs.toLocaleString("en-US") + " segs · " + PALETTES[palIdx].name), {
+  enter() {
+    vineRoll();
+    vineSegs = 0;
     this.n = 0;
     closeSpawnCam();
     vNeedCrisp = true;
@@ -1893,8 +2071,8 @@ function fitView() {
   } else {
     introBias = 0; camLock = false;
     usr = { z: 1, ox: 0, oy: 0 }; vNeedCrisp = true;
-    if ((cur === "fern" || cur === "star") && maxX > minX && minX < 1e8) cam = camForBox({ minX: minX, maxX: maxX, minY: minY, maxY: maxY });
-    else if (cur === "fern" || cur === "star") cam = camForBox(spawnFrame());
+    if (tightCam() && maxX > minX && minX < 1e8) cam = camForBox({ minX: minX, maxX: maxX, minY: minY, maxY: maxY });
+    else if (tightCam()) cam = camForBox(spawnFrame());
     else cam = { x: 0, y: 0, z: maxZ };
   }
   updateStats();
