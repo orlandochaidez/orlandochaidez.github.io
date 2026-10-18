@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#05060f" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<title>Fractal Maker</title>
+<title>Fractals</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html, body { height:100%; overflow:hidden; background:#05060f; touch-action:none; overscroll-behavior:none;
@@ -56,7 +56,7 @@
 <canvas id="stage"></canvas>
 <div id="vignette"></div>
 <div id="hud">
-  <h1>FRACTAL <span>MAKER</span></h1>
+  <h1>FRACTALS</h1>
   <div id="stats">warming up…</div>
   <div id="palname"></div>
 </div>
@@ -75,16 +75,14 @@
 /* ============================================================
    FRACTAL MAKER v2 — a whole gallery of fractals in one page.
    BLOOM      the original: infinite tap-to-grow golden-angle garden
-   MANDELBROT pinch or scroll to zoom, sharper as it settles, detail appears the deeper you go (reseeds past 1e12×)
-   JULIA      same camera · tap dives · ✦ rolls a new constant
+   MANDELBROT tap to dive 2.5× deeper (infinite: reseeds past 1e10×) · ✦ resets
+   JULIA      tap to morph the constant c   (escape-time)
    SNOWFLAKE  tap to fold the Koch snowflake deeper
    DRAGON     tap to fold the dragon curve deeper
    SIERPINSKI tap to split the triangle deeper (1 → 3 → 9 → 27…)
    CANTOR     tap to divide the Cantor set
    MENGER     tap to carve the Menger sponge deeper
-   GOLDEN     Seedline golden spiral: one mark, tap/hold packs new seeds on the golden angle
-   FERN       Seedline fern: one mark, tap/hold grows curling fronds with new heads
-   VINE       Seedline spiral vine: one mark, tap/hold curls a vine with side tendrils
+   STAR       tap to add pinwheel arcs (they lengthen + weave forever)
    VECTOR MODES (Bloom, Tree, Snowflake, Dragon, Sierpinski, Cantor, Menger)
    draw geometry in WORLD coords straight to a device-pixel cache canvas,
    so lines stay razor sharp at ANY zoom — there is no bitmap to magnify.
@@ -107,8 +105,8 @@ const PALETTES = [
   { name: "NOIR",  hues: [275, 290, 230, 190, 315], sat: 55, li: 52 } // deep purple · violet · slate · ice cyan · magenta
 ];
 
-const MAXT = 640;    // max living growth tips (bloom)
-const MAXG = 14;     // max branch generation depth (bloom)
+const MAXT = 420;    // max living growth tips (bloom)
+const MAXG = 9;      // max branch generation depth (bloom)
 const START_X = -430;
 
 const stage = document.getElementById("stage");
@@ -204,8 +202,6 @@ function vWarpDraw() {
   const T1x = vw / 2 + usr.ox, T1y = vh / 2 + usr.oy;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.globalCompositeOperation = "source-over";
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = "high";
   ctx.translate(T1x - s * T0x + K1 * (vBasis.cx - cam.x), T1y - s * T0y + K1 * (vBasis.cy - cam.y));
   ctx.scale(s, s);
   ctx.drawImage(vlc, 0, 0, vw, vh);
@@ -216,38 +212,23 @@ function vBlit() {
   ctx.drawImage(vlc, 0, 0, vw, vh);
 }
 function vMotion() {
-  // camera is moving — once it settles, re-render crisp if the warp drifted far.
-  // Sierpinski settles sooner so finer triangles show up right after you stop.
+  // camera is moving — once it settles, re-render crisp if the warp drifted far
   clearTimeout(vSettleT);
-  const mode = cur;
-  const wait = mode === "sierpinski" ? 150 : 300;
-  const lim = mode === "sierpinski" ? 0.03 : 0.12;
-  vSettleT = setTimeout(function () {
-    if (cur !== mode) return;
-    if (mode === "sierpinski" && PTRS.size > 0) { vMotion(); return; }
-    if (vWarpAmount() > lim) vNeedCrisp = true;
-  }, wait);
+  vSettleT = setTimeout(function () { if (vWarpAmount() > 0.12) vNeedCrisp = true; }, 300);
 }
 function vectorFrame() {
   let moving = false;
   if (!camLock) moving = cameraTick();
   if (moving) vMotion();
-  // don't magnify the cached gasket more than ~4× — rebuild, then keep warping
-  if (cur === "sierpinski" && vBasis && !vNeedCrisp && vWarpAmount() > 1.45) vNeedCrisp = true;
   if (vNeedCrisp || !vBasis) vRenderCrisp();
-  if (!vBasis) return;
-  // always present the cache this frame. the old crisp-only branch drew nothing
-  // to the screen, so Sierpinski flashed the background on every zoom tick.
-  if (!vBasisMatches()) vWarpDraw();
+  else if (!vBasisMatches()) vWarpDraw();
   else vBlit();
 }
 function cameraTick() {
   if (camLock) return false; // user took the camera — it stays exactly where they put it
   const cxp = (minX + maxX) / 2, cyp = (minY + maxY) / 2;
   const bbw = Math.max(1, maxX - minX), bbh = Math.max(1, maxY - minY);
-  let tz = Math.min(vw / (bbw * 1.28), vh / (bbh * 1.28));
-  // golden + fern may zoom in on the first stroke; everything else stays capped
-  if (!tightCam()) tz = Math.min(tz, maxZ);
+  const tz = Math.min(vw / (bbw * 1.28), vh / (bbh * 1.28), maxZ);
   const tx = cxp + introBias * (0.30 * vw / Math.max(tz, 1e-6));
   const dx = tx - cam.x, dy = cyp - cam.y, dz = tz - cam.z;
   const moved = Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5 || Math.abs(dz) > tz * 0.002;
@@ -258,45 +239,17 @@ function cameraTick() {
 }
 // user camera: pinch-zoom & drag-pan sit on top of the auto camera
 let usr = { z: 1, ox: 0, oy: 0 };
-function spawnFrame() {
-  // box around the first stroke. camera starts here and only backs up once growth leaves it
-  return { minX: -0.22, maxX: 1.28, minY: -0.55, maxY: 0.55 };
-}
-function camForBox(b) {
-  const bbw = Math.max(0.2, b.maxX - b.minX), bbh = Math.max(0.2, b.maxY - b.minY);
-  return {
-    x: (b.minX + b.maxX) / 2,
-    y: (b.minY + b.maxY) / 2,
-    z: Math.min(vw / (bbw * 1.28), vh / (bbh * 1.28))
-  };
-}
-function holdSpawnFrame() {
-  const b = spawnFrame();
-  vTouch(b.minX, b.minY);
-  vTouch(b.maxX, b.maxY);
-}
-function tightCam() { return cur === "fern" || cur === "star" || cur === "vine"; }
-function closeSpawnCam() {
-  introBias = 0;
-  camLock = false;
-  cam = camForBox(spawnFrame());
-}
 function vecWheel(f, mx, my) {
-  let af = f;
-  if (cur === "sierpinski") {
-    const nz = Math.min(1e9, Math.max(0.35, usr.z * f));
-    af = nz / Math.max(1e-9, usr.z);
-  }
   const Cx = vw / 2, Cy = vh / 2;
-  usr.ox = mx - Cx - (mx - Cx - usr.ox) * af;
-  usr.oy = my - Cy - (my - Cy - usr.oy) * af;
-  usr.z *= af;
+  usr.ox = mx - Cx - (mx - Cx - usr.ox) * f;
+  usr.oy = my - Cy - (my - Cy - usr.oy) * f;
+  usr.z *= f;
 }
 
 /* ================= BLOOM (the original infinite garden) ================= */
 // every segment is stored (world coords) so the garden can be re-rendered
 // razor-sharp at any zoom — no magnified bitmaps, ever
-const BSEG_CAP = 650000;
+const BSEG_CAP = 400000;
 let bstore = null, bsegN = 0;
 function bloomStore(x1, y1, z1, x2, y2, z2, w, gen, t) {
   if (!bstore || bstore.length < BSEG_CAP * 9) bstore = new Float32Array(BSEG_CAP * 9);
@@ -309,35 +262,25 @@ function bloomStore(x1, y1, z1, x2, y2, z2, w, gen, t) {
 }
 function bloomRestroke() {
   const pal = PALETTES[palIdx];
-  const z = Math.max(1e-6, cam.z * usr.z);
-  vctx.lineCap = "butt";
-  vctx.lineJoin = "bevel";
-  const paths = [];
   for (let k = 0; k < bsegN; k++) {
     const o = k * 9, gen = bstore[o + 7] | 0, t = bstore[o + 8];
-    const hue = ((pal.hues[gen % pal.hues.length] + t * 0.12 + gen * 17) % 360 + 360) % 360;
-    const key = Math.min(15, gen) * 45 + Math.min(44, (hue / 8) | 0);
-    let path = paths[key];
-    if (!path) path = paths[key] = new Path2D();
-    path.moveTo(bstore[o], bstore[o + 1]);
-    path.lineTo(bstore[o + 3], bstore[o + 4]);
-  }
-  for (let key = 0; key < paths.length; key++) {
-    if (!paths[key]) continue;
-    const gen = (key / 45) | 0;
-    const px = gen === 0 ? 1.2 : gen < 4 ? 0.95 : 0.75;
-    vctx.lineWidth = px / z;
-    vctx.strokeStyle = "hsla(" + ((key % 45) * 8) + "," + pal.sat + "%," + Math.min(74, 54 + gen * 2.2) + "%,0.9)";
-    vctx.stroke(paths[key]);
+    const hue = (pal.hues[gen % pal.hues.length] + t * 0.12 + gen * 17) % 360;
+    vctx.strokeStyle = "hsla(" + hue.toFixed(1) + "," + pal.sat + "%," +
+      Math.min(74, 54 + gen * 2.2).toFixed(1) + "%,0.85)";
+    vctx.lineWidth = Math.max(0.5, bstore[o + 6]);
+    vctx.beginPath();
+    vctx.moveTo(bstore[o], bstore[o + 1]);
+    vctx.lineTo(bstore[o + 3], bstore[o + 4]);
+    vctx.stroke();
   }
 }
 function bloomVecDraw() {
   const pal = PALETTES[palIdx];
-  const z = Math.max(1e-6, cam.z * usr.z);
-  vctx.fillStyle = "hsla(" + pal.hues[0] + "," + pal.sat + "%,78%,0.95)";
-  vctx.beginPath();
-  vctx.arc(START_X, 0, 1.6 / z, 0, TAU);
-  vctx.fill();
+  const g = vctx.createRadialGradient(START_X, 0, 0, START_X, 0, 26);
+  g.addColorStop(0, "hsla(" + pal.hues[0] + "," + pal.sat + "%,82%,1)");
+  g.addColorStop(1, "hsla(0,0%,0%,0)");
+  vctx.fillStyle = g;
+  vctx.fillRect(START_X - 26, -26, 52, 52);
   bloomRestroke();
 }
 function bloomNew() {
@@ -377,24 +320,18 @@ function bloomNew() {
   if (b3d.on) b3dFit();
 }
 function bloomGrow(px, py) {
-  if (bsegN >= BSEG_CAP) return;
   taps++;
   const kids = [];
   const pal = PALETTES[palIdx];
   vEnsure();
   vApplyCam(vctx);
-  vctx.lineCap = "butt";
-  vctx.lineJoin = "bevel";
-  const zc = Math.max(1e-6, cam.z * usr.z);
   let aliveCount = 0;
   for (const tu of turtles) if (tu.alive) aliveCount++;
   for (const tu of turtles) {
     if (!tu.alive) continue;
     const steps = tu.gen < 3 ? 26 : tu.gen < 6 ? 14 : 7;
     const len = P0.stepLen * Math.pow(P0.lenDecay, tu.gen);
-    const pxw = tu.gen === 0 ? 1.2 : tu.gen < 4 ? 0.95 : 0.75;
     for (let s = 0; s < steps; s++) {
-      if (bsegN >= BSEG_CAP) { tu.alive = false; break; }
       tu.a += P0.baseTurn * (0.5 + rng())
             + P0.waveAmp * 0.35 * Math.sin(tu.t * P0.waveFreq + tu.phase)
             + (rng() - 0.5) * P0.jitter;
@@ -404,12 +341,12 @@ function bloomGrow(px, py) {
       tu.p += P0.pitchAmp * 0.3 * Math.sin(tu.t * P0.pitchFreq + tu.pphase) + (zrng() - 0.5) * P0.pitchJitter;
       tu.p = Math.max(-1.2, Math.min(1.2, tu.p));
       const nz = tu.z + (Math.sin(tu.p) + P0.lift * 0.15) * len;
-      const w = pxw;
+      const w = Math.max(0.5, 5.2 * Math.pow(0.78, tu.gen) + 0.5);
       const hue = (pal.hues[tu.gen % pal.hues.length] + tu.t * 0.12 + tu.gen * 17) % 360;
       if (!b3d.on) {
         vctx.strokeStyle = "hsla(" + hue.toFixed(1) + "," + pal.sat + "%," +
-          Math.min(74, 54 + tu.gen * 2.2).toFixed(1) + "%,0.9)";
-        vctx.lineWidth = pxw / zc;
+          Math.min(74, 54 + tu.gen * 2.2).toFixed(1) + "%,0.85)";
+        vctx.lineWidth = w;
         vctx.beginPath();
         vctx.moveTo(tu.x, tu.y);
         vctx.lineTo(nx, ny);
@@ -535,7 +472,7 @@ function b3dRender(full) {
       const gen = bstore[o + 7] | 0, t = bstore[o + 8];
       const hue = (pal.hues[gen % pal.hues.length] + t * 0.12 + gen * 17) % 360;
       const hq = Math.round((((hue % 360) + 360) % 360) / 6);
-      const lw = gen === 0 ? 1.2 : 0.85;
+      const lw = Math.max(0.5, bstore[o + 6] * 0.5 * (s1 + s2));
       const wqi = Math.max(1, Math.round(lw));
       lwA[i] = wqi;
       st[i] = (gen & 15) | (hq << 4) | (wqi << 12);
@@ -604,213 +541,131 @@ function b3dHint() {
 }
 
 /* ============ ESCAPE-TIME ENGINE (mandelbrot / julia) ============ */
-const ESC = { cvs: null, x: null, img: null, W: 0, H: 0, job: null, shown: null, rv: null, quality: "", side: 0, sq: "" };
-let VG = null;
+const ESC = { cvs: null, x: null, img: null, W: 0, H: 0, job: null };
 const JULIA_PRETTY = [
   [-0.7, 0.27015], [-0.8, 0.156], [-0.7269, 0.1889], [-0.835, -0.2321],
   [0.285, 0.01], [-0.4, 0.6], [-0.70176, -0.3842], [-0.75, 0.11]
 ];
-let fineT = null, escKickT = 0;
-const ESC_LIMIT = 1e12; // float64 stays honest about here — past it, rebirth keeps the dive going
-function escIters(zoom, cap) {
-  const logz = Math.log10(Math.max(1, zoom));
-  const maxIter = Math.min(cap, Math.max(100, Math.round(90 + 125 * logz)));
-  const fastIter = Math.min(maxIter, Math.round(70 + 24 * logz), 240);
-  return { maxIter, fastIter };
-}
-function escDims(quality) {
-  const sharp = Math.min(typeof dpr === "number" ? dpr : 1, 2);
-  const mul = quality === "fine" ? sharp : Math.min(sharp, 1) * 0.7;
-  const cap = quality === "fine" ? 1200 : 440;
-  let W = Math.max(2, vw * mul), H = Math.max(2, vh * mul);
-  const cf = Math.min(1, cap / Math.max(W, H));
-  W = Math.max(2, Math.round(W * cf));
-  H = Math.max(2, Math.round(H * cf));
-  return [W, H];
-}
+let fineT = null; // idle timer that kicks off the crisp refine pass
 function escStart(job, quality) {
   clearTimeout(fineT);
   quality = quality || "fast";
-  const wh = escDims(quality);
-  const W = wh[0], H = wh[1];
+  const sc = quality === "fine" ? 0.75 : 0.4; // fast preview while interacting, crisp refine when idle
+  let W = Math.round(vw * sc), H = Math.round(vh * sc);
+  const cf = Math.min(1, 900 / W, 900 / H);
+  W = Math.max(120, Math.round(W * cf)); H = Math.max(120, Math.round(H * cf));
   ESC.W = W; ESC.H = H;
   ESC.cvs = document.createElement("canvas");
   ESC.cvs.width = W; ESC.cvs.height = H;
-  ESC.x = ESC.cvs.getContext("2d", { alpha: false });
+  ESC.x = ESC.cvs.getContext("2d");
   ESC.img = ESC.x.createImageData(W, H);
   const d = ESC.img.data;
-  for (let i = 0; i < d.length; i += 4) { d[i] = 4; d[i + 1] = 5; d[i + 2] = 14; d[i + 3] = 255; }
+  for (let i = 3; i < d.length; i += 4) d[i] = 0;
   job.W = W; job.H = H; job.row = 0;
   job.unit = job.size / W;
   job.quality = quality;
-  job.iters = quality === "fast" ? (job.fastIter || job.maxIter) : job.maxIter;
   ESC.job = job;
-  ESC.quality = quality;
-  if (!ESC.shown) {
-    ESC.shown = ESC.cvs;
-    ESC.rv = { cx: job.cx, cy: job.cy, size: job.size };
-    ESC.sq = quality;
-    ESC.side = Math.max(W, H);
-  }
+  ESC.rv = { cx: job.cx, cy: job.cy, size: job.size }; // the view this bitmap was rendered with
+  VG = null;
 }
 function scheduleFine() {
+  // after the fast preview finishes and things go quiet, re-render crisp
   clearTimeout(fineT);
   fineT = setTimeout(function () {
     const M = MODES[cur];
-    if (!M || !M.isEscape || ESC.job || PTRS.size > 0) return;
-    if (M.dive && M.zoom() >= ESC_LIMIT) M.rebirth();
-    const t = escTarget();
-    if (ESC.rv && t && escDrift(ESC.rv, t) > 0.05) { escStart(escLiveJob(), "fast"); return; }
-    if (ESC.quality !== "fine") escStart(escLiveJob(), "fine");
-  }, 140);
+    if (M && M.isEscape && !ESC.job && !VG && PTRS.size === 0) escStart(M.job(), "fine");
+  }, 500);
 }
+// ---- iteration probes (shared by the renderer and the region sampler) ----
 function mProbe(cr, ci, maxIter) {
   let zr = 0, zi = 0, n = 0, r2 = 0;
   const q = (cr - 0.25) * (cr - 0.25) + ci * ci;
   if (q * (q + (cr - 0.25)) < 0.25 * ci * ci || (cr + 1) * (cr + 1) + ci * ci < 0.0625) return { n: maxIter, r2: 0 };
-  let pr = 0, pi = 0, check = 16;
   while (n < maxIter && (r2 = zr * zr + zi * zi) <= 4) {
     const t = zr * zr - zi * zi + cr;
     zi = 2 * zr * zi + ci; zr = t; n++;
-    if (zr === pr && zi === pi) return { n: maxIter, r2: 0 };
-    if (n === check) { pr = zr; pi = zi; check <<= 1; }
   }
   return { n, r2 };
 }
 function jProbe(zr, zi, cRe, cIm, maxIter) {
-  let n = 0, r2 = 0, pr = zr, pi = zi, check = 16;
+  let n = 0, r2 = 0;
   while (n < maxIter && (r2 = zr * zr + zi * zi) <= 4) {
     const t = zr * zr - zi * zi + cRe;
     zi = 2 * zr * zi + cIm; zr = t; n++;
-    if (zr === pr && zi === pi) return { n: maxIter, r2: 0 };
-    if (n === check) { pr = zr; pi = zi; check <<= 1; }
   }
   return { n, r2 };
 }
 function escColor(pal, n, sn, maxIter) {
-  if (n >= maxIter) return [5, 6, 16];
-  const hue = (pal.hues[0] + sn * 9) % 360;
-  const light = 38 + 22 * (0.5 + 0.5 * Math.sin(sn * 0.33));
-  return hsl(hue < 0 ? hue + 360 : hue, pal.sat, light);
-}
-function escTakeFrame(job) {
-  const nv = { cx: job.cx, cy: job.cy, size: job.size };
-  if (!ESC.rv || ESC.shown === ESC.cvs) return true;
-  const target = escTarget() || nv;
-  if (escDrift(nv, target) > escDrift(ESC.rv, target) + 0.08) return false;
-  if (job.quality === "fine") return true;
-  const mag = Math.max(ESC.rv.size / nv.size, nv.size / ESC.rv.size);
-  const oldSide = ESC.side || 700;
-  const newSide = Math.max(job.W, job.H);
-  return (oldSide / mag) < newSide * 0.92;
+  if (n >= maxIter) return [6, 7, 18];
+  const t = sn / maxIter;
+  const c = hsl((pal.hues[0] + t * 300) % 360, pal.sat, 10 + t * 58);
+  return c;
 }
 function pumpEscape() {
   const J = ESC.job;
   if (!J) return;
   const t0 = performance.now();
-  const W = J.W, H = J.H, data = ESC.img.data;
+  const W = ESC.W, H = ESC.H, data = ESC.img.data;
   const pal = PALETTES[palIdx];
-  const iters = J.iters || J.maxIter;
-  const show = ESC.shown === ESC.cvs;
+  const R2 = (J.reveal * Math.hypot(W, H) / 2) ** 2; // grow-from-seed mask
+  const HW = W / 2, HH = H / 2;
   let py = J.row;
-  while (py < H && performance.now() - t0 < 11) {
-    const i0 = J.cy - (py - H / 2) * J.unit;
+  while (py < H && performance.now() - t0 < 12) {
+    const dy = py - HH;
     for (let px = 0; px < W; px++) {
-      const r0 = J.cx + (px - W / 2) * J.unit;
-      const pr2 = J.kind === "mandelbrot" ? mProbe(r0, i0, iters) : jProbe(r0, i0, J.cRe, J.cIm, iters);
-      let sn = pr2.n;
-      if (pr2.n < iters && pr2.r2 > 1) sn = pr2.n + 1 - Math.log2(0.5 * Math.log(pr2.r2) / Math.LN2);
-      const c = escColor(pal, pr2.n, sn, iters);
       const o = (py * W + px) * 4;
-      data[o] = c[0]; data[o + 1] = c[1]; data[o + 2] = c[2]; data[o + 3] = 255;
+      const dx = px - HW;
+      if (dx * dx + dy * dy > R2) continue; // not grown here yet
+      const r0 = J.cx + dx * J.unit;
+      const i0 = J.cy - dy * J.unit;
+      let r, g, b;
+      {
+        const pr2 = J.kind === "mandelbrot" ? mProbe(r0, i0, J.maxIter) : jProbe(r0, i0, J.cRe, J.cIm, J.maxIter);
+        let sn = pr2.n;
+        if (pr2.n < J.maxIter && pr2.r2 > 1) sn = pr2.n + 1 - Math.log2(0.5 * Math.log(pr2.r2) / Math.LN2);
+        const c = escColor(pal, pr2.n, sn, J.maxIter);
+        r = c[0]; g = c[1]; b = c[2];
+      }
+      data[o] = r; data[o + 1] = g; data[o + 2] = b; data[o + 3] = 255;
     }
     py++;
   }
   J.row = py;
-  if (show || py >= H) ESC.x.putImageData(ESC.img, 0, 0);
+  ESC.x.putImageData(ESC.img, 0, 0);
   if (py >= H) {
-    if (escTakeFrame(J)) {
-      ESC.shown = ESC.cvs;
-      ESC.rv = { cx: J.cx, cy: J.cy, size: J.size };
-      ESC.sq = J.quality;
-      ESC.side = Math.max(J.W, J.H);
-    }
     ESC.job = null;
-    if (J.quality === "fast") scheduleFine();
+    if (J.quality === "fast") scheduleFine(); // preview done → sharpen when idle
   }
 }
-function escLimitSize(size) {
-  if (!(size > 1e-18)) return 1e-18;
-  return size > 8 ? 8 : size;
-}
+// ---- free zoom & pan: warp the rendered bitmap live, commit on release ----
+let VG = null; // {s, ax, ay} in CSS px — display each bitmap point p as ax + (p-ax)*s
 function cFromCss(px, py, V) {
-  return [V.cx + (px / vw - 0.5) * V.size, V.cy - (py / vh - 0.5) * V.size * (vh / vw)];
+  const rx = px * (ESC.W / vw), ry = py * (ESC.H / vh);
+  const unit = V.size / ESC.W;
+  return [V.cx + (rx - ESC.W / 2) * unit, V.cy - (ry - ESC.H / 2) * unit];
 }
 function viewForAnchor(z, axCss, ayCss, size) {
-  return {
-    cx: z[0] - (axCss / vw - 0.5) * size,
-    cy: z[1] + (ayCss / vh - 0.5) * size * (vh / vw),
-    size: size
-  };
+  const unit = size / ESC.W;
+  const rx = axCss * (ESC.W / vw), ry = ayCss * (ESC.H / vh);
+  return { cx: z[0] - (rx - ESC.W / 2) * unit, cy: z[1] + (ry - ESC.H / 2) * unit, size };
 }
 function warpFor(oV, nV) {
+  // bitmap was rendered as oV — warp it so it previews nV
   const s = oV.size / nV.size;
-  const dx = (oV.cx - nV.cx) / nV.size * vw;
-  const dy = -(oV.cy - nV.cy) / nV.size * vw;
-  if (Math.abs(s - 1) < 2e-4) {
-    if (Math.abs(dx) < 0.35 && Math.abs(dy) < 0.35) return null;
-    return { pan: true, dx: dx, dy: dy };
-  }
-  return { pan: false, s: s, ax: vw / 2 + dx / (1 - s), ay: vh / 2 + dy / (1 - s) };
-}
-function escTarget() {
-  if (pinchSt && pinchSt.nV) return pinchSt.nV;
-  if (panSt && panSt.nV) return panSt.nV;
-  const M = MODES[cur];
-  return M ? { cx: M.cx, cy: M.cy, size: M.size } : null;
-}
-function escDrift(a, b) {
-  const s = a.size / b.size;
-  const pan = Math.hypot(a.cx - b.cx, a.cy - b.cy) / Math.max(1e-18, b.size);
-  return Math.max(Math.abs(Math.log(Math.max(1e-9, s))), pan * 1.4);
-}
-function escLiveJob() {
-  const M = MODES[cur];
-  const job = M.job();
-  const t = escTarget();
-  if (t) {
-    job.cx = t.cx; job.cy = t.cy; job.size = t.size;
-    const it = escIters(3.4 / Math.max(1e-18, t.size), M.maxCap);
-    job.maxIter = it.maxIter; job.fastIter = it.fastIter;
-  }
-  return job;
-}
-function escFollow() {
-  const M = MODES[cur];
-  if (!M || !M.isEscape) return;
-  const t = escTarget();
-  if (!t || !isFinite(t.size) || t.size <= 0) return;
-  const now = performance.now();
-  const base = ESC.job ? { cx: ESC.job.cx, cy: ESC.job.cy, size: ESC.job.size } : ESC.rv;
-  const d = base ? escDrift(base, t) : 99;
-  if (ESC.job && d > 0.62 && now - escKickT > 260) { escKickT = now; escStart(escLiveJob(), "fast"); return; }
-  if (!ESC.job && d > 0.22 && now - escKickT > 70) { escKickT = now; escStart(escLiveJob(), "fast"); }
+  if (Math.abs(s - 1) < 1e-6 && Math.abs(oV.cx - nV.cx) < 1e-12 && Math.abs(oV.cy - nV.cy) < 1e-12) return null;
+  const unitN = nV.size / ESC.W, R = vw / ESC.W;
+  const Ax = (oV.cx - nV.cx) / unitN * R;
+  const Ay = -(oV.cy - nV.cy) / unitN * R;
+  return { s, ax: vw / 2 + Ax / (1 - s), ay: vh / 2 + Ay / (1 - s) };
 }
 function escDraw() {
-  const cvs = ESC.shown || ESC.cvs;
-  const base = ESC.rv;
-  if (!cvs || !base) return;
-  const t = escTarget() || base;
-  const warp = warpFor(base, t);
+  if (!ESC.cvs) return;
   ctx.save();
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = "high";
-  if (warp && warp.pan) ctx.translate(warp.dx, warp.dy);
-  else if (warp) { ctx.translate(warp.ax, warp.ay); ctx.scale(warp.s, warp.s); ctx.translate(-warp.ax, -warp.ay); }
-  ctx.drawImage(cvs, 0, 0, vw, vh);
+  if (VG) { ctx.translate(VG.ax, VG.ay); ctx.scale(VG.s, VG.s); ctx.translate(-VG.ax, -VG.ay); }
+  ctx.drawImage(ESC.cvs, 0, 0, vw, vh);
   ctx.restore();
   const M = MODES[cur];
-  if (M && M.flashT) {
+  if (M && M.flashT) { // rebirth flash: a quick white-out sells the "warp deeper" jump
     const dt = (performance.now() - M.flashT) / 450;
     if (dt >= 1) M.flashT = 0;
     else { ctx.fillStyle = "rgba(255,255,255," + (0.85 * (1 - dt)).toFixed(3) + ")"; ctx.fillRect(0, 0, vw, vh); }
@@ -901,160 +756,42 @@ function dragonRender(n) {
   vTouch(PX(segs), PY(segs));
   return segs;
 }
-let sierCount = 0;
-function sierZoomLabel() {
-  const fit = Math.min(vw / (1440 * 1.28), vh / (1240 * 1.28));
-  const z = (cam.z * usr.z) / Math.max(1e-9, fit);
-  if (z >= 1e6) return z.toExponential(1) + "×";
-  if (z >= 100) return Math.round(z).toLocaleString("en-US") + "×";
-  return (Math.round(z * 10) / 10) + "×";
-}
-function sierContains(px, py, x1, y1, x2, y2, x3, y3) {
-  const a = (px - x2) * (y1 - y2) - (x1 - x2) * (py - y2);
-  const b = (px - x3) * (y2 - y3) - (x2 - x3) * (py - y3);
-  const c = (px - x1) * (y3 - y1) - (x3 - x1) * (py - y1);
-  return !((a < 0 || b < 0 || c < 0) && (a > 0 || b > 0 || c > 0));
-}
-function sierZoomAt(sx, sy, f, nudge) {
-  // Zoom under the finger and warp the current picture. Do NOT rebuild the mesh
-  // here — that blanked the screen every tick. Detail is filled in once you settle.
-  const K = Math.max(1e-12, cam.z * usr.z);
-  let wx = cam.x + (sx - vw / 2 - usr.ox) / K;
-  let wy = cam.y + (sy - vh / 2 - usr.oy) / K;
-  if (nudge) {
-    const p = sierNudge(wx, wy, K, nudge);
-    wx = p[0]; wy = p[1];
-  }
-  const nz = Math.min(1e9, Math.max(0.35, usr.z * f));
-  const K2 = cam.z * nz;
-  usr.z = nz;
-  usr.ox = sx - vw / 2 - (wx - cam.x) * K2;
-  usr.oy = sy - vh / 2 - (wy - cam.y) * K2;
-  camLock = true;
-  vMotion();
-}
-function sierNudge(wx, wy, K, amount) {
-  // A hole used to snap the camera to a corner, which flung the triangle around.
-  // Drift a little toward the nearest solid child, and only while that hole is big.
-  let x1 = -720, y1 = 470, x2 = 720, y2 = 470, x3 = 0, y3 = -770;
-  if (!sierContains(wx, wy, x1, y1, x2, y2, x3, y3)) {
-    const mx = (x1 + x2 + x3) / 3, my = (y1 + y2 + y3) / 3;
-    return [wx + (mx - wx) * amount, wy + (my - wy) * amount];
-  }
-  for (let depth = 0; depth < 18; depth++) {
-    const ax = (x1 + x2) / 2, ay = (y1 + y2) / 2;
-    const bx = (x2 + x3) / 2, by = (y2 + y3) / 2;
-    const cxm = (x3 + x1) / 2, cym = (y3 + y1) / 2;
-    const kids = [[x1, y1, ax, ay, cxm, cym], [ax, ay, x2, y2, bx, by], [cxm, cym, bx, by, x3, y3]];
-    let hit = null;
-    for (let i = 0; i < 3; i++) {
-      const k = kids[i];
-      if (sierContains(wx, wy, k[0], k[1], k[2], k[3], k[4], k[5])) { hit = k; break; }
-    }
-    if (!hit) {
-      const side = Math.hypot(x2 - x1, y2 - y1) * K;
-      if (side < 40) return [wx, wy];
-      let best = 1e18, tx = wx, ty = wy;
-      for (let i = 0; i < 3; i++) {
-        const k = kids[i];
-        const mx = (k[0] + k[2] + k[4]) / 3, my = (k[1] + k[3] + k[5]) / 3;
-        const dd = (mx - wx) * (mx - wx) + (my - wy) * (my - wy);
-        if (dd < best) { best = dd; tx = mx; ty = my; }
-      }
-      return [wx + (tx - wx) * amount, wy + (ty - wy) * amount];
-    }
-    x1 = hit[0]; y1 = hit[1]; x2 = hit[2]; y2 = hit[3]; x3 = hit[4]; y3 = hit[5];
-  }
-  return [wx, wy];
-}
-function sierClip(pts) {
-  const edges = [
-    { inside: function (p) { return p[0] >= -40; }, hit: function (a, b) { const t = (-40 - a[0]) / (b[0] - a[0] || 1e-12); return [-40, a[1] + (b[1] - a[1]) * t]; } },
-    { inside: function (p) { return p[0] <= vw + 40; }, hit: function (a, b) { const t = (vw + 40 - a[0]) / (b[0] - a[0] || 1e-12); return [vw + 40, a[1] + (b[1] - a[1]) * t]; } },
-    { inside: function (p) { return p[1] >= -40; }, hit: function (a, b) { const t = (-40 - a[1]) / (b[1] - a[1] || 1e-12); return [a[0] + (b[0] - a[0]) * t, -40]; } },
-    { inside: function (p) { return p[1] <= vh + 40; }, hit: function (a, b) { const t = (vh + 40 - a[1]) / (b[1] - a[1] || 1e-12); return [a[0] + (b[0] - a[0]) * t, vh + 40]; } }
-  ];
-  for (let e = 0; e < 4; e++) {
-    const out = [], n = pts.length;
-    if (n < 3) return null;
-    const edge = edges[e];
-    for (let i = 0; i < n; i++) {
-      const a = pts[i], b = pts[(i + 1) % n];
-      const ina = edge.inside(a), inb = edge.inside(b);
-      if (ina && inb) out.push(b);
-      else if (ina && !inb) out.push(edge.hit(a, b));
-      else if (!ina && inb) { out.push(edge.hit(a, b)); out.push(b); }
-    }
-    pts = out;
-  }
-  return pts.length >= 3 ? pts : null;
-}
-function sierHome() {
-  introBias = 0;
-  camLock = true;
-  usr = { z: 1, ox: 0, oy: 0 };
-  const fit = Math.min(vw / (1440 * 1.28), vh / (1240 * 1.28));
-  cam = { x: 0, y: -150, z: Math.max(1e-4, fit) };
-  vNeedCrisp = true;
-}
-function sierpinskiTri() {
-  // Detail comes from zoom, not from a stored iteration. Only triangles that
-  // touch the screen are kept, and only down to ~1.5px, so a deep zoom stays
-  // a few thousand triangles instead of 3^n of them.
+function sierpinskiTri(n) {
+  // the classic: every tap splits each triangle into 3 half-size ones at its
+  // corners (1 → 3 → 9 → 27…), middle stays hollow.
+  // Two tricks keep deep iterations crash-free:
+  //  - sub-pixel prune: triangles < 0.5 screen px are drawn whole, not split
+  //  - viewport cull: only triangles touching the screen are drawn at all
+  // Zoom in and the detail is really there — it keeps going inward.
   vReset();
-  vTouch(-720, 470); vTouch(720, 470); vTouch(0, -770);
   const pal = PALETTES[palIdx];
-  const K = Math.max(1e-12, cam.z * usr.z);
-  const ox = vw / 2 + usr.ox, oy = vh / 2 + usr.oy;
-  const cx = cam.x, cy = cam.y;
-  const pad = 16, minPx = 1.5;
-  const q = [[-720, 470, 720, 470, 0, -770, 0]];
-  let head = 0;
-  const path = new Path2D();
-  sierCount = 0;
-  while (head < q.length) {
-    const t = q[head++];
-    const x1 = t[0], y1 = t[1], x2 = t[2], y2 = t[3], x3 = t[4], y3 = t[5], d = t[6];
-    let bx0 = x1, bx1 = x1, by0 = y1, by1 = y1;
-    if (x2 < bx0) bx0 = x2; else if (x2 > bx1) bx1 = x2;
-    if (x3 < bx0) bx0 = x3; else if (x3 > bx1) bx1 = x3;
-    if (y2 < by0) by0 = y2; else if (y2 > by1) by1 = y2;
-    if (y3 < by0) by0 = y3; else if (y3 > by1) by1 = y3;
-    const sx0 = (bx0 - cx) * K + ox, sx1 = (bx1 - cx) * K + ox;
-    const sy0 = (by0 - cy) * K + oy, sy1 = (by1 - cy) * K + oy;
-    if (sx1 < -pad || sx0 > vw + pad || sy1 < -pad || sy0 > vh + pad) continue;
-    const sw = sx1 - sx0;
-    const pending = q.length - head;
-    if (d >= 48 || sw < minPx || pending >= 7000) {
-      const s1 = (x1 - cx) * K + ox, t1 = (y1 - cy) * K + oy;
-      const s2 = (x2 - cx) * K + ox, t2 = (y2 - cy) * K + oy;
-      const s3 = (x3 - cx) * K + ox, t3 = (y3 - cy) * K + oy;
-      const far = Math.abs(s1) > 8000 || Math.abs(t1) > 8000 || Math.abs(s2) > 8000 || Math.abs(t2) > 8000 || Math.abs(s3) > 8000 || Math.abs(t3) > 8000;
-      if (!far) {
-        path.moveTo(s1, t1); path.lineTo(s2, t2); path.lineTo(s3, t3); path.closePath();
-        sierCount++;
-      } else {
-        const poly = sierClip([[s1, t1], [s2, t2], [s3, t3]]);
-        if (poly) {
-          path.moveTo(poly[0][0], poly[0][1]);
-          for (let i = 1; i < poly.length; i++) path.lineTo(poly[i][0], poly[i][1]);
-          path.closePath();
-          sierCount++;
-        }
-      }
-      continue;
+  vTouch(-720, 470); vTouch(720, 470); vTouch(0, -770);
+  const hue = (pal.hues[0] + n * 36) % 360;
+  vctx.fillStyle = "hsla(" + hue + "," + pal.sat + "%,60%,0.95)";
+  const K = Math.max(1e-9, cam.z * usr.z);
+  const px = 0.5 / K; // world-units per half a screen pixel at this zoom
+  const hw = (vw / 2 + Math.abs(usr.ox)) / K * 1.1 + px; // visible world half-width (+pad)
+  const hh = (vh / 2 + Math.abs(usr.oy)) / K * 1.1 + px;
+  const vx0 = cam.x - hw, vx1 = cam.x + hw, vy0 = cam.y - hh, vy1 = cam.y + hh;
+  vctx.beginPath();
+  (function sub(x1, y1, x2, y2, x3, y3, d) {
+    const bx0 = Math.min(x1, x2, x3), bx1 = Math.max(x1, x2, x3);
+    if (bx1 < vx0 || bx0 > vx1) return; // whole subtree off-screen — skip it
+    const by0 = Math.min(y1, y2, y3), by1 = Math.max(y1, y2, y3);
+    if (by1 < vy0 || by0 > vy1) return;
+    if (d >= n || (bx1 - bx0) < px) {
+      vctx.moveTo(x1, y1); vctx.lineTo(x2, y2); vctx.lineTo(x3, y3); vctx.closePath();
+      return;
     }
     const mx12 = (x1 + x2) / 2, my12 = (y1 + y2) / 2;
     const mx23 = (x2 + x3) / 2, my23 = (y2 + y3) / 2;
     const mx31 = (x3 + x1) / 2, my31 = (y3 + y1) / 2;
-    q.push([x1, y1, mx12, my12, mx31, my31, d + 1]);
-    q.push([mx12, my12, x2, y2, mx23, my23, d + 1]);
-    q.push([mx31, my31, mx23, my23, x3, y3, d + 1]);
-  }
-  vctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  vctx.fillStyle = "hsla(" + pal.hues[0] + "," + pal.sat + "%,58%,0.96)";
-  vctx.fill(path);
-  return sierCount;
+    sub(x1, y1, mx12, my12, mx31, my31, d + 1);
+    sub(mx12, my12, x2, y2, mx23, my23, d + 1);
+    sub(mx31, my31, mx23, my23, x3, y3, d + 1);
+  })(-720, 470, 720, 470, 0, -770, 0);
+  vctx.fill();
+  return Math.pow(3, n);
 }
 function cantorRender(n) {
   // rows of Cantor dust: row k holds 2^k segments, each a third of its parent.
@@ -1091,9 +828,7 @@ function cantorRender(n) {
     vctx.stroke();
   }
 }
-const mengerCache = [];
 function mengerCubes(level) {
-  if (mengerCache[level]) return mengerCache[level];
   let cubes = [{ x: 0, y: 0, z: 0 }];
   for (let l = 0; l < level; l++) {
     const out = [];
@@ -1105,154 +840,14 @@ function mengerCubes(level) {
     }
     cubes = out;
   }
-  mengerCache[level] = cubes;
   return cubes;
 }
-
-/* ================= MENGER 3D ================= */
-// outward faces, CCW after the camera's y-flip, so nz > 0 faces the lens
-const MFACE = [
-  [0, 1, 2, 3],
-  [4, 7, 6, 5],
-  [0, 4, 5, 1],
-  [2, 6, 7, 3],
-  [0, 3, 7, 4],
-  [1, 5, 6, 2]
-];
-const MOFF = [
-  [-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1],
-  [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]
-];
-let m3d = { on: false, yaw: 0.65, pitch: 0.42, dist: 1800, tx: 0, ty: 0, tz: 0, k: 0.2, baseK: 0.2, lock: false };
-let m3dNeed = true, m3dLive = false, m3dSettle = null;
-function m3dFit() {
-  m3d.tx = 0; m3d.ty = 0; m3d.tz = 0;
-  const R = 640;
-  const half = Math.min(vw, vh) * 0.40;
-  m3d.baseK = half / R;
-  m3d.k = m3d.baseK;
-  m3d.dist = R / Math.tan(20 * Math.PI / 180);
-  m3d.lock = false;
-  m3dLive = false;
-  m3dNeed = true;
-}
-function m3dTouch() {
-  m3dLive = true;
-  m3dNeed = true;
-  m3d.lock = true;
-  clearTimeout(m3dSettle);
-  m3dSettle = setTimeout(function () { m3dLive = false; m3dNeed = true; }, 140);
-}
-function m3dScale(f) {
-  const base = m3d.baseK || m3d.k || 0.2;
-  m3d.k = clamp(m3d.k * f, base * 0.35, base * 16);
-  m3dTouch();
-}
-function mengerRender3D(level) {
-  const pal = PALETTES[palIdx];
-  const drawLevel = (m3dLive && level > 2) ? 2 : level;
-  const cubes = mengerCubes(drawLevel);
-  const grid = Math.pow(3, drawLevel);
-  const scale = 1200 / grid;
-  const off = (grid - 1) / 2;
-  const h = scale * 0.485;
-  const yawC = Math.cos(m3d.yaw), yawS = Math.sin(m3d.yaw);
-  const pitC = Math.cos(m3d.pitch), pitS = Math.sin(m3d.pitch);
-  const dist = m3d.dist, k = m3d.k, tx = m3d.tx, ty = m3d.ty, tz = m3d.tz;
-  const camP = new Float32Array(24);
-  const scr = [0, 0, 0, 0, 0, 0, 0, 0];
-  const BUCKETS = 28, LIGHTS = 6;
-  const paths = new Array(BUCKETS * LIGHTS);
-  let zMin = 1e9, zMax = -1e9, faceN = 0;
-  const stride = 10;
-  if (!mengerRender3D.buf || mengerRender3D.buf.length < cubes.length * 6 * stride) {
-    mengerRender3D.buf = new Float32Array(Math.max(64, cubes.length * 6 * stride));
-  }
-  const buf = mengerRender3D.buf;
-  for (let n = 0; n < cubes.length; n++) {
-    const c = cubes[n];
-    const cx = (c.x - off) * scale, cyw = (c.y - off) * scale, cz = (c.z - off) * scale;
-    for (let i = 0; i < 8; i++) {
-      const x1 = cx + MOFF[i][0] * h - tx;
-      const y1 = -(cyw + MOFF[i][1] * h - ty);
-      const z1 = cz + MOFF[i][2] * h - tz;
-      const x2 = x1 * yawC + z1 * yawS;
-      let z2 = -x1 * yawS + z1 * yawC;
-      const y2 = y1 * pitC - z2 * pitS;
-      z2 = y1 * pitS + z2 * pitC;
-      const o = i * 3;
-      camP[o] = x2; camP[o + 1] = y2; camP[o + 2] = z2;
-    }
-    for (let f = 0; f < 6; f++) {
-      const id = MFACE[f];
-      const a = id[0] * 3, b = id[1] * 3, c3 = id[2] * 3;
-      const ax = camP[b] - camP[a], ay = camP[b + 1] - camP[a + 1], az = camP[b + 2] - camP[a + 2];
-      const bx = camP[c3] - camP[b], by = camP[c3 + 1] - camP[b + 1], bz = camP[c3 + 2] - camP[b + 2];
-      const nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx;
-      if (nz <= 0) continue;
-      let ok = true, zSum = 0;
-      for (let p = 0; p < 4; p++) {
-        const q = id[p] * 3;
-        const z2 = camP[q + 2];
-        if (dist - z2 < 6) { ok = false; break; }
-        const s = dist / (dist - z2);
-        scr[p * 2] = vw / 2 + camP[q] * s * k;
-        scr[p * 2 + 1] = vh / 2 - camP[q + 1] * s * k;
-        zSum += z2;
-      }
-      if (!ok) continue;
-      const mag = Math.hypot(nx, ny, nz) || 1;
-      const lambert = Math.max(0, (nx * 0.22 + ny * 0.78 + nz * 0.58) / mag);
-      const shade = Math.min(LIGHTS - 1, (lambert * LIGHTS) | 0);
-      const zAvg = zSum * 0.25;
-      if (zAvg < zMin) zMin = zAvg;
-      if (zAvg > zMax) zMax = zAvg;
-      const w = faceN * stride;
-      buf[w] = scr[0]; buf[w + 1] = scr[1]; buf[w + 2] = scr[2]; buf[w + 3] = scr[3];
-      buf[w + 4] = scr[4]; buf[w + 5] = scr[5]; buf[w + 6] = scr[6]; buf[w + 7] = scr[7];
-      buf[w + 8] = zAvg; buf[w + 9] = shade;
-      faceN++;
-    }
-  }
-  const span = Math.max(1e-3, zMax - zMin);
-  for (let i = 0; i < faceN; i++) {
-    const w = i * stride;
-    const bucket = Math.min(BUCKETS - 1, Math.max(0, ((buf[w + 8] - zMin) / span * (BUCKETS - 1)) | 0));
-    const key = bucket * LIGHTS + (buf[w + 9] | 0);
-    let path = paths[key];
-    if (!path) path = paths[key] = new Path2D();
-    path.moveTo(buf[w], buf[w + 1]);
-    path.lineTo(buf[w + 2], buf[w + 3]);
-    path.lineTo(buf[w + 4], buf[w + 5]);
-    path.lineTo(buf[w + 6], buf[w + 7]);
-    path.closePath();
-  }
-  vctx.setTransform(1, 0, 0, 1, 0, 0);
-  vctx.clearRect(0, 0, vlc.width, vlc.height);
-  vctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  vctx.lineJoin = "miter";
-  vctx.lineWidth = 0.6;
-  const hue = pal.hues[0];
-  for (let b = 0; b < BUCKETS; b++) {
-    for (let s = 0; s < LIGHTS; s++) {
-      const path = paths[b * LIGHTS + s];
-      if (!path) continue;
-      const light = 26 + s * 9;
-      vctx.fillStyle = "hsla(" + hue + "," + pal.sat + "%," + light + "%,1)";
-      vctx.fill(path);
-    }
-  }
-  return cubes.length;
-}
-
 function mengerRender(level) {
-  if (m3d.on) return mengerRender3D(level);
-  // original 2D isometric
   vReset();
   const pal = PALETTES[palIdx];
   const cubes = mengerCubes(level);
   const grid = Math.pow(3, level);
-  const uu = 1350 / (grid * 1.75);
+  const uu = 1350 / (grid * 1.75); // world units per grid cell
   const X = [0.8660254 * uu, 0.5 * uu], Z = [-0.8660254 * uu, 0.5 * uu], Y = [0, -uu], D = [0, uu];
   const off = grid / 2;
   const hue = pal.hues[0];
@@ -1260,6 +855,7 @@ function mengerRender(level) {
   vctx.lineJoin = "round";
   for (const c of cubes) {
     const gx = c.x - off + 0.5, gy = c.y - off + 1.5, gz = c.z - off + 0.5;
+    // top vertex T of this cubelet
     const Tx = (gx * X[0] + gz * Z[0] + gy * Y[0]);
     const Ty = (gx * X[1] + gz * Z[1] + gy * Y[1]);
     const Ax = Tx + X[0], Ay = Ty + X[1];
@@ -1282,91 +878,41 @@ function mengerRender(level) {
   return cubes.length;
 }
 
-
-/* ==================== SEEDLINE GOLDEN SPIRAL ==================== */
-// phyllotaxis: each new point sits at the golden angle from the last.
-// first tap is one segment; every tap after lays 12 more per arm.
-let goldSeed = 1, goldG = null, goldSegs = 0;
-function goldRoll() {
-  goldSeed = (Math.random() * 0xffffff) | 0;
-  const r = mulberry32(goldSeed);
-  goldG = {
-    chirality: r() < 0.5 ? 1 : -1,
-    angleScale: 0.97 + r() * 0.06,
-    arms: 1 + ((r() * 2) | 0),
-    hueDrift: 34 + r() * 28,
-    hueWalk: 7 + r() * 5
-  };
-}
-function goldenRender(n) {
+function starLen(n) { return Math.min(1200, 500 + n * 30); } // lines lengthen per tap
+function starRho(i) { const f = (i * 0.6180339887 + 0.5) % 1; return 10 + 50 * f; } // orbit radius 10..60 — every line crosses the interior
+function starRender(n, M) {
+  // STAR: straight chords woven into a dense ball. every line is centered near the
+  // middle (orbit radius 10..60, golden-ratio spread) on a golden-angle offset,
+  // tilted like a pinwheel. every tap adds 6 lines and lengthens them all — they
+  // all cross through the interior into a dense colorful ball with a tiny dark heart.
   vReset();
-  holdSpawnFrame();
-  if (!goldG) goldRoll();
   const pal = PALETTES[palIdx];
-  const g = goldG;
-  if (n <= 0) {
-    vctx.fillStyle = "hsla(" + pal.hues[0] + "," + pal.sat + "%,74%,0.95)";
+  const count = M.S0 + 6 * n;
+  const L = starLen(n), HL = L / 2;
+  const TILT = 35 * Math.PI / 180, CT = Math.cos(TILT), ST = Math.sin(TILT);
+  vctx.lineCap = "round";
+  for (let i = 0; i < count; i++) {
+    const a = M.rot + i * GOLDEN; // golden angle — even spread, existing lines never move
+    const rho = starRho(i);
+    const cxp = Math.cos(a) * rho, cyp = Math.sin(a) * rho;
+    const tx = -Math.sin(a) * M.dir, ty = Math.cos(a) * M.dir; // tangent
+    const ux = -Math.cos(a), uy = -Math.sin(a); // inward radial
+    const dx = tx * CT + ux * ST, dy = ty * CT + uy * ST; // tilted chord
+    const hue = (pal.hues[i % pal.hues.length] + i * 47) % 360;
+    vctx.strokeStyle = "hsla(" + hue + "," + pal.sat + "%,68%,0.95)"; // crisp single pass — no glow wash
+    vctx.lineWidth = 5;
     vctx.beginPath();
-    vctx.arc(0, 0, 0.07, 0, TAU);
-    vctx.fill();
-    goldSegs = 0;
-    return 0;
+    vctx.moveTo(cxp - dx * HL, cyp - dy * HL);
+    vctx.lineTo(cxp + dx * HL, cyp + dy * HL);
+    vctx.stroke();
+    vTouch(cxp - dx * HL, cyp - dy * HL); vTouch(cxp + dx * HL, cyp + dy * HL);
   }
-  const arms = [];
-  for (let a = 0; a < g.arms; a++) arms.push([{ x: 0, y: 0 }]);
-  const segs = [];
-  for (let generation = 1; generation <= n; generation++) {
-    const add = generation === 1 ? 1 : 12;
-    const active = generation === 1 ? 1 : arms.length;
-    for (let arm = 0; arm < active; arm++) {
-      const pts = arms[arm];
-      const phase = -GOLDEN * g.angleScale + (arm * Math.PI * 2) / arms.length;
-      for (let k = 0; k < add; k++) {
-        const i = pts.length;
-        const prev = pts[i - 1];
-        const rad = 0.58 * Math.sqrt(i);
-        const ang = (i * GOLDEN * g.angleScale + phase) * g.chirality;
-        const x = Math.cos(ang) * rad;
-        const y = Math.sin(ang) * rad;
-        const nHue = i * 0.55 + arm * 6;
-        let hue = pal.hues[0] + nHue * g.hueWalk + (arm % 2) * g.hueDrift;
-        hue = ((hue % 360) + 360) % 360;
-        segs.push(prev.x, prev.y, x, y, hue, arm === 0 ? 0 : 1);
-        vTouch(prev.x, prev.y); vTouch(x, y);
-        pts.push({ x: x, y: y });
-      }
-    }
-  }
-  goldSegs = segs.length / 6;
-  const z = Math.max(1e-6, cam.z * usr.z);
-  const px = [1.15, 0.9];
-  const lights = [66, 72];
-  vctx.lineCap = "butt";
-  vctx.lineJoin = "bevel";
-  for (let depth = 0; depth <= 1; depth++) {
-    const paths = new Array(60);
-    for (let i = 0; i < segs.length; i += 6) {
-      if (segs[i + 5] !== depth) continue;
-      const hue = segs[i + 4];
-      const b = Math.min(59, (hue / 6) | 0);
-      let path = paths[b];
-      if (!path) path = paths[b] = new Path2D();
-      path.moveTo(segs[i], segs[i + 1]);
-      path.lineTo(segs[i + 2], segs[i + 3]);
-    }
-    vctx.lineWidth = px[depth] / z;
-    for (let b = 0; b < 60; b++) {
-      if (!paths[b]) continue;
-      vctx.strokeStyle = "hsla(" + (b * 6) + "," + pal.sat + "%," + lights[depth] + "%,0.92)";
-      vctx.stroke(paths[b]);
-    }
-  }
-  return goldSegs;
+  return count;
 }
 
 /* ==================== MODES ==================== */
 let treeSeed = 0, treeP = null, rootP = null, rootN = 0;
-const ROOT_MAX = 14;
+const ROOT_MAX = 10;
 function rootFull(n) {
   // the root system: one taproot splitting 1 → 2 → 4 → 8, fanning down and out
   // with its own gnarlier botany — dimmer, earthier tones than the canopy
@@ -1387,26 +933,26 @@ function rootFull(n) {
       branch(nx, ny, a + (s === 0 ? -spread : spread) + RP.asym + c, nl, nw, d + 1, i * 2 + s);
     }
   })(0, 548, Math.PI / 2, 200, 20, 0, 0);
-  vctx.lineCap = "butt";
-  vctx.lineJoin = "bevel";
-  const z = Math.max(1e-6, cam.z * usr.z);
+  vctx.lineCap = "round";
+  let w = 20;
   for (let d = 0; d < levels.length; d++) {
     const L = levels[d];
     if (!L) continue;
     const hue = (pal.hues[(d + 1) % pal.hues.length] + d * 31) % 360;
     vctx.strokeStyle = "hsla(" + hue.toFixed(1) + "," + pal.sat + "%," + Math.min(44, 26 + d * 2.4).toFixed(1) + "%,0.92)";
-    vctx.lineWidth = (d === 0 ? 1.25 : 0.85) / z;
+    vctx.lineWidth = Math.max(0.5, w);
     vctx.beginPath();
     for (let k = 0; k < L.length; k += 4) { vctx.moveTo(L[k], L[k + 1]); vctx.lineTo(L[k + 2], L[k + 3]); }
     vctx.stroke();
     const T = tips[d];
-    if (T && T.length && T.length <= 4000) {
-      const br = 1.1 / z;
+    if (T && T.length) {
+      const br = Math.max(0.9, w * 0.7);
       vctx.fillStyle = "hsla(" + hue.toFixed(1) + "," + pal.sat + "%,52%,0.85)";
       vctx.beginPath();
       for (let k = 0; k < T.length; k += 2) { vctx.moveTo(T[k] + br, T[k + 1]); vctx.arc(T[k], T[k + 1], br, 0, TAU); }
       vctx.fill();
     }
+    w *= RP.wRatio;
   }
   return rtips;
 }
@@ -1432,362 +978,32 @@ function treeFull(n) {
       branch(nx, ny, a + (s === 0 ? -spread : spread) + TP.asym + c, nl, nw, d + 1, ci);
     }
   })(0, 540, -Math.PI / 2, 440, 26, 0, 0);
-  vctx.lineCap = "butt";
-  vctx.lineJoin = "bevel";
-  const z = Math.max(1e-6, cam.z * usr.z);
+  vctx.lineCap = "round";
+  let w = 26;
   for (let d = 0; d < levels.length; d++) {
     const L = levels[d];
     if (!L) continue;
     const hue = (pal.hues[d % pal.hues.length] + d * 22) % 360;
     vctx.strokeStyle = "hsla(" + hue.toFixed(1) + "," + pal.sat + "%," + Math.min(70, 40 + d * 3.2).toFixed(1) + "%,0.95)";
-    vctx.lineWidth = (d === 0 ? 1.35 : d < 4 ? 1.0 : 0.75) / z;
+    vctx.lineWidth = Math.max(0.5, w);
     vctx.beginPath();
     for (let k = 0; k < L.length; k += 4) { vctx.moveTo(L[k], L[k + 1]); vctx.lineTo(L[k + 2], L[k + 3]); }
     vctx.stroke();
     const B = buds[d];
-    if (B && B.length && B.length <= 4000) {
-      const br = 1.15 / z;
+    if (B && B.length) {
+      const br = Math.max(1.2, w * 0.85);
       vctx.fillStyle = "hsla(" + pal.hues[(d + 1) % pal.hues.length] + "," + pal.sat + "%,72%,0.9)";
       vctx.beginPath();
       for (let k = 0; k < B.length; k += 2) { vctx.moveTo(B[k] + br, B[k + 1]); vctx.arc(B[k], B[k + 1], br, 0, TAU); }
       vctx.fill();
     }
+    w *= TP.wRatio;
   }
   return tips;
 }
-
-/* ==================== SEEDLINE FERN ==================== */
-// same growth as the Seedline fern: one stem, side fronds every 2 steps,
-// a second head at frond age 3, and new curling leaders every 10 steps.
-let fernSeed = 1, fernG = null, fernSegs = 0;
-function fernRoll() {
-  fernSeed = (Math.random() * 0xffffff) | 0;
-  const r = mulberry32(fernSeed);
-  fernG = {
-    chirality: r() < 0.5 ? 1 : -1,
-    hueDrift: 34 + r() * 28,
-    hueWalk: 6 + r() * 8
-  };
-}
-function fernRender(n) {
-  vReset();
-  holdSpawnFrame();
-  if (!fernG) fernRoll();
-  const pal = PALETTES[palIdx];
-  const g = fernG;
-  if (n <= 0) {
-    vctx.fillStyle = "hsla(" + pal.hues[0] + "," + pal.sat + "%,74%,0.95)";
-    vctx.beginPath();
-    vctx.arc(0, 0, 0.07, 0, TAU);
-    vctx.fill();
-    fernSegs = 0;
-    return 0;
-  }
-  const segs = [];
-  const MAX_TURTLES = 1400;
-  const turtles = [{ x: 0, y: 0, angle: 0, length: 1, depth: 0, age: 0, chirality: g.chirality, turnScale: 1, side: 1, hue: 0, alive: true }];
-  function pushSeg(x1, y1, x2, y2, hue, depth) {
-    segs.push(x1, y1, x2, y2, hue, depth);
-    vTouch(x1, y1); vTouch(x2, y2);
-  }
-  function step(turtle, babies) {
-    const drawn = Math.max(0.04, Math.min(turtle.length, 250000));
-    const x2 = turtle.x + Math.cos(turtle.angle) * drawn;
-    const y2 = turtle.y + Math.sin(turtle.angle) * drawn;
-    if (!isFinite(x2) || !isFinite(y2)) { turtle.alive = false; return; }
-    let hue = (turtle.hue + turtle.age * g.hueWalk * 0.45 + turtle.depth * 16) % 360;
-    if (hue < 0) hue += 360;
-    pushSeg(turtle.x, turtle.y, x2, y2, hue, turtle.depth);
-    turtle.x = x2; turtle.y = y2; turtle.age += 1;
-    if (turtle.depth === 0) {
-      turtle.angle += 0.05 * turtle.chirality;
-      turtle.length = drawn * 1.02;
-    } else {
-      turtle.angle += 0.52 * turtle.chirality * turtle.turnScale;
-      turtle.length = drawn * 0.9;
-    }
-    const stem = turtle.depth === 0;
-    let stems = 0;
-    for (let i = 0; i < turtles.length; i++) if (turtles[i].alive && turtles[i].depth === 0) stems++;
-    if (stem && turtle.age % 2 === 0) {
-      const side = turtle.side || 1;
-      turtle.side = -side;
-      babies.push({
-        x: turtle.x, y: turtle.y,
-        angle: turtle.angle + 0.95 * side,
-        length: drawn * 0.72,
-        depth: 1, age: 0,
-        chirality: turtle.chirality,
-        turnScale: 1.15,
-        side: -side,
-        hue: (turtle.hue + g.hueDrift * (1 + (turtle.age % 5))) % 360,
-        alive: true
-      });
-    }
-    if (turtle.depth === 1 && turtle.age === 3) {
-      babies.push({
-        x: turtle.x, y: turtle.y,
-        angle: turtle.angle + 0.8 * turtle.chirality,
-        length: drawn * 0.62,
-        depth: 2, age: 0,
-        chirality: turtle.chirality,
-        turnScale: 1.2,
-        side: -1,
-        hue: (turtle.hue + g.hueDrift) % 360,
-        alive: true
-      });
-    }
-    if (stem && turtle.age % 10 === 0 && stems < 7) {
-      const side = turtle.side || 1;
-      turtles.push({
-        x: turtle.x, y: turtle.y,
-        angle: turtle.angle + 0.85 * side,
-        length: drawn * 0.72,
-        depth: 0, age: 0,
-        chirality: -turtle.chirality,
-        turnScale: 1,
-        side: -side,
-        hue: (turtle.hue + g.hueDrift * 2) % 360,
-        alive: true
-      });
-    }
-    if (turtle.depth > 0 && turtle.age > 9) turtle.alive = false;
-    if (turtle.depth > 1 && turtle.age > 4) turtle.alive = false;
-  }
-  function burst(baby, steps) {
-    const nested = [];
-    for (let k = 0; k < steps && baby.alive; k++) step(baby, nested);
-    for (let i = 0; i < nested.length; i++) {
-      const sub = nested[i];
-      if (turtles.length >= MAX_TURTLES) break;
-      for (let k = 0; k < 4 && sub.alive; k++) step(sub, []);
-      if (sub.alive && sub.depth < 2) turtles.push(sub);
-    }
-    if (baby.alive && baby.depth < 2 && turtles.length < MAX_TURTLES) turtles.push(baby);
-  }
-  for (let generation = 1; generation <= n; generation++) {
-    let anyStem = false;
-    for (let i = 0; i < turtles.length; i++) if (turtles[i].alive && turtles[i].depth === 0) anyStem = true;
-    if (!anyStem) {
-      let host = turtles[0], best = -1;
-      for (let i = 0; i < turtles.length; i++) {
-        const t = turtles[i], d = t.x * t.x + t.y * t.y;
-        if (d > best) { best = d; host = t; }
-      }
-      const span = Math.max(1, maxX - minX, maxY - minY);
-      turtles.push({
-        x: host.x, y: host.y,
-        angle: Math.atan2(host.y, host.x),
-        length: span * 0.08,
-        depth: 0, age: 0,
-        chirality: -host.chirality,
-        turnScale: 1, side: 1,
-        hue: (host.hue + g.hueDrift) % 360,
-        alive: true
-      });
-    }
-    const cohort = [];
-    for (let i = 0; i < turtles.length; i++) if (turtles[i].alive && turtles[i].depth === 0) cohort.push(turtles[i]);
-    const steps = generation === 1 ? 1 : 4;
-    for (let c = 0; c < cohort.length; c++) {
-      const turtle = cohort[c];
-      for (let s = 0; s < steps; s++) {
-        if (!turtle.alive) break;
-        const spawned = [];
-        step(turtle, spawned);
-        for (let b = 0; b < spawned.length; b++) burst(spawned[b], 10);
-      }
-    }
-  }
-  fernSegs = segs.length / 6;
-  // stay a fixed hairline on screen — don't thicken in world space as the camera backs up
-  const z = Math.max(1e-6, cam.z * usr.z);
-  const px = [1.15, 0.95, 0.8];
-  const lights = [64, 70, 76];
-  vctx.lineCap = "butt";
-  vctx.lineJoin = "bevel";
-  for (let depth = 0; depth <= 2; depth++) {
-    const paths = new Array(60);
-    for (let i = 0; i < segs.length; i += 6) {
-      if (segs[i + 5] !== depth) continue;
-      const hue = ((segs[i + 4] % 360) + 360) % 360;
-      const b = Math.min(59, (hue / 6) | 0);
-      let path = paths[b];
-      if (!path) path = paths[b] = new Path2D();
-      path.moveTo(segs[i], segs[i + 1]);
-      path.lineTo(segs[i + 2], segs[i + 3]);
-    }
-    vctx.lineWidth = px[depth] / z;
-    for (let b = 0; b < 60; b++) {
-      if (!paths[b]) continue;
-      const hue = (pal.hues[0] + b * 6) % 360;
-      vctx.strokeStyle = "hsla(" + hue + "," + pal.sat + "%," + lights[depth] + "%,0.92)";
-      vctx.stroke(paths[b]);
-    }
-  }
-  return fernSegs;
-}
-
-/* ==================== SEEDLINE SPIRAL VINE ==================== */
-let vineSeed = 1, vineG = null, vineSegs = 0;
-function vineRoll() {
-  vineSeed = (Math.random() * 0xffffff) | 0;
-  const r = mulberry32(vineSeed);
-  vineG = {
-    chirality: r() < 0.5 ? 1 : -1,
-    harmonic: 0.28 + r() * 0.2,
-    hueDrift: 34 + r() * 28,
-    hueWalk: 6 + r() * 8
-  };
-}
-function vineRender(n) {
-  vReset();
-  holdSpawnFrame();
-  if (!vineG) vineRoll();
-  const pal = PALETTES[palIdx];
-  const g = vineG;
-  if (n <= 0) {
-    vctx.fillStyle = "hsla(" + pal.hues[0] + "," + pal.sat + "%,74%,0.95)";
-    vctx.beginPath();
-    vctx.arc(0, 0, 0.07, 0, TAU);
-    vctx.fill();
-    vineSegs = 0;
-    return 0;
-  }
-  const segs = [];
-  const MAX_TURTLES = 1400;
-  const turtles = [{ x: 0, y: 0, angle: 0, length: 1, depth: 0, age: 0, chirality: g.chirality, turnScale: 1, side: 1, hue: 0, alive: true }];
-  function pushSeg(x1, y1, x2, y2, hue, depth) {
-    segs.push(x1, y1, x2, y2, hue, depth);
-    vTouch(x1, y1); vTouch(x2, y2);
-  }
-  function step(turtle, babies) {
-    const drawn = Math.max(0.04, Math.min(turtle.length, 250000));
-    const x2 = turtle.x + Math.cos(turtle.angle) * drawn;
-    const y2 = turtle.y + Math.sin(turtle.angle) * drawn;
-    if (!isFinite(x2) || !isFinite(y2)) { turtle.alive = false; return; }
-    let hue = (turtle.hue + turtle.age * g.hueWalk * 0.45 + turtle.depth * 16) % 360;
-    if (hue < 0) hue += 360;
-    pushSeg(turtle.x, turtle.y, x2, y2, hue, turtle.depth);
-    turtle.x = x2; turtle.y = y2; turtle.age += 1;
-    if (turtle.depth === 0) {
-      turtle.angle += (0.06 + Math.sin(turtle.age * g.harmonic) * 0.2) * turtle.chirality;
-      turtle.length = drawn * 1.025;
-    } else {
-      turtle.angle += 0.86 * turtle.chirality * turtle.turnScale;
-      turtle.length = drawn * 0.84;
-    }
-    const stem = turtle.depth === 0;
-    let stems = 0;
-    for (let i = 0; i < turtles.length; i++) if (turtles[i].alive && turtles[i].depth === 0) stems++;
-    if (stem && turtle.age % 3 === 0) {
-      const side = turtle.side || 1;
-      turtle.side = -side;
-      babies.push({
-        x: turtle.x, y: turtle.y,
-        angle: turtle.angle + 1.15 * side,
-        length: drawn * 0.5,
-        depth: 1, age: 0,
-        chirality: turtle.chirality,
-        turnScale: 1,
-        side: -side,
-        hue: (turtle.hue + g.hueDrift * (1 + (turtle.age % 5))) % 360,
-        alive: true
-      });
-    }
-    if (stem && turtle.age % 8 === 0 && stems < 7) {
-      const side = turtle.side || 1;
-      turtles.push({
-        x: turtle.x, y: turtle.y,
-        angle: turtle.angle + 0.85 * side,
-        length: drawn * 0.72,
-        depth: 0, age: 0,
-        chirality: -turtle.chirality,
-        turnScale: 1,
-        side: -side,
-        hue: (turtle.hue + g.hueDrift * 2) % 360,
-        alive: true
-      });
-    }
-    if (turtle.depth > 0 && turtle.age > 8) turtle.alive = false;
-    if (turtle.depth > 1 && turtle.age > 4) turtle.alive = false;
-  }
-  function burst(baby, steps) {
-    const nested = [];
-    for (let k = 0; k < steps && baby.alive; k++) step(baby, nested);
-    for (let i = 0; i < nested.length; i++) {
-      const sub = nested[i];
-      if (turtles.length >= MAX_TURTLES) break;
-      for (let k = 0; k < 4 && sub.alive; k++) step(sub, []);
-      if (sub.alive && sub.depth < 2) turtles.push(sub);
-    }
-    if (baby.alive && baby.depth < 2 && turtles.length < MAX_TURTLES) turtles.push(baby);
-  }
-  for (let generation = 1; generation <= n; generation++) {
-    let anyStem = false;
-    for (let i = 0; i < turtles.length; i++) if (turtles[i].alive && turtles[i].depth === 0) anyStem = true;
-    if (!anyStem) {
-      let host = turtles[0], best = -1;
-      for (let i = 0; i < turtles.length; i++) {
-        const t = turtles[i], d = t.x * t.x + t.y * t.y;
-        if (d > best) { best = d; host = t; }
-      }
-      const span = Math.max(1, maxX - minX, maxY - minY);
-      turtles.push({
-        x: host.x, y: host.y,
-        angle: Math.atan2(host.y, host.x),
-        length: span * 0.08,
-        depth: 0, age: 0,
-        chirality: -host.chirality,
-        turnScale: 1, side: 1,
-        hue: (host.hue + g.hueDrift) % 360,
-        alive: true
-      });
-    }
-    const cohort = [];
-    for (let i = 0; i < turtles.length; i++) if (turtles[i].alive && turtles[i].depth === 0) cohort.push(turtles[i]);
-    const steps = generation === 1 ? 1 : 4;
-    for (let c = 0; c < cohort.length; c++) {
-      const turtle = cohort[c];
-      for (let s = 0; s < steps; s++) {
-        if (!turtle.alive) break;
-        const spawned = [];
-        step(turtle, spawned);
-        for (let b = 0; b < spawned.length; b++) burst(spawned[b], 9);
-      }
-    }
-  }
-  vineSegs = segs.length / 6;
-  const z = Math.max(1e-6, cam.z * usr.z);
-  const px = [1.15, 0.95, 0.8];
-  const lights = [64, 70, 76];
-  vctx.lineCap = "butt";
-  vctx.lineJoin = "bevel";
-  for (let depth = 0; depth <= 2; depth++) {
-    const paths = new Array(60);
-    for (let i = 0; i < segs.length; i += 6) {
-      if (segs[i + 5] !== depth) continue;
-      const hue = ((segs[i + 4] % 360) + 360) % 360;
-      const b = Math.min(59, (hue / 6) | 0);
-      let path = paths[b];
-      if (!path) path = paths[b] = new Path2D();
-      path.moveTo(segs[i], segs[i + 1]);
-      path.lineTo(segs[i + 2], segs[i + 3]);
-    }
-    vctx.lineWidth = px[depth] / z;
-    for (let b = 0; b < 60; b++) {
-      if (!paths[b]) continue;
-      const hue = (pal.hues[0] + b * 6) % 360;
-      vctx.strokeStyle = "hsla(" + hue + "," + pal.sat + "%," + lights[depth] + "%,0.92)";
-      vctx.stroke(paths[b]);
-    }
-  }
-  return vineSegs;
-}
-
 const MODES = {};
 let cur = "bloom";
-const ORDER = ["bloom", "tree", "star", "mandelbrot", "julia", "snowflake", "dragon", "sierpinski", "cantor", "menger", "fern", "vine"];
+const ORDER = ["bloom", "tree", "star", "mandelbrot", "julia", "snowflake", "dragon", "sierpinski", "cantor", "menger"];
 
 MODES.bloom = {
   name: "Bloom", hint: "tap · click · hold to grow · pinch to zoom · drag to pan",
@@ -1832,8 +1048,10 @@ function escMode(kind, name, hint, baseIter, iterStep, maxCap) {
     cx: 0, cy: 0, size: 3.4, cRe: 0, cIm: 0, poly: 0, g: null, flashT: 0,
     zoom() { return 3.4 / this.size; },
     job() {
-      const it = escIters(this.zoom(), this.maxCap);
-      return { kind, maxIter: it.maxIter, fastIter: it.fastIter, reveal: 2, cx: this.cx, cy: this.cy, size: this.size, cRe: this.cRe, cIm: this.cIm, poly: this.poly };
+      // detail keeps resolving as you zoom: iterations scale with depth (float64 view → ~trillion× zoom)
+      const zoomNeed = Math.round(60 + 90 * Math.log10(Math.max(1, this.zoom())));
+      const maxIter = Math.min(this.maxCap, Math.max(this.g.maxIter, zoomNeed));
+      return { kind, maxIter, reveal: this.dive ? 2 : this.g.reveal, cx: this.cx, cy: this.cy, size: this.size, cRe: this.cRe, cIm: this.cIm, poly: this.poly };
     },
     enter() { this.resetView(); this.g = { reveal: 0.22, maxIter: this.baseIter }; escStart(this.job()); },
     resetView() {},
@@ -1870,9 +1088,9 @@ function escMode(kind, name, hint, baseIter, iterStep, maxCap) {
       // infinite dive: 2.5× deeper, anchored exactly on the tap point
       const V = { cx: this.cx, cy: this.cy, size: this.size };
       const z = cFromCss(x, y, V);
-      const nV = viewForAnchor(z, x, y, escLimitSize(V.size / 2.5));
+      const nV = viewForAnchor(z, x, y, V.size / 2.5);
       this.cx = nV.cx; this.cy = nV.cy; this.size = nV.size;
-      if (this.zoom() >= ESC_LIMIT) this.rebirth(); // past float64's honest range → reseed deeper, the dive never ends
+      if (this.zoom() >= 1e10) this.rebirth(); // past float64's honest range → reseed deeper, the dive never ends
       escStart(this.job());
     },
     rebirth() {
@@ -1902,7 +1120,7 @@ function escMode(kind, name, hint, baseIter, iterStep, maxCap) {
     gestPreview(nV) { VG = warpFor(ESC.rv, nV); },
     gestCommit(nV) {
       this.cx = nV.cx; this.cy = nV.cy; this.size = nV.size; VG = null;
-      if (this.dive && this.zoom() >= ESC_LIMIT) this.rebirth();
+      if (this.dive && this.zoom() >= 1e10) this.rebirth();
       escStart(this.job());
     },
     stats() { return ""; }
@@ -1910,7 +1128,7 @@ function escMode(kind, name, hint, baseIter, iterStep, maxCap) {
 }
 const ESC_STATS = (label, M, extra) =>
   label + (extra ? " · " + extra : "") + " · iter " + M.g.maxIter + " · " + M.grownPct() + "% grown · " + PALETTES[palIdx].name;
-MODES.mandelbrot = Object.assign(escMode("mandelbrot", "Mandelbrot", "pinch or scroll to zoom · tap dives", 80, 0, 2200), {
+MODES.mandelbrot = Object.assign(escMode("mandelbrot", "Mandelbrot", "tap to dive deeper · pinch to zoom · ✦ reset", 60, 0, 2500), {
   dive: true,
   resetView() { this.cx = -0.5; this.cy = 0; this.size = 3.4; },
   enter() { this.resetView(); this.g = { reveal: 2, maxIter: this.baseIter }; escStart(this.job()); }, // one whole Mandelbrot, fully rendered
@@ -1922,7 +1140,7 @@ MODES.mandelbrot = Object.assign(escMode("mandelbrot", "Mandelbrot", "pinch or s
     return "MANDELBROT · zoom " + zs + " · iter " + this.job().maxIter + " · ∞ dive · " + PALETTES[palIdx].name;
   }
 });
-MODES.julia = Object.assign(escMode("julia", "Julia", "pinch or scroll to zoom · tap dives", 80, 0, 2200), {
+MODES.julia = Object.assign(escMode("julia", "Julia", "tap to dive deeper · pinch to zoom · ✦ new constant", 60, 0, 2500), {
   dive: true,
   resetView() {
     const c = JULIA_PRETTY[(Math.random() * JULIA_PRETTY.length) | 0];
@@ -1959,24 +1177,9 @@ MODES.dragon = vectorMode("Dragon", "tap to fold it deeper", 18, dragonRender,
   n => "DRAGON CURVE · iteration " + (n + 1) + " · " + (2 << n).toLocaleString("en-US") + " lines · " + PALETTES[palIdx].name);
 MODES.cantor = vectorMode("Cantor", "tap to divide it", 22, cantorRender,
   n => "CANTOR SET · row " + n + " · " + Math.pow(2, n).toLocaleString("en-US") + " segments · " + PALETTES[palIdx].name);
-MODES.menger = Object.assign(vectorMode("Menger", "tap to carve deeper · 1-finger spin · 2-finger pan+zoom · ⬢ 3D", 3, mengerRender,
-  n => "MENGER SPONGE · level " + n + (m3d.on ? " · 3D" : "") + " · " + PALETTES[palIdx].name), {
-  draw() {
-    if (m3d.on) {
-      if (m3dNeed || !vBasis) {
-        vEnsure();
-        mengerRender3D(this.n);
-        vBasis = { cx: 0, cy: 0, cz: 1, ox: 0, oy: 0, oz: 1 };
-        m3dNeed = false;
-      }
-      vBlit();
-      return;
-    }
-    vectorFrame();
-  },
-  onPalette() { if (m3d.on) m3dNeed = true; else vNeedCrisp = true; }
-});
-MODES.tree = Object.assign(vectorMode("Tree", "tap grows branches · ❖ grows roots", 19, treeFull,
+MODES.menger = vectorMode("Menger", "tap to carve it deeper", 3, mengerRender,
+  n => "MENGER SPONGE · level " + n + " · " + PALETTES[palIdx].name);
+MODES.tree = Object.assign(vectorMode("Tree", "tap grows branches · ❖ grows roots", 18, treeFull,
   n => "FRACTAL TREE · gen " + n + " · roots " + rootN + " · " + PALETTES[palIdx].name), {
   enter() {
     // every tree rolls its own botany: angle, taper, asymmetry, curl
@@ -2002,86 +1205,38 @@ MODES.tree = Object.assign(vectorMode("Tree", "tap grows branches · ❖ grows r
   vecDraw() { treeFull(this.n); rootFull(rootN); },
   rootTap() { if (rootN < ROOT_MAX) { rootN++; vNeedCrisp = true; } }
 });
-MODES.star = Object.assign(vectorMode("Golden", "tap or hold to grow the spiral", 500, goldenRender,
-  n => "GOLDEN · gen " + n + " · " + goldSegs.toLocaleString("en-US") + " segs · " + PALETTES[palIdx].name), {
+MODES.star = {
+  name: "Spirals", hint: "tap to add lines · pinch to zoom · drag to pan",
+  n: 0, S0: 5, dir: 1, rot: 0,
   enter() {
-    goldRoll();
-    goldSegs = 0;
-    this.n = 0;
-    closeSpawnCam();
-    vNeedCrisp = true;
+    this.n = 0; this.S0 = 5;
+    this.dir = Math.random() < 0.5 ? 1 : -1; // pinwheel spins either way
+    this.rot = Math.random() * TAU;
+    introBias = 0; camLock = false; cam = { x: 0, y: 0, z: maxZ }; vNeedCrisp = true;
   },
-  tap(x, y) {
-    if (this.n < this.maxN) { this.n++; vNeedCrisp = true; }
-    introBias = Math.max(0, introBias - 0.34);
-    ripples.push({ x: x, y: y, t0: performance.now() });
-  },
-  holdTick() {
-    if (this.n < this.maxN) { this.n++; vNeedCrisp = true; introBias = Math.max(0, introBias - 0.2); }
-  }
-});
-MODES.sierpinski = Object.assign(vectorMode("Sierpinski", "finer triangles as you zoom", 1, sierpinskiTri,
-  function () { return "SIERPINSKI · " + sierCount.toLocaleString("en-US") + " showing · " + sierZoomLabel() + " · " + PALETTES[palIdx].name; }), {
-  enter() { sierHome(); },
-  tap(x, y) { sierZoomAt(x, y, 1.7, 0.55); ripples.push({ x: x, y: y, t0: performance.now() }); },
-  holdTick() {
-    const x = downInfo ? downInfo.x : vw / 2, y = downInfo ? downInfo.y : vh / 2;
-    sierZoomAt(x, y, 1.04, 0.1);
-  }
-});
-
-MODES.fern = Object.assign(vectorMode("Fern", "tap or hold to grow the fern", 80, fernRender,
-  n => "FERN · gen " + n + " · " + fernSegs.toLocaleString("en-US") + " segs · " + PALETTES[palIdx].name), {
-  enter() {
-    fernRoll();
-    fernSegs = 0;
-    this.n = 0;
-    closeSpawnCam();
-    vNeedCrisp = true;
-  },
-  tap(x, y) {
-    if (this.n < this.maxN) { this.n++; vNeedCrisp = true; }
-    introBias = Math.max(0, introBias - 0.34);
-    ripples.push({ x: x, y: y, t0: performance.now() });
-  },
-  holdTick() {
-    if (this.n < this.maxN) { this.n++; vNeedCrisp = true; introBias = Math.max(0, introBias - 0.2); }
-  }
-});
-
-MODES.vine = Object.assign(vectorMode("Vine", "tap or hold to grow the vine", 80, vineRender,
-  n => "VINE · gen " + n + " · " + vineSegs.toLocaleString("en-US") + " segs · " + PALETTES[palIdx].name), {
-  enter() {
-    vineRoll();
-    vineSegs = 0;
-    this.n = 0;
-    closeSpawnCam();
-    vNeedCrisp = true;
-  },
-  tap(x, y) {
-    if (this.n < this.maxN) { this.n++; vNeedCrisp = true; }
-    introBias = Math.max(0, introBias - 0.34);
-    ripples.push({ x: x, y: y, t0: performance.now() });
-  },
-  holdTick() {
-    if (this.n < this.maxN) { this.n++; vNeedCrisp = true; introBias = Math.max(0, introBias - 0.2); }
-  }
+  tap(x, y) { this.n++; vNeedCrisp = true; ripples.push({ x, y, t0: performance.now() }); },
+  reset() { this.enter(); },
+  onPalette() { vNeedCrisp = true; },
+  wheelVec: vecWheel,
+  vecDraw() { starRender(this.n, this); },
+  draw() { vectorFrame(); },
+  stats() { return "SPIRALS · " + (this.S0 + 6 * this.n) + " lines · " + PALETTES[palIdx].name; }
+};
+MODES.sierpinski = Object.assign(vectorMode("Sierpinski", "tap to split it deeper", 16, sierpinskiTri,
+  n => "SIERPINSKI · iteration " + n + " · " + Math.pow(3, n).toLocaleString("en-US") + " triangles · " + PALETTES[palIdx].name), {
+  enter() { this.n = 2; introBias = 0; camLock = false; cam = { x: 0, y: 0, z: maxZ }; vNeedCrisp = true; } // opens already split — no solid-triangle start
 });
 
 /* ==================== UI ==================== */
 function setMode(id) {
   ESC.job = null;
-  ESC.shown = null;
-  ESC.rv = null;
   VG = null;
   usr = { z: 1, ox: 0, oy: 0 };
   camLock = false; vBasis = null; vNeedCrisp = false;
   clearTimeout(wheelT);
   cur = id;
   document.getElementById("btnRoots").style.display = id === "tree" ? "" : "none";
-  document.getElementById("btn3D").style.display = (id === "bloom" || id === "menger") ? "" : "none";
-  if (id !== "menger") m3d.on = false;
-  document.getElementById("btn3D").classList.toggle("on", (id === "bloom" && b3d.on) || (id === "menger" && m3d.on));
+  document.getElementById("btn3D").style.display = id === "bloom" ? "" : "none";
   ripples = [];
   document.querySelectorAll("#modes button").forEach(b => b.classList.toggle("on", b.dataset.id === id));
   const M = MODES[id];
@@ -2137,11 +1292,6 @@ function resize() {
     if (!b3d.lock) b3dFit();
     else b3dNeed = true;
   }
-  if (cur === "menger" && m3d.on) {
-    if (!m3d.lock) m3dFit();
-    else m3dNeed = true;
-  }
-  if (MODES[cur] && MODES[cur].isEscape) escStart(MODES[cur].job(), "fast");
 }
 window.addEventListener("resize", resize);
 
@@ -2178,8 +1328,7 @@ function startPinch() {
   pinchSt = {
     d0: Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 1,
     m0x: (p[0].x + p[1].x) / 2, m0y: (p[0].y + p[1].y) / 2,
-    v0: null, u0: { z: usr.z, ox: usr.ox, oy: usr.oy }, nV: null,
-    d3: b3d.dist, m3dK: m3d.k, m3dTx: m3d.tx, m3dTy: m3d.ty
+    v0: null, u0: { z: usr.z, ox: usr.ox, oy: usr.oy }, nV: null, d3: b3d.dist
   };
   const M = MODES[cur];
   if (M.isEscape) pinchSt.v0 = escViewOf(M);
@@ -2197,33 +1346,17 @@ function movePinch() {
     b3dMotion();
     return;
   }
-  if (cur === "menger" && m3d.on) {
-    const zoomF = Math.max(0.25, Math.min(4, f));
-    const base = m3d.baseK || pinchSt.m3dK || 0.2;
-    m3d.k = clamp(pinchSt.m3dK * zoomF, base * 0.35, base * 16);
-    const inv = 1 / Math.max(1e-4, m3d.k);
-    m3d.tx = pinchSt.m3dTx - (m1x - pinchSt.m0x) * inv;
-    m3d.ty = pinchSt.m3dTy - (m1y - pinchSt.m0y) * inv;
-    m3dTouch();
-    return;
-  }
   if (M.isEscape) {
     const z = cFromCss(pinchSt.m0x, pinchSt.m0y, pinchSt.v0);
-    const nV = viewForAnchor(z, m1x, m1y, escLimitSize(pinchSt.v0.size / f));
+    const nV = viewForAnchor(z, m1x, m1y, Math.max(1e-9, pinchSt.v0.size / f));
     pinchSt.nV = nV;
     M.gestPreview(nV);
-    escFollow();
   } else {
     const u0 = pinchSt.u0, Cx = vw / 2, Cy = vh / 2;
-    let af = f;
-    if (cur === "sierpinski") {
-      const nz = Math.min(1e9, Math.max(0.35, u0.z * f));
-      af = nz / Math.max(1e-9, u0.z);
-      usr.z = nz;
-    } else usr.z = u0.z * f;
-    usr.ox = m1x - Cx - (pinchSt.m0x - Cx - u0.ox) * af;
-    usr.oy = m1y - Cy - (pinchSt.m0y - Cy - u0.oy) * af;
-    camLock = true; vMotion();
+    usr.z = u0.z * f;
+    usr.ox = m1x - Cx - (pinchSt.m0x - Cx - u0.ox) * f;
+    usr.oy = m1y - Cy - (pinchSt.m0y - Cy - u0.oy) * f;
+    camLock = true; vMotion(); // user took the camera — freeze the auto follow
   }
 }
 function movePan(x, y) {
@@ -2232,12 +1365,6 @@ function movePan(x, y) {
     b3d.pitch = clamp(b3d.pitch + (y - downInfo.ly) * 0.008, -1.4, 1.4);
     b3d.lock = true;
     b3dMotion();
-    return;
-  }
-  if (cur === "menger" && m3d.on) {
-    m3d.yaw += (x - downInfo.lx) * 0.0075;
-    m3d.pitch = clamp(m3d.pitch + (y - downInfo.ly) * 0.0065, -1.2, 1.2);
-    m3dTouch();
     return;
   }
   const M = MODES[cur];
@@ -2249,7 +1376,6 @@ function movePan(x, y) {
     const nV = viewForAnchor(z, x, y, panSt.v0.size);
     panSt.nV = nV;
     M.gestPreview(nV);
-    escFollow();
   } else {
     usr.ox += x - downInfo.lx;
     usr.oy += y - downInfo.ly;
@@ -2308,35 +1434,24 @@ stage.addEventListener("pointercancel", endPointer);
 stage.addEventListener("wheel", function (e) {
   e.preventDefault();
   const M = MODES[cur];
-  let dy = e.deltaY;
-  if (e.deltaMode === 1) dy *= 16;
-  else if (e.deltaMode === 2) dy *= vh;
-  const f = Math.exp(-dy * 0.00115);
+  const f = Math.exp(-e.deltaY * 0.0012);
   if (cur === "bloom" && b3d.on) {
     b3d.dist = clamp(b3d.dist / f, 50, 20000);
     b3d.lock = true;
     b3dMotion();
     return;
   }
-  if (cur === "menger" && m3d.on) { m3dScale(f); return; }
   if (M.isEscape) {
     const V = { cx: M.cx, cy: M.cy, size: M.size };
     const z = cFromCss(e.clientX, e.clientY, V);
-    const nV = viewForAnchor(z, e.clientX, e.clientY, escLimitSize(V.size / f));
+    const nV = viewForAnchor(z, e.clientX, e.clientY, Math.max(1e-9, V.size / f));
     M.cx = nV.cx; M.cy = nV.cy; M.size = nV.size;
-    escFollow();
+    VG = warpFor(ESC.rv, nV);
     clearTimeout(wheelT);
-    wheelT = setTimeout(function () {
-      const C = MODES[cur];
-      if (!C || !C.isEscape || PTRS.size > 0) return;
-      if (C.dive && C.zoom() >= ESC_LIMIT) C.rebirth();
-      scheduleFine();
-    }, 160);
-    return;
-  }
-  if (M.wheelVec) {
+    wheelT = setTimeout(function () { if (M.dive && M.zoom() >= 1e10) M.rebirth(); VG = null; escStart(M.job()); }, 200);
+  } else if (M.wheelVec) {
     M.wheelVec(f, e.clientX, e.clientY);
-    camLock = true; vMotion();
+    camLock = true; vMotion(); // user took the camera — freeze the auto follow
   }
 }, { passive: false });
 window.addEventListener("contextmenu", function (e) { e.preventDefault(); });
@@ -2350,16 +1465,12 @@ document.getElementById("btnFit").addEventListener("click", function (e) {
 });
 document.getElementById("btn3D").addEventListener("click", function (e) {
   e.stopPropagation();
-  if (cur === "bloom") {
-    b3d.on = !b3d.on;
-    if (b3d.on) b3dFit();
-    else { vNeedCrisp = true; vBasis = null; }
-  } else if (cur === "menger") {
-    m3d.on = !m3d.on;
-    if (m3d.on) m3dFit();
-    else vNeedCrisp = true;
-  } else return;
-  this.classList.toggle("on", (cur === "bloom" && b3d.on) || (cur === "menger" && m3d.on));
+  if (cur !== "bloom") return;
+  b3d.on = !b3d.on;
+  if (b3d.on) b3dFit();
+  else { vNeedCrisp = true; vBasis = null; }
+  this.classList.toggle("on", b3d.on);
+  b3dHint();
   updateStats();
 });
 // ⛶ Fit: reframe the whole fractal on screen WITHOUT touching growth —
@@ -2367,18 +1478,12 @@ document.getElementById("btn3D").addEventListener("click", function (e) {
 function fitView() {
   const M = MODES[cur];
   if (cur === "bloom" && b3d.on) { b3dFit(); updateStats(); return; }
-  if (cur === "menger" && m3d.on) { m3dFit(); updateStats(); return; }
   if (M.isEscape) {
     if (cur === "mandelbrot") { M.cx = -0.5; M.cy = 0; } else { M.cx = 0; M.cy = 0; }
     M.size = 3.4; VG = null; escStart(M.job());
-  } else if (cur === "sierpinski") {
-    sierHome();
   } else {
-    introBias = 0; camLock = false;
+    introBias = 0; camLock = false; cam = { x: 0, y: 0, z: maxZ };
     usr = { z: 1, ox: 0, oy: 0 }; vNeedCrisp = true;
-    if (tightCam() && maxX > minX && minX < 1e8) cam = camForBox({ minX: minX, maxX: maxX, minY: minY, maxY: maxY });
-    else if (tightCam()) cam = camForBox(spawnFrame());
-    else cam = { x: 0, y: 0, z: maxZ };
   }
   updateStats();
 }
@@ -2414,10 +1519,6 @@ window.addEventListener("keydown", function (e) {
   else if (cur === "bloom" && b3d.on && e.key === "ArrowRight") { e.preventDefault(); b3d.yaw += 0.08; b3d.lock = true; b3dMotion(); }
   else if (cur === "bloom" && b3d.on && e.key === "ArrowUp") { e.preventDefault(); b3d.pitch = clamp(b3d.pitch - 0.06, -1.4, 1.4); b3d.lock = true; b3dMotion(); }
   else if (cur === "bloom" && b3d.on && e.key === "ArrowDown") { e.preventDefault(); b3d.pitch = clamp(b3d.pitch + 0.06, -1.4, 1.4); b3d.lock = true; b3dMotion(); }
-  else if (cur === "menger" && m3d.on && e.key === "ArrowLeft") { e.preventDefault(); m3d.yaw -= 0.06; m3dTouch(); }
-  else if (cur === "menger" && m3d.on && e.key === "ArrowRight") { e.preventDefault(); m3d.yaw += 0.06; m3dTouch(); }
-  else if (cur === "menger" && m3d.on && e.key === "ArrowUp") { e.preventDefault(); m3d.pitch = clamp(m3d.pitch - 0.05, -1.2, 1.2); m3dTouch(); }
-  else if (cur === "menger" && m3d.on && e.key === "ArrowDown") { e.preventDefault(); m3d.pitch = clamp(m3d.pitch + 0.05, -1.2, 1.2); m3dTouch(); }
   else if (e.key >= "1" && e.key <= "9") setMode(ORDER[+e.key - 1]);
 });
 
@@ -2429,26 +1530,18 @@ function keyZoom(f) {
     b3dMotion();
     return;
   }
-  if (cur === "menger" && m3d.on) { m3dScale(f); return; }
   const M = MODES[cur], mx = vw / 2, my = vh / 2;
   if (M.isEscape) {
     const V = { cx: M.cx, cy: M.cy, size: M.size };
     const z = cFromCss(mx, my, V);
-    const nV = viewForAnchor(z, mx, my, escLimitSize(V.size / f));
+    const nV = viewForAnchor(z, mx, my, Math.max(1e-9, V.size / f));
     M.cx = nV.cx; M.cy = nV.cy; M.size = nV.size;
-    escFollow();
+    VG = warpFor(ESC.rv, nV);
     clearTimeout(wheelT);
-    wheelT = setTimeout(function () {
-      const C = MODES[cur];
-      if (!C || !C.isEscape || PTRS.size > 0) return;
-      if (C.dive && C.zoom() >= ESC_LIMIT) C.rebirth();
-      scheduleFine();
-    }, 160);
-    return;
-  }
-  if (M.wheelVec) {
+    wheelT = setTimeout(function () { if (M.dive && M.zoom() >= 1e10) M.rebirth(); VG = null; escStart(M.job()); }, 200);
+  } else if (M.wheelVec) {
     M.wheelVec(f, mx, my);
-    camLock = true; vMotion();
+    camLock = true; vMotion(); // user took the camera — freeze the auto follow
   }
 }
 
@@ -2463,4 +1556,3 @@ requestAnimationFrame(frame);
 </script>
 </body>
 </html>
-
