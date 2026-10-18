@@ -267,10 +267,10 @@ function bloomRestroke() {
     const hue = (pal.hues[gen % pal.hues.length] + t * 0.12 + gen * 17) % 360;
     vctx.strokeStyle = "hsla(" + hue.toFixed(1) + "," + pal.sat + "%," +
       Math.min(74, 54 + gen * 2.2).toFixed(1) + "%,0.85)";
-    vctx.lineWidth = Math.max(0.5, bstore[o + 4]);
+    vctx.lineWidth = Math.max(0.5, bstore[o + 6]);
     vctx.beginPath();
     vctx.moveTo(bstore[o], bstore[o + 1]);
-    vctx.lineTo(bstore[o + 2], bstore[o + 3]);
+    vctx.lineTo(bstore[o + 3], bstore[o + 4]);
     vctx.stroke();
   }
 }
