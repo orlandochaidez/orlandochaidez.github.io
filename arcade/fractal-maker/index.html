@@ -107,8 +107,8 @@ const PALETTES = [
   { name: "NOIR",  hues: [275, 290, 230, 190, 315], sat: 55, li: 52 } // deep purple · violet · slate · ice cyan · magenta
 ];
 
-const MAXT = 420;    // max living growth tips (bloom)
-const MAXG = 9;      // max branch generation depth (bloom)
+const MAXT = 640;    // max living growth tips (bloom)
+const MAXG = 14;     // max branch generation depth (bloom)
 const START_X = -430;
 
 const stage = document.getElementById("stage");
@@ -276,7 +276,7 @@ function vecWheel(f, mx, my) {
 /* ================= BLOOM (the original infinite garden) ================= */
 // every segment is stored (world coords) so the garden can be re-rendered
 // razor-sharp at any zoom — no magnified bitmaps, ever
-const BSEG_CAP = 400000;
+const BSEG_CAP = 650000;
 let bstore = null, bsegN = 0;
 function bloomStore(x1, y1, z1, x2, y2, z2, w, gen, t) {
   if (!bstore || bstore.length < BSEG_CAP * 9) bstore = new Float32Array(BSEG_CAP * 9);
@@ -289,25 +289,35 @@ function bloomStore(x1, y1, z1, x2, y2, z2, w, gen, t) {
 }
 function bloomRestroke() {
   const pal = PALETTES[palIdx];
+  const z = Math.max(1e-6, cam.z * usr.z);
+  vctx.lineCap = "butt";
+  vctx.lineJoin = "bevel";
+  const paths = [];
   for (let k = 0; k < bsegN; k++) {
     const o = k * 9, gen = bstore[o + 7] | 0, t = bstore[o + 8];
-    const hue = (pal.hues[gen % pal.hues.length] + t * 0.12 + gen * 17) % 360;
-    vctx.strokeStyle = "hsla(" + hue.toFixed(1) + "," + pal.sat + "%," +
-      Math.min(74, 54 + gen * 2.2).toFixed(1) + "%,0.85)";
-    vctx.lineWidth = Math.max(0.5, bstore[o + 6]);
-    vctx.beginPath();
-    vctx.moveTo(bstore[o], bstore[o + 1]);
-    vctx.lineTo(bstore[o + 3], bstore[o + 4]);
-    vctx.stroke();
+    const hue = ((pal.hues[gen % pal.hues.length] + t * 0.12 + gen * 17) % 360 + 360) % 360;
+    const key = Math.min(15, gen) * 45 + Math.min(44, (hue / 8) | 0);
+    let path = paths[key];
+    if (!path) path = paths[key] = new Path2D();
+    path.moveTo(bstore[o], bstore[o + 1]);
+    path.lineTo(bstore[o + 3], bstore[o + 4]);
+  }
+  for (let key = 0; key < paths.length; key++) {
+    if (!paths[key]) continue;
+    const gen = (key / 45) | 0;
+    const px = gen === 0 ? 1.2 : gen < 4 ? 0.95 : 0.75;
+    vctx.lineWidth = px / z;
+    vctx.strokeStyle = "hsla(" + ((key % 45) * 8) + "," + pal.sat + "%," + Math.min(74, 54 + gen * 2.2) + "%,0.9)";
+    vctx.stroke(paths[key]);
   }
 }
 function bloomVecDraw() {
   const pal = PALETTES[palIdx];
-  const g = vctx.createRadialGradient(START_X, 0, 0, START_X, 0, 26);
-  g.addColorStop(0, "hsla(" + pal.hues[0] + "," + pal.sat + "%,82%,1)");
-  g.addColorStop(1, "hsla(0,0%,0%,0)");
-  vctx.fillStyle = g;
-  vctx.fillRect(START_X - 26, -26, 52, 52);
+  const z = Math.max(1e-6, cam.z * usr.z);
+  vctx.fillStyle = "hsla(" + pal.hues[0] + "," + pal.sat + "%,78%,0.95)";
+  vctx.beginPath();
+  vctx.arc(START_X, 0, 1.6 / z, 0, TAU);
+  vctx.fill();
   bloomRestroke();
 }
 function bloomNew() {
@@ -347,18 +357,24 @@ function bloomNew() {
   if (b3d.on) b3dFit();
 }
 function bloomGrow(px, py) {
+  if (bsegN >= BSEG_CAP) return;
   taps++;
   const kids = [];
   const pal = PALETTES[palIdx];
   vEnsure();
   vApplyCam(vctx);
+  vctx.lineCap = "butt";
+  vctx.lineJoin = "bevel";
+  const zc = Math.max(1e-6, cam.z * usr.z);
   let aliveCount = 0;
   for (const tu of turtles) if (tu.alive) aliveCount++;
   for (const tu of turtles) {
     if (!tu.alive) continue;
     const steps = tu.gen < 3 ? 26 : tu.gen < 6 ? 14 : 7;
     const len = P0.stepLen * Math.pow(P0.lenDecay, tu.gen);
+    const pxw = tu.gen === 0 ? 1.2 : tu.gen < 4 ? 0.95 : 0.75;
     for (let s = 0; s < steps; s++) {
+      if (bsegN >= BSEG_CAP) { tu.alive = false; break; }
       tu.a += P0.baseTurn * (0.5 + rng())
             + P0.waveAmp * 0.35 * Math.sin(tu.t * P0.waveFreq + tu.phase)
             + (rng() - 0.5) * P0.jitter;
@@ -368,12 +384,12 @@ function bloomGrow(px, py) {
       tu.p += P0.pitchAmp * 0.3 * Math.sin(tu.t * P0.pitchFreq + tu.pphase) + (zrng() - 0.5) * P0.pitchJitter;
       tu.p = Math.max(-1.2, Math.min(1.2, tu.p));
       const nz = tu.z + (Math.sin(tu.p) + P0.lift * 0.15) * len;
-      const w = Math.max(0.5, 5.2 * Math.pow(0.78, tu.gen) + 0.5);
+      const w = pxw;
       const hue = (pal.hues[tu.gen % pal.hues.length] + tu.t * 0.12 + tu.gen * 17) % 360;
       if (!b3d.on) {
         vctx.strokeStyle = "hsla(" + hue.toFixed(1) + "," + pal.sat + "%," +
-          Math.min(74, 54 + tu.gen * 2.2).toFixed(1) + "%,0.85)";
-        vctx.lineWidth = w;
+          Math.min(74, 54 + tu.gen * 2.2).toFixed(1) + "%,0.9)";
+        vctx.lineWidth = pxw / zc;
         vctx.beginPath();
         vctx.moveTo(tu.x, tu.y);
         vctx.lineTo(nx, ny);
@@ -499,7 +515,7 @@ function b3dRender(full) {
       const gen = bstore[o + 7] | 0, t = bstore[o + 8];
       const hue = (pal.hues[gen % pal.hues.length] + t * 0.12 + gen * 17) % 360;
       const hq = Math.round((((hue % 360) + 360) % 360) / 6);
-      const lw = Math.max(0.5, bstore[o + 6] * 0.5 * (s1 + s2));
+      const lw = gen === 0 ? 1.2 : 0.85;
       const wqi = Math.max(1, Math.round(lw));
       lwA[i] = wqi;
       st[i] = (gen & 15) | (hq << 4) | (wqi << 12);
@@ -1083,7 +1099,7 @@ function goldenRender(n) {
 
 /* ==================== MODES ==================== */
 let treeSeed = 0, treeP = null, rootP = null, rootN = 0;
-const ROOT_MAX = 10;
+const ROOT_MAX = 14;
 function rootFull(n) {
   // the root system: one taproot splitting 1 → 2 → 4 → 8, fanning down and out
   // with its own gnarlier botany — dimmer, earthier tones than the canopy
@@ -1104,26 +1120,26 @@ function rootFull(n) {
       branch(nx, ny, a + (s === 0 ? -spread : spread) + RP.asym + c, nl, nw, d + 1, i * 2 + s);
     }
   })(0, 548, Math.PI / 2, 200, 20, 0, 0);
-  vctx.lineCap = "round";
-  let w = 20;
+  vctx.lineCap = "butt";
+  vctx.lineJoin = "bevel";
+  const z = Math.max(1e-6, cam.z * usr.z);
   for (let d = 0; d < levels.length; d++) {
     const L = levels[d];
     if (!L) continue;
     const hue = (pal.hues[(d + 1) % pal.hues.length] + d * 31) % 360;
     vctx.strokeStyle = "hsla(" + hue.toFixed(1) + "," + pal.sat + "%," + Math.min(44, 26 + d * 2.4).toFixed(1) + "%,0.92)";
-    vctx.lineWidth = Math.max(0.5, w);
+    vctx.lineWidth = (d === 0 ? 1.25 : 0.85) / z;
     vctx.beginPath();
     for (let k = 0; k < L.length; k += 4) { vctx.moveTo(L[k], L[k + 1]); vctx.lineTo(L[k + 2], L[k + 3]); }
     vctx.stroke();
     const T = tips[d];
-    if (T && T.length) {
-      const br = Math.max(0.9, w * 0.7);
+    if (T && T.length && T.length <= 4000) {
+      const br = 1.1 / z;
       vctx.fillStyle = "hsla(" + hue.toFixed(1) + "," + pal.sat + "%,52%,0.85)";
       vctx.beginPath();
       for (let k = 0; k < T.length; k += 2) { vctx.moveTo(T[k] + br, T[k + 1]); vctx.arc(T[k], T[k + 1], br, 0, TAU); }
       vctx.fill();
     }
-    w *= RP.wRatio;
   }
   return rtips;
 }
@@ -1149,26 +1165,26 @@ function treeFull(n) {
       branch(nx, ny, a + (s === 0 ? -spread : spread) + TP.asym + c, nl, nw, d + 1, ci);
     }
   })(0, 540, -Math.PI / 2, 440, 26, 0, 0);
-  vctx.lineCap = "round";
-  let w = 26;
+  vctx.lineCap = "butt";
+  vctx.lineJoin = "bevel";
+  const z = Math.max(1e-6, cam.z * usr.z);
   for (let d = 0; d < levels.length; d++) {
     const L = levels[d];
     if (!L) continue;
     const hue = (pal.hues[d % pal.hues.length] + d * 22) % 360;
     vctx.strokeStyle = "hsla(" + hue.toFixed(1) + "," + pal.sat + "%," + Math.min(70, 40 + d * 3.2).toFixed(1) + "%,0.95)";
-    vctx.lineWidth = Math.max(0.5, w);
+    vctx.lineWidth = (d === 0 ? 1.35 : d < 4 ? 1.0 : 0.75) / z;
     vctx.beginPath();
     for (let k = 0; k < L.length; k += 4) { vctx.moveTo(L[k], L[k + 1]); vctx.lineTo(L[k + 2], L[k + 3]); }
     vctx.stroke();
     const B = buds[d];
-    if (B && B.length) {
-      const br = Math.max(1.2, w * 0.85);
+    if (B && B.length && B.length <= 4000) {
+      const br = 1.15 / z;
       vctx.fillStyle = "hsla(" + pal.hues[(d + 1) % pal.hues.length] + "," + pal.sat + "%,72%,0.9)";
       vctx.beginPath();
       for (let k = 0; k < B.length; k += 2) { vctx.moveTo(B[k] + br, B[k + 1]); vctx.arc(B[k], B[k + 1], br, 0, TAU); }
       vctx.fill();
     }
-    w *= TP.wRatio;
   }
   return tips;
 }
@@ -1695,7 +1711,7 @@ MODES.menger = Object.assign(vectorMode("Menger", "tap to carve deeper · 1-fing
   },
   onPalette() { if (m3d.on) m3dNeed = true; else vNeedCrisp = true; }
 });
-MODES.tree = Object.assign(vectorMode("Tree", "tap grows branches · ❖ grows roots", 18, treeFull,
+MODES.tree = Object.assign(vectorMode("Tree", "tap grows branches · ❖ grows roots", 19, treeFull,
   n => "FRACTAL TREE · gen " + n + " · roots " + rootN + " · " + PALETTES[palIdx].name), {
   enter() {
     // every tree rolls its own botany: angle, taper, asymmetry, curl
