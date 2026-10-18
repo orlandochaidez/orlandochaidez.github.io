@@ -794,28 +794,37 @@ function sierpinskiTri(n) {
   return Math.pow(3, n);
 }
 function cantorRender(n) {
+  // rows of Cantor dust: row k holds 2^k segments, each a third of its parent.
+  // Lines get skinnier every row down, so it can keep going and going —
+  // sub-pixel clusters collapse to one dash and off-screen rows are skipped,
+  // so deep rows stay cheap until you zoom in.
   vReset();
   const pal = PALETTES[palIdx];
   const W0 = 1500, rowH = 92, y0 = -rowH * n / 2;
   vctx.lineCap = "round";
-  function row(x, w, k) {
-    if (k === 0) {
-      const y = y0 + 0 * rowH;
-      return [[x, x + w, y]];
+  const K = Math.max(1e-9, cam.z * usr.z);
+  const vx0 = cam.x - (vw / 2 + Math.abs(usr.ox)) / K * 1.1;
+  const vx1 = cam.x + (vw / 2 + Math.abs(usr.ox)) / K * 1.1;
+  const vy0 = cam.y - (vh / 2 + Math.abs(usr.oy)) / K * 1.1;
+  const vy1 = cam.y + (vh / 2 + Math.abs(usr.oy)) / K * 1.1;
+  function dust(x, w, k, y) {
+    if (x + w < vx0 || x > vx1) return; // off-screen — skip the whole cluster
+    if (k === 0 || w * K < 0.5) { // sub-pixel cluster reads the same as one dash
+      vctx.moveTo(x, y); vctx.lineTo(x + w, y);
+      return;
     }
-    return row(x, w / 3, k - 1).concat(row(x + 2 * w / 3, w / 3, k - 1));
+    const w3 = w / 3;
+    dust(x, w3, k - 1, y);
+    dust(x + 2 * w3, w3, k - 1, y);
   }
   for (let k = 0; k <= n; k++) {
-    const segs = row(-W0 / 2, W0, k);
     const y = y0 + k * rowH;
+    vTouch(-W0 / 2, y); vTouch(W0 / 2, y);
+    if (y < vy0 || y > vy1) continue; // row off-screen vertically
     vctx.strokeStyle = "hsla(" + ((pal.hues[k % pal.hues.length] + k * 14) % 360) + "," + pal.sat + "%,62%,0.95)";
-    vctx.lineWidth = Math.max(2, rowH * 0.52);
+    vctx.lineWidth = Math.max(0.75, rowH * 0.52 * Math.pow(0.8, k)); // skinnier every row down
     vctx.beginPath();
-    for (const s of segs) {
-      vTouch(s[0], y); vTouch(s[1], y);
-      vctx.moveTo(s[0], y);
-      vctx.lineTo(s[1], y);
-    }
+    dust(-W0 / 2, W0, k, y);
     vctx.stroke();
   }
 }
@@ -1166,8 +1175,8 @@ MODES.snowflake = vectorMode("Snowflake", "tap to fold it deeper", 7, kochRender
   n => "KOCH SNOWFLAKE · iteration " + n + " · " + PALETTES[palIdx].name);
 MODES.dragon = vectorMode("Dragon", "tap to fold it deeper", 18, dragonRender,
   n => "DRAGON CURVE · iteration " + (n + 1) + " · " + (2 << n).toLocaleString("en-US") + " lines · " + PALETTES[palIdx].name);
-MODES.cantor = vectorMode("Cantor", "tap to divide it", 11, cantorRender,
-  n => "CANTOR SET · row " + n + " · " + PALETTES[palIdx].name);
+MODES.cantor = vectorMode("Cantor", "tap to divide it", 22, cantorRender,
+  n => "CANTOR SET · row " + n + " · " + Math.pow(2, n).toLocaleString("en-US") + " segments · " + PALETTES[palIdx].name);
 MODES.menger = vectorMode("Menger", "tap to carve it deeper", 3, mengerRender,
   n => "MENGER SPONGE · level " + n + " · " + PALETTES[palIdx].name);
 MODES.tree = Object.assign(vectorMode("Tree", "tap grows branches · ❖ grows roots", 18, treeFull,
