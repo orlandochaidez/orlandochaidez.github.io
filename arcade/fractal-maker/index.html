@@ -871,7 +871,9 @@ function cantorRender(n) {
     vctx.stroke();
   }
 }
+const mengerCache = [];
 function mengerCubes(level) {
+  if (mengerCache[level]) return mengerCache[level];
   let cubes = [{ x: 0, y: 0, z: 0 }];
   for (let l = 0; l < level; l++) {
     const out = [];
@@ -883,97 +885,142 @@ function mengerCubes(level) {
     }
     cubes = out;
   }
+  mengerCache[level] = cubes;
   return cubes;
 }
 
-/* ================= MENGER 3D (orbit + pan camera, true projected cubes) ================= */
-let m3d = { on: false, yaw: 0.65, pitch: 0.42, dist: 1800, tx: 0, ty: 0, tz: 0, k: 1, lock: false };
-let m3dNeed = true;
-function m3dProject(x, y, z) {
-  let x1 = x - m3d.tx, y1 = -(y - m3d.ty), z1 = z - m3d.tz;
-  const cy = Math.cos(m3d.yaw), sy = Math.sin(m3d.yaw);
-  const x2 = x1 * cy + z1 * sy;
-  let z2 = -x1 * sy + z1 * cy;
-  const cp = Math.cos(m3d.pitch), sp = Math.sin(m3d.pitch);
-  const y2 = y1 * cp - z2 * sp;
-  z2 = y1 * sp + z2 * cp;
-  if (m3d.dist - z2 < 2) return null;
-  const s = m3d.dist / Math.max(2, m3d.dist - z2);
-  return { x: vw / 2 + x2 * s * m3d.k, y: vh / 2 - y2 * s * m3d.k, s, d: z2 };
-}
+/* ================= MENGER 3D ================= */
+// outward faces, CCW after the camera's y-flip, so nz > 0 faces the lens
+const MFACE = [
+  [0, 1, 2, 3],
+  [4, 7, 6, 5],
+  [0, 4, 5, 1],
+  [2, 6, 7, 3],
+  [0, 3, 7, 4],
+  [1, 5, 6, 2]
+];
+const MOFF = [
+  [-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1],
+  [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]
+];
+let m3d = { on: false, yaw: 0.65, pitch: 0.42, dist: 1800, tx: 0, ty: 0, tz: 0, k: 0.2, baseK: 0.2, lock: false };
+let m3dNeed = true, m3dLive = false, m3dSettle = null;
 function m3dFit() {
   m3d.tx = 0; m3d.ty = 0; m3d.tz = 0;
-  const R = 850;
-  const half = Math.min(vw, vh) * 0.36;
-  m3d.k = half / R;
-  m3d.dist = clamp(R / (Math.tan(24 * Math.PI / 180) * 0.75), 280, 12000);
+  const R = 640;
+  const half = Math.min(vw, vh) * 0.40;
+  m3d.baseK = half / R;
+  m3d.k = m3d.baseK;
+  m3d.dist = R / Math.tan(20 * Math.PI / 180);
   m3d.lock = false;
+  m3dLive = false;
   m3dNeed = true;
 }
-function m3dMotion() {
+function m3dTouch() {
+  m3dLive = true;
   m3dNeed = true;
+  m3d.lock = true;
+  clearTimeout(m3dSettle);
+  m3dSettle = setTimeout(function () { m3dLive = false; m3dNeed = true; }, 140);
 }
-
+function m3dScale(f) {
+  const base = m3d.baseK || m3d.k || 0.2;
+  m3d.k = clamp(m3d.k * f, base * 0.35, base * 16);
+  m3dTouch();
+}
 function mengerRender3D(level) {
   const pal = PALETTES[palIdx];
-  const cubes = mengerCubes(level);
-  const grid = Math.pow(3, level);
-  const scale = 1200 / grid; // size of each small cube in world units
+  const drawLevel = (m3dLive && level > 2) ? 2 : level;
+  const cubes = mengerCubes(drawLevel);
+  const grid = Math.pow(3, drawLevel);
+  const scale = 1200 / grid;
   const off = (grid - 1) / 2;
-  const hue = pal.hues[0];
-
-  // collect projected faces for painter's sort
-  const faces = [];
-  for (const c of cubes) {
-    const cx = (c.x - off) * scale;
-    const cy = (c.y - off) * scale;
-    const cz = (c.z - off) * scale;
-    const h = scale * 0.48;
-    // 6 faces of the cube (center + half-size)
-    const verts = [
-      // front, back, left, right, top, bottom — we'll project corners
-    ];
-    // define the 8 corners relative — project all of them
-    const corners = [
-      [-h, -h, -h], [h, -h, -h], [h, h, -h], [-h, h, -h],
-      [-h, -h,  h], [h, -h,  h], [h, h,  h], [-h, h,  h]
-    ].map(([dx, dy, dz]) => m3dProject(cx + dx, cy + dy, cz + dz));
-    if (corners.some(p => !p)) continue;
-
-    // faces: [indices, shade]
-    const faceDefs = [
-      [[0,1,2,3], 0.75], // back-ish
-      [[4,5,6,7], 1.0],
-      [[0,1,5,4], 0.55],
-      [[2,3,7,6], 0.85],
-      [[0,3,7,4], 0.65],
-      [[1,2,6,5], 0.95]
-    ];
-    for (const [idx, shade] of faceDefs) {
-      const pts = idx.map(i => corners[i]);
-      if (pts.some(p => !p)) continue;
-      const avgD = pts.reduce((s, p) => s + p.d, 0) / 4;
-      faces.push({ pts, shade, avgD, hue });
+  const h = scale * 0.485;
+  const yawC = Math.cos(m3d.yaw), yawS = Math.sin(m3d.yaw);
+  const pitC = Math.cos(m3d.pitch), pitS = Math.sin(m3d.pitch);
+  const dist = m3d.dist, k = m3d.k, tx = m3d.tx, ty = m3d.ty, tz = m3d.tz;
+  const camP = new Float32Array(24);
+  const scr = [0, 0, 0, 0, 0, 0, 0, 0];
+  const BUCKETS = 28, LIGHTS = 6;
+  const paths = new Array(BUCKETS * LIGHTS);
+  let zMin = 1e9, zMax = -1e9, faceN = 0;
+  const stride = 10;
+  if (!mengerRender3D.buf || mengerRender3D.buf.length < cubes.length * 6 * stride) {
+    mengerRender3D.buf = new Float32Array(Math.max(64, cubes.length * 6 * stride));
+  }
+  const buf = mengerRender3D.buf;
+  for (let n = 0; n < cubes.length; n++) {
+    const c = cubes[n];
+    const cx = (c.x - off) * scale, cyw = (c.y - off) * scale, cz = (c.z - off) * scale;
+    for (let i = 0; i < 8; i++) {
+      const x1 = cx + MOFF[i][0] * h - tx;
+      const y1 = -(cyw + MOFF[i][1] * h - ty);
+      const z1 = cz + MOFF[i][2] * h - tz;
+      const x2 = x1 * yawC + z1 * yawS;
+      let z2 = -x1 * yawS + z1 * yawC;
+      const y2 = y1 * pitC - z2 * pitS;
+      z2 = y1 * pitS + z2 * pitC;
+      const o = i * 3;
+      camP[o] = x2; camP[o + 1] = y2; camP[o + 2] = z2;
+    }
+    for (let f = 0; f < 6; f++) {
+      const id = MFACE[f];
+      const a = id[0] * 3, b = id[1] * 3, c3 = id[2] * 3;
+      const ax = camP[b] - camP[a], ay = camP[b + 1] - camP[a + 1], az = camP[b + 2] - camP[a + 2];
+      const bx = camP[c3] - camP[b], by = camP[c3 + 1] - camP[b + 1], bz = camP[c3 + 2] - camP[b + 2];
+      const nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx;
+      if (nz <= 0) continue;
+      let ok = true, zSum = 0;
+      for (let p = 0; p < 4; p++) {
+        const q = id[p] * 3;
+        const z2 = camP[q + 2];
+        if (dist - z2 < 6) { ok = false; break; }
+        const s = dist / (dist - z2);
+        scr[p * 2] = vw / 2 + camP[q] * s * k;
+        scr[p * 2 + 1] = vh / 2 - camP[q + 1] * s * k;
+        zSum += z2;
+      }
+      if (!ok) continue;
+      const mag = Math.hypot(nx, ny, nz) || 1;
+      const lambert = Math.max(0, (nx * 0.22 + ny * 0.78 + nz * 0.58) / mag);
+      const shade = Math.min(LIGHTS - 1, (lambert * LIGHTS) | 0);
+      const zAvg = zSum * 0.25;
+      if (zAvg < zMin) zMin = zAvg;
+      if (zAvg > zMax) zMax = zAvg;
+      const w = faceN * stride;
+      buf[w] = scr[0]; buf[w + 1] = scr[1]; buf[w + 2] = scr[2]; buf[w + 3] = scr[3];
+      buf[w + 4] = scr[4]; buf[w + 5] = scr[5]; buf[w + 6] = scr[6]; buf[w + 7] = scr[7];
+      buf[w + 8] = zAvg; buf[w + 9] = shade;
+      faceN++;
     }
   }
-
-  // painter's algorithm: far to near
-  faces.sort((a, b) => b.avgD - a.avgD);
-
+  const span = Math.max(1e-3, zMax - zMin);
+  for (let i = 0; i < faceN; i++) {
+    const w = i * stride;
+    const bucket = Math.min(BUCKETS - 1, Math.max(0, ((buf[w + 8] - zMin) / span * (BUCKETS - 1)) | 0));
+    const key = bucket * LIGHTS + (buf[w + 9] | 0);
+    let path = paths[key];
+    if (!path) path = paths[key] = new Path2D();
+    path.moveTo(buf[w], buf[w + 1]);
+    path.lineTo(buf[w + 2], buf[w + 3]);
+    path.lineTo(buf[w + 4], buf[w + 5]);
+    path.lineTo(buf[w + 6], buf[w + 7]);
+    path.closePath();
+  }
   vctx.setTransform(1, 0, 0, 1, 0, 0);
   vctx.clearRect(0, 0, vlc.width, vlc.height);
   vctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  vctx.lineJoin = "round";
-  for (const f of faces) {
-    const light = 40 + f.shade * 40;
-    vctx.fillStyle = "hsla(" + hue + "," + pal.sat + "%," + light.toFixed(0) + "%,1)";
-    vctx.beginPath();
-    f.pts.forEach((p, i) => { if (i === 0) vctx.moveTo(p.x, p.y); else vctx.lineTo(p.x, p.y); });
-    vctx.closePath();
-    vctx.fill();
-    vctx.strokeStyle = "hsla(" + hue + "," + (pal.sat * 0.6) + "%,20%,0.4)";
-    vctx.lineWidth = 0.6;
-    vctx.stroke();
+  vctx.lineJoin = "miter";
+  vctx.lineWidth = 0.6;
+  const hue = pal.hues[0];
+  for (let b = 0; b < BUCKETS; b++) {
+    for (let s = 0; s < LIGHTS; s++) {
+      const path = paths[b * LIGHTS + s];
+      if (!path) continue;
+      const light = 26 + s * 9;
+      vctx.fillStyle = "hsla(" + hue + "," + pal.sat + "%," + light + "%,1)";
+      vctx.fill(path);
+    }
   }
   return cubes.length;
 }
@@ -1865,6 +1912,10 @@ function resize() {
     if (!b3d.lock) b3dFit();
     else b3dNeed = true;
   }
+  if (cur === "menger" && m3d.on) {
+    if (!m3d.lock) m3dFit();
+    else m3dNeed = true;
+  }
 }
 window.addEventListener("resize", resize);
 
@@ -1902,7 +1953,7 @@ function startPinch() {
     d0: Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 1,
     m0x: (p[0].x + p[1].x) / 2, m0y: (p[0].y + p[1].y) / 2,
     v0: null, u0: { z: usr.z, ox: usr.ox, oy: usr.oy }, nV: null,
-    d3: b3d.dist, m3dDist: m3d.dist, m3dTx: m3d.tx, m3dTy: m3d.ty
+    d3: b3d.dist, m3dK: m3d.k, m3dTx: m3d.tx, m3dTy: m3d.ty
   };
   const M = MODES[cur];
   if (M.isEscape) pinchSt.v0 = escViewOf(M);
@@ -1921,14 +1972,13 @@ function movePinch() {
     return;
   }
   if (cur === "menger" && m3d.on) {
-    // 2-finger: pinch changes distance (zoom), simultaneous translation pans the camera
-    const zoomF = Math.max(0.4, Math.min(2.5, f));
-    m3d.dist = clamp(pinchSt.m3dDist / zoomF, 180, 14000);
-    const panScale = m3d.dist * 0.0018;
-    m3d.tx = pinchSt.m3dTx + (m1x - pinchSt.m0x) * panScale;
-    m3d.ty = pinchSt.m3dTy - (m1y - pinchSt.m0y) * panScale;
-    m3d.lock = true;
-    m3dNeed = true;
+    const zoomF = Math.max(0.25, Math.min(4, f));
+    const base = m3d.baseK || pinchSt.m3dK || 0.2;
+    m3d.k = clamp(pinchSt.m3dK * zoomF, base * 0.35, base * 16);
+    const inv = 1 / Math.max(1e-4, m3d.k);
+    m3d.tx = pinchSt.m3dTx - (m1x - pinchSt.m0x) * inv;
+    m3d.ty = pinchSt.m3dTy - (m1y - pinchSt.m0y) * inv;
+    m3dTouch();
     return;
   }
   if (M.isEscape) {
@@ -1953,10 +2003,9 @@ function movePan(x, y) {
     return;
   }
   if (cur === "menger" && m3d.on) {
-    m3d.yaw += (x - downInfo.lx) * 0.012;
-    m3d.pitch = clamp(m3d.pitch + (y - downInfo.ly) * 0.010, -1.35, 1.35);
-    m3d.lock = true;
-    m3dNeed = true;
+    m3d.yaw += (x - downInfo.lx) * 0.0075;
+    m3d.pitch = clamp(m3d.pitch + (y - downInfo.ly) * 0.0065, -1.2, 1.2);
+    m3dTouch();
     return;
   }
   const M = MODES[cur];
@@ -2033,12 +2082,7 @@ stage.addEventListener("wheel", function (e) {
     b3dMotion();
     return;
   }
-  if (cur === "menger" && m3d.on) {
-    m3d.dist = clamp(m3d.dist / f, 180, 14000);
-    m3d.lock = true;
-    m3dNeed = true;
-    return;
-  }
+  if (cur === "menger" && m3d.on) { m3dScale(f); return; }
   if (M.isEscape) {
     const V = { cx: M.cx, cy: M.cy, size: M.size };
     const z = cFromCss(e.clientX, e.clientY, V);
@@ -2125,10 +2169,10 @@ window.addEventListener("keydown", function (e) {
   else if (cur === "bloom" && b3d.on && e.key === "ArrowRight") { e.preventDefault(); b3d.yaw += 0.08; b3d.lock = true; b3dMotion(); }
   else if (cur === "bloom" && b3d.on && e.key === "ArrowUp") { e.preventDefault(); b3d.pitch = clamp(b3d.pitch - 0.06, -1.4, 1.4); b3d.lock = true; b3dMotion(); }
   else if (cur === "bloom" && b3d.on && e.key === "ArrowDown") { e.preventDefault(); b3d.pitch = clamp(b3d.pitch + 0.06, -1.4, 1.4); b3d.lock = true; b3dMotion(); }
-  else if (cur === "menger" && m3d.on && e.key === "ArrowLeft") { e.preventDefault(); m3d.yaw -= 0.08; m3d.lock = true; m3dNeed = true; }
-  else if (cur === "menger" && m3d.on && e.key === "ArrowRight") { e.preventDefault(); m3d.yaw += 0.08; m3d.lock = true; m3dNeed = true; }
-  else if (cur === "menger" && m3d.on && e.key === "ArrowUp") { e.preventDefault(); m3d.pitch = clamp(m3d.pitch - 0.06, -1.3, 1.3); m3d.lock = true; m3dNeed = true; }
-  else if (cur === "menger" && m3d.on && e.key === "ArrowDown") { e.preventDefault(); m3d.pitch = clamp(m3d.pitch + 0.06, -1.3, 1.3); m3d.lock = true; m3dNeed = true; }
+  else if (cur === "menger" && m3d.on && e.key === "ArrowLeft") { e.preventDefault(); m3d.yaw -= 0.06; m3dTouch(); }
+  else if (cur === "menger" && m3d.on && e.key === "ArrowRight") { e.preventDefault(); m3d.yaw += 0.06; m3dTouch(); }
+  else if (cur === "menger" && m3d.on && e.key === "ArrowUp") { e.preventDefault(); m3d.pitch = clamp(m3d.pitch - 0.05, -1.2, 1.2); m3dTouch(); }
+  else if (cur === "menger" && m3d.on && e.key === "ArrowDown") { e.preventDefault(); m3d.pitch = clamp(m3d.pitch + 0.05, -1.2, 1.2); m3dTouch(); }
   else if (e.key >= "1" && e.key <= "9") setMode(ORDER[+e.key - 1]);
 });
 
@@ -2140,12 +2184,7 @@ function keyZoom(f) {
     b3dMotion();
     return;
   }
-  if (cur === "menger" && m3d.on) {
-    m3d.dist = clamp(m3d.dist / f, 180, 14000);
-    m3d.lock = true;
-    m3dNeed = true;
-    return;
-  }
+  if (cur === "menger" && m3d.on) { m3dScale(f); return; }
   const M = MODES[cur], mx = vw / 2, my = vh / 2;
   if (M.isEscape) {
     const V = { cx: M.cx, cy: M.cy, size: M.size };
