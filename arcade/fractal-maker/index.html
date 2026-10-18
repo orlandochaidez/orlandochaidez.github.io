@@ -757,32 +757,30 @@ function dragonRender(n) {
   return segs;
 }
 function sierpinskiTri(n) {
-  // the classic: one solid triangle; every tap splits each triangle into
-  // 3 half-size ones at its corners (1 → 3 → 9 → 27…), middle stays hollow
+  // the classic: every tap splits each triangle into 3 half-size ones at its
+  // corners (1 → 3 → 9 → 27…), middle stays hollow. Recursion prunes
+  // sub-pixel triangles, so deep iterations stay cheap until you zoom in.
   vReset();
   const pal = PALETTES[palIdx];
-  let tris = [[-720, 470, 720, 470, 0, -770]];
-  for (let i = 0; i < n; i++) {
-    const out = [];
-    for (const t of tris) {
-      const mx12 = (t[0] + t[2]) / 2, my12 = (t[1] + t[3]) / 2;
-      const mx23 = (t[2] + t[4]) / 2, my23 = (t[3] + t[5]) / 2;
-      const mx31 = (t[4] + t[0]) / 2, my31 = (t[5] + t[1]) / 2;
-      out.push([t[0], t[1], mx12, my12, mx31, my31],
-               [mx12, my12, t[2], t[3], mx23, my23],
-               [mx31, my31, mx23, my23, t[4], t[5]]);
-    }
-    tris = out;
-  }
   vTouch(-720, 470); vTouch(720, 470); vTouch(0, -770);
   const hue = (pal.hues[0] + n * 36) % 360;
   vctx.fillStyle = "hsla(" + hue + "," + pal.sat + "%,60%,0.95)";
+  const px = 0.5 / Math.max(1e-9, cam.z * usr.z); // world-units per half a screen pixel at this zoom
   vctx.beginPath();
-  for (const t of tris) {
-    vctx.moveTo(t[0], t[1]); vctx.lineTo(t[2], t[3]); vctx.lineTo(t[4], t[5]); vctx.closePath();
-  }
+  (function sub(x1, y1, x2, y2, x3, y3, d) {
+    if (d >= n || Math.abs(x2 - x1) < px) {
+      vctx.moveTo(x1, y1); vctx.lineTo(x2, y2); vctx.lineTo(x3, y3); vctx.closePath();
+      return;
+    }
+    const mx12 = (x1 + x2) / 2, my12 = (y1 + y2) / 2;
+    const mx23 = (x2 + x3) / 2, my23 = (y2 + y3) / 2;
+    const mx31 = (x3 + x1) / 2, my31 = (y3 + y1) / 2;
+    sub(x1, y1, mx12, my12, mx31, my31, d + 1);
+    sub(mx12, my12, x2, y2, mx23, my23, d + 1);
+    sub(mx31, my31, mx23, my23, x3, y3, d + 1);
+  })(-720, 470, 720, 470, 0, -770, 0);
   vctx.fill();
-  return tris.length;
+  return Math.pow(3, n);
 }
 function cantorRender(n) {
   vReset();
@@ -1204,8 +1202,10 @@ MODES.star = {
   draw() { vectorFrame(); },
   stats() { return "STAR · " + (this.S0 + 6 * this.n) + " lines · " + PALETTES[palIdx].name; }
 };
-MODES.sierpinski = vectorMode("Sierpinski", "tap to split it deeper", 12, sierpinskiTri,
-  n => "SIERPINSKI · iteration " + n + " · " + Math.pow(3, n).toLocaleString("en-US") + " triangles · " + PALETTES[palIdx].name);
+MODES.sierpinski = Object.assign(vectorMode("Sierpinski", "tap to split it deeper", 14, sierpinskiTri,
+  n => "SIERPINSKI · iteration " + n + " · " + Math.pow(3, n).toLocaleString("en-US") + " triangles · " + PALETTES[palIdx].name), {
+  enter() { this.n = 2; introBias = 0; camLock = false; cam = { x: 0, y: 0, z: maxZ }; vNeedCrisp = true; } // opens already split — no solid-triangle start
+});
 
 /* ==================== UI ==================== */
 function setMode(id) {
