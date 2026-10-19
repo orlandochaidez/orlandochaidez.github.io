@@ -1981,10 +1981,13 @@ function humanRender(n) {
   function person(x, y, s, d, dirs) {
     figure(d, x, y, s);
     if (d >= maxD) return;
-    const ns = s * 0.82, L = s * 2.1;
+    // the first few spawns get extra room so later generations have space
+    const early = d < 2;
+    const ns = s * 0.82, L = s * (early ? 2.9 : 2.1);
     const sg = segsFor(d);
     for (const a of dirs) {
-      const cx = x + Math.sin(a) * L, cy = y + Math.cos(a) * L;
+      const aa = a * (early ? 1.3 : 1.0);
+      const cx = x + Math.sin(aa) * L, cy = y + Math.cos(aa) * L;
       sg.push(x, y + s, cx, cy); // attached: parent's feet to child's head
       person(cx, cy, ns, d + 1, [-0.6, 0.6]);
     }
@@ -2129,7 +2132,7 @@ MODES.vine = Object.assign(vectorMode("Vine", "tap or hold to grow the vine", 80
     if (this.n < this.maxN) { this.n++; vNeedCrisp = true; introBias = Math.max(0, introBias - 0.2); }
   }
 });
-MODES.humans = vectorMode("Humans", "tap to grow more generations", 12, humanRender,
+MODES.humans = vectorMode("Humans", "tap to grow more generations", 14, humanRender,
   n => "HUMANS · gen " + n + " · " + humanCount.toLocaleString("en-US") + " figures · " + PALETTES[palIdx].name);
 
 /* ==================== UI ==================== */
