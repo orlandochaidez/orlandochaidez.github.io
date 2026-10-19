@@ -85,6 +85,7 @@
    GOLDEN     Seedline golden spiral: one mark, tap/hold packs new seeds on the golden angle
    FERN       Seedline fern: one mark, tap/hold grows curling fronds with new heads
    VINE       Seedline spiral vine: one mark, tap/hold curls a vine with side tendrils
+   HUMANS     a pair of stick figures; each births two below it, tap grows generations
    VECTOR MODES (Bloom, Tree, Snowflake, Dragon, Sierpinski, Menger)
    draw geometry in WORLD coords straight to a device-pixel cache canvas,
    so lines stay razor sharp at ANY zoom — there is no bitmap to magnify.
@@ -1779,7 +1780,7 @@ function vineRender(n) {
 
 const MODES = {};
 let cur = "fern";
-const ORDER = ["fern", "star", "vine", "sierpinski", "bloom", "tree", "menger", "mandelbrot", "julia", "dragon", "snowflake"];
+const ORDER = ["fern", "star", "vine", "sierpinski", "bloom", "tree", "menger", "mandelbrot", "julia", "dragon", "snowflake", "humans"];
 
 MODES.bloom = {
   name: "Bloom", hint: "tap · click · hold to grow · pinch to zoom · drag to pan",
@@ -1945,6 +1946,68 @@ function vectorMode(name, hint, maxN, render, fmtStats) {
     stats() { return fmtStats(this.n); }
   };
 }
+/* ==================== HUMANS (self-replicating stick figures) ==================== */
+let humanCount = 0;
+function humanRender(n) {
+  // A pair of stick figures; the pair births one child down-left and one
+  // down-right (attached to the pair), then every figure births two below
+  // it — a binary family tree of little people. Tap grows more generations.
+  vReset();
+  const pal = PALETTES[palIdx];
+  const z = Math.max(1e-6, cam.z * usr.z);
+  const maxD = n;
+  const genSegs = []; // per-generation flat segment arrays
+  humanCount = 0;
+  function segsFor(g) {
+    if (!genSegs[g]) genSegs[g] = [];
+    return genSegs[g];
+  }
+  function figure(g, x, y, s) { // upright stick figure, (x,y) = top, s = head-to-toe
+    const sg = segsFor(g);
+    const hr = s * 0.10;
+    for (let i = 0; i < 8; i++) { // head
+      const a1 = i * Math.PI / 4, a2 = (i + 1) * Math.PI / 4;
+      sg.push(x + Math.cos(a1) * hr, y + hr + Math.sin(a1) * hr,
+              x + Math.cos(a2) * hr, y + hr + Math.sin(a2) * hr);
+    }
+    sg.push(x, y + 2 * hr, x, y + s * 0.62, // body
+            x, y + s * 0.34, x - s * 0.24, y + s * 0.50, // arm L
+            x, y + s * 0.34, x + s * 0.24, y + s * 0.50, // arm R
+            x, y + s * 0.62, x - s * 0.20, y + s, // leg L
+            x, y + s * 0.62, x + s * 0.20, y + s); // leg R
+    vTouch(x - s * 0.3, y); vTouch(x + s * 0.3, y + s);
+    humanCount++;
+  }
+  function person(x, y, s, d, dirs) {
+    figure(d, x, y, s);
+    if (d >= maxD) return;
+    const ns = s * 0.82, L = s * 2.1;
+    const sg = segsFor(d);
+    for (const a of dirs) {
+      const cx = x + Math.sin(a) * L, cy = y + Math.cos(a) * L;
+      sg.push(x, y + s, cx, cy); // attached: parent's feet to child's head
+      person(cx, cy, ns, d + 1, [-0.6, 0.6]);
+    }
+  }
+  const s0 = 110, gap = s0 * 0.55, y0 = -560;
+  person(-gap, y0, s0, 0, [-0.55]); // the pair
+  person(gap, y0, s0, 0, [0.55]);
+  vctx.lineCap = "round"; vctx.lineJoin = "round";
+  vctx.lineWidth = 1.3 / z; // stick-thin at any zoom
+  for (let g = 0; g <= maxD; g++) {
+    const sg = genSegs[g];
+    if (!sg || !sg.length) continue;
+    const hue = (pal.hues[g % pal.hues.length] + g * 28) % 360;
+    vctx.strokeStyle = "hsla(" + hue + "," + pal.sat + "%,66%,0.95)";
+    vctx.beginPath();
+    for (let i = 0; i < sg.length; i += 4) {
+      vctx.moveTo(sg[i], sg[i + 1]);
+      vctx.lineTo(sg[i + 2], sg[i + 3]);
+    }
+    vctx.stroke();
+  }
+  return humanCount;
+}
 MODES.snowflake = Object.assign(vectorMode("Wonky Snowflake", "tap for a new flake", 0, flakeRender,
   n => "WONKY SNOWFLAKE · #" + flakeSeed.toString(16).padStart(6, "0") + " · " + PALETTES[palIdx].name), {
   enter() {
@@ -2066,6 +2129,8 @@ MODES.vine = Object.assign(vectorMode("Vine", "tap or hold to grow the vine", 80
     if (this.n < this.maxN) { this.n++; vNeedCrisp = true; introBias = Math.max(0, introBias - 0.2); }
   }
 });
+MODES.humans = vectorMode("Humans", "tap to grow more generations", 12, humanRender,
+  n => "HUMANS · gen " + n + " · " + humanCount.toLocaleString("en-US") + " figures · " + PALETTES[palIdx].name);
 
 /* ==================== UI ==================== */
 function setMode(id) {
