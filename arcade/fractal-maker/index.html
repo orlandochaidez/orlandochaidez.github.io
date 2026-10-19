@@ -78,7 +78,7 @@
    BLOOM      the original: infinite tap-to-grow golden-angle garden
    MANDELBROT pinch or scroll to zoom, sharper as it settles, detail appears the deeper you go (reseeds past 1e12×)
    JULIA      same camera · tap dives · ✦ rolls a new constant
-   SNOWFLAKE  tap grows a brand new dendrite snowflake
+   WONKY SNOWFLAKE  tap grows a brand new dendrite snowflake
    DRAGON     tap to fold the dragon curve deeper
    SIERPINSKI tap to split the triangle deeper (1 → 3 → 9 → 27…)
    MENGER     tap to carve the Menger sponge deeper
@@ -1945,8 +1945,8 @@ function vectorMode(name, hint, maxN, render, fmtStats) {
     stats() { return fmtStats(this.n); }
   };
 }
-MODES.snowflake = Object.assign(vectorMode("Snowflake", "tap for a new flake", 0, flakeRender,
-  n => "SNOWFLAKE · #" + flakeSeed.toString(16).padStart(6, "0") + " · " + PALETTES[palIdx].name), {
+MODES.snowflake = Object.assign(vectorMode("Wonky Snowflake", "tap for a new flake", 0, flakeRender,
+  n => "WONKY SNOWFLAKE · #" + flakeSeed.toString(16).padStart(6, "0") + " · " + PALETTES[palIdx].name), {
   enter() {
     flakeRoll(); // every visit rolls a fresh unique flake
     this.n = 0; introBias = 0; camLock = false; cam = { x: 0, y: 0, z: maxZ }; vNeedCrisp = true;
