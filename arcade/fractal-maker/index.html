@@ -78,15 +78,14 @@
    BLOOM      the original: infinite tap-to-grow golden-angle garden
    MANDELBROT pinch or scroll to zoom, sharper as it settles, detail appears the deeper you go (reseeds past 1e12×)
    JULIA      same camera · tap dives · ✦ rolls a new constant
-   SNOWFLAKE  tap to fold the Koch snowflake deeper
+   SNOWFLAKE  tap grows a brand new dendrite snowflake
    DRAGON     tap to fold the dragon curve deeper
    SIERPINSKI tap to split the triangle deeper (1 → 3 → 9 → 27…)
-   CANTOR     tap to divide the Cantor set
    MENGER     tap to carve the Menger sponge deeper
    GOLDEN     Seedline golden spiral: one mark, tap/hold packs new seeds on the golden angle
    FERN       Seedline fern: one mark, tap/hold grows curling fronds with new heads
    VINE       Seedline spiral vine: one mark, tap/hold curls a vine with side tendrils
-   VECTOR MODES (Bloom, Tree, Snowflake, Dragon, Sierpinski, Cantor, Menger)
+   VECTOR MODES (Bloom, Tree, Snowflake, Dragon, Sierpinski, Menger)
    draw geometry in WORLD coords straight to a device-pixel cache canvas,
    so lines stay razor sharp at ANY zoom — there is no bitmap to magnify.
    While the camera moves, the cached bitmap is warped (one drawImage, 60fps);
@@ -1084,41 +1083,6 @@ function sierpinskiTri() {
   vctx.fill(path);
   return sierCount;
 }
-function cantorRender(n) {
-  // rows of Cantor dust: row k holds 2^k segments, each a third of its parent.
-  // Lines get skinnier every row down, so it can keep going and going —
-  // sub-pixel clusters collapse to one dash and off-screen rows are skipped,
-  // so deep rows stay cheap until you zoom in.
-  vReset();
-  const pal = PALETTES[palIdx];
-  const W0 = 1500, rowH = 92, y0 = -rowH * n / 2;
-  vctx.lineCap = "round";
-  const K = Math.max(1e-9, cam.z * usr.z);
-  const vx0 = cam.x - (vw / 2 + Math.abs(usr.ox)) / K * 1.1;
-  const vx1 = cam.x + (vw / 2 + Math.abs(usr.ox)) / K * 1.1;
-  const vy0 = cam.y - (vh / 2 + Math.abs(usr.oy)) / K * 1.1;
-  const vy1 = cam.y + (vh / 2 + Math.abs(usr.oy)) / K * 1.1;
-  function dust(x, w, k, y) {
-    if (x + w < vx0 || x > vx1) return; // off-screen — skip the whole cluster
-    if (k === 0 || w * K < 0.5) { // sub-pixel cluster reads the same as one dash
-      vctx.moveTo(x, y); vctx.lineTo(x + w, y);
-      return;
-    }
-    const w3 = w / 3;
-    dust(x, w3, k - 1, y);
-    dust(x + 2 * w3, w3, k - 1, y);
-  }
-  for (let k = 0; k <= n; k++) {
-    const y = y0 + k * rowH;
-    vTouch(-W0 / 2, y); vTouch(W0 / 2, y);
-    if (y < vy0 || y > vy1) continue; // row off-screen vertically
-    vctx.strokeStyle = "hsla(" + ((pal.hues[k % pal.hues.length] + k * 14) % 360) + "," + pal.sat + "%,62%,0.95)";
-    vctx.lineWidth = Math.max(0.75, rowH * 0.52 * Math.pow(0.8, k)); // skinnier every row down
-    vctx.beginPath();
-    dust(-W0 / 2, W0, k, y);
-    vctx.stroke();
-  }
-}
 const mengerCache = [];
 function mengerCubes(level) {
   if (mengerCache[level]) return mengerCache[level];
@@ -1814,8 +1778,8 @@ function vineRender(n) {
 }
 
 const MODES = {};
-let cur = "bloom";
-const ORDER = ["bloom", "tree", "star", "mandelbrot", "julia", "snowflake", "dragon", "sierpinski", "cantor", "menger", "fern", "vine"];
+let cur = "fern";
+const ORDER = ["fern", "star", "vine", "sierpinski", "bloom", "tree", "menger", "mandelbrot", "julia", "dragon", "snowflake"];
 
 MODES.bloom = {
   name: "Bloom", hint: "tap · click · hold to grow · pinch to zoom · drag to pan",
@@ -1994,8 +1958,6 @@ MODES.snowflake = Object.assign(vectorMode("Snowflake", "tap for a new flake", 0
 });
 MODES.dragon = vectorMode("Dragon", "tap to fold it deeper", 18, dragonRender,
   n => "DRAGON CURVE · iteration " + (n + 1) + " · " + (2 << n).toLocaleString("en-US") + " lines · " + PALETTES[palIdx].name);
-MODES.cantor = vectorMode("Cantor", "tap to divide it", 22, cantorRender,
-  n => "CANTOR SET · row " + n + " · " + Math.pow(2, n).toLocaleString("en-US") + " segments · " + PALETTES[palIdx].name);
 MODES.menger = Object.assign(vectorMode("Menger", "tap to carve deeper · 1-finger spin · 2-finger pan+zoom · ⬢ 3D", 3, mengerRender,
   n => "MENGER SPONGE · level " + n + (m3d.on ? " · 3D" : "") + " · " + PALETTES[palIdx].name), {
   draw() {
@@ -2495,7 +2457,7 @@ rng = mulberry32(seed);
 palIdx = 0;
 resize();
 buildModeBar();
-setMode("bloom");
+setMode("fern");
 requestAnimationFrame(frame);
 </script>
 </body>
