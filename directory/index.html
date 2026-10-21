@@ -34,7 +34,12 @@
     animation:blink 1.05s steps(1) infinite}
   @keyframes blink{50%{opacity:0}}
   .folder{cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;
-    padding:8px 10px;margin-left:-10px;border-radius:2px;outline:none}
+    padding:8px 10px;margin-left:-10px;border-radius:2px;outline:none;
+    animation:pulse 1.8s ease-in-out infinite}
+  @keyframes pulse{0%,100%{background:rgba(108,94,181,0)}50%{background:rgba(108,94,181,.32)}}
+  body.touched .folder{animation:none}
+  @media (prefers-reduced-motion:reduce){.folder{animation:none}}
+  .hint{font-size:.9em;opacity:.9}
   .folder:hover,.folder:focus{background:#6c5eb5;color:#352879}
   .toggle{margin-left:1ch}
   .indent{padding-left:3ch}
@@ -56,6 +61,7 @@
 <div class="center" id="sysdate">System date</div>
 <br>
 <div>Ready.</div>
+<div class="hint">&#9660; Tap a folder to open it &#9660;</div>
 <br>
 
 <div class="folder" id="f-arcade" role="button" tabindex="0" aria-expanded="false">
@@ -123,6 +129,7 @@
 
   function toggle(id, folderEl, ev){
     if(ev){ ev.stopPropagation(); }
+    document.body.classList.add('touched');
     var el = document.getElementById(id);
     var nowHidden = el.classList.toggle('hidden');
     document.getElementById('t-' + id).textContent = nowHidden ? '[+]' : '[\u2013]';
