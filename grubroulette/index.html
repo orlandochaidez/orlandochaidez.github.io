@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>GrubRoulette</title>
+<style>
+  :root{
+    color-scheme:dark;
+    --bg:#14100d; --card:#211a14; --card2:#2a211a; --ink:#f5ede3; --muted:#b8a88f;
+    --acc:#e4002b; --acc2:#ffc72c; --good:#4ade80; --bad:#f87171; --line:#3a2e22;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{margin:0; background:var(--bg); color:var(--ink); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; padding-bottom:60px;}
+  .wrap{max-width:520px; margin:0 auto; padding:18px 16px;}
+  header{text-align:center; padding:10px 0 4px;}
+  .logo{font-size:34px; font-weight:900; letter-spacing:-1px;}
+  .logo span{color:var(--acc);}
+  .tag{color:var(--muted); font-size:14px; margin-top:2px;}
+  .demo-pill{display:inline-block; margin-top:8px; font-size:11px; background:#2e1214; color:var(--acc2); border:1px solid #5e1f24; padding:3px 10px; border-radius:20px;}
+  .panel{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:14px; margin-top:14px;}
+  .panel h3{margin:0 0 10px; font-size:13px; text-transform:uppercase; letter-spacing:1px; color:var(--muted);}
+  .row{display:flex; gap:8px; flex-wrap:wrap;}
+  .chip{flex:1 1 0; min-width:0; text-align:center; padding:10px 4px; border-radius:12px; border:1px solid var(--line); background:var(--card2); color:var(--ink); font-size:14px; font-weight:600; cursor:pointer; white-space:nowrap;}
+  .chip small{display:block; font-weight:400; color:var(--muted); font-size:11px; margin-top:2px;}
+  .chip.on{border-color:var(--acc); background:#331014; box-shadow:0 0 0 1px var(--acc);}
+  .chip.mode{flex:1 1 45%;}
+  input.zip{width:100%; padding:12px; border-radius:12px; border:1px solid var(--line); background:var(--card2); color:var(--ink); font-size:16px; text-align:center; letter-spacing:2px;}
+  input.zip:focus{outline:none; border-color:var(--acc);}
+  .zipnote{font-size:12px; color:var(--muted); text-align:center; margin-top:8px;}
+  #feedme{display:block; width:100%; margin-top:16px; padding:20px; font-size:24px; font-weight:900; letter-spacing:1px; color:#fff; background:linear-gradient(135deg,var(--acc),#9e0018); border:none; border-radius:18px; cursor:pointer; box-shadow:0 6px 24px rgba(228,0,43,.35);}
+  #feedme:active{transform:scale(.98);}
+  #result{display:none; margin-top:16px; background:var(--card); border:1px solid var(--line); border-radius:18px; overflow:hidden;}
+  #result.show{display:block; animation:pop .25s ease;}
+  @keyframes pop{from{transform:scale(.97); opacity:.4;} to{transform:scale(1); opacity:1;}}
+  .chainbar{padding:10px 16px; font-weight:800; font-size:15px; color:#fff;}
+  .rbody{padding:14px 16px;}
+  .comboname{font-size:22px; font-weight:900; margin:0 0 2px;}
+  .why{color:var(--muted); font-size:13px; font-style:italic; margin-bottom:12px;}
+  .item{display:flex; justify-content:space-between; gap:10px; padding:8px 0; border-top:1px dashed var(--line); font-size:15px;}
+  .item .mod{display:block; font-size:12px; color:var(--acc2);}
+  .item .pr{color:var(--muted); white-space:nowrap;}
+  .totals{display:flex; gap:10px; margin-top:12px;}
+  .stat{flex:1; background:var(--card2); border-radius:12px; padding:10px; text-align:center;}
+  .stat b{display:block; font-size:19px;}
+  .stat span{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px;}
+  .script{margin-top:12px; background:#17251c; border:1px solid #2c4a33; border-radius:12px; padding:12px; font-size:14px;}
+  .script b{color:var(--good);}
+  .actions{display:flex; gap:8px; margin-top:12px;}
+  .btn{flex:1; padding:12px 4px; border-radius:12px; border:1px solid var(--line); background:var(--card2); color:var(--ink); font-size:14px; font-weight:700; cursor:pointer;}
+  .btn:active{transform:scale(.97);}
+  .btn.good.on{border-color:var(--good); color:var(--good);}
+  .btn.bad.on{border-color:var(--bad); color:var(--bad);}
+  .btn.lock.on{border-color:var(--acc2); color:var(--acc2);}
+  #history{margin-top:16px;}
+  #history .hitem{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-top:8px; font-size:13px;}
+  #history .hitem b{font-size:14px;}
+  #history .hitem .hz{color:var(--muted); font-size:12px;}
+  footer{margin-top:26px; text-align:center; color:var(--muted); font-size:11px; line-height:1.6; padding:0 20px;}
+  .clearlink{color:var(--muted); text-decoration:underline; cursor:pointer; font-size:12px;}
+  .topbar{display:flex; justify-content:space-between; align-items:center;}
+  .topspace{width:46px; flex:none;}
+  #burgerBtn{background:var(--card2); border:1px solid var(--line); width:46px; height:46px; border-radius:12px; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:0; flex:none;}
+  #burgerBtn span{display:block; width:22px;}
+  #burgerBtn .bunT{height:7px; background:#cf9250; border-radius:10px 10px 3px 3px;}
+  #burgerBtn .pat{height:5px; background:#7c4a26; border-radius:3px;}
+  #burgerBtn .bunB{height:5px; background:#cf9250; border-radius:3px 3px 8px 8px;}
+  #filterSummary{text-align:center; color:var(--muted); font-size:12px; margin-top:10px; min-height:14px;}
+  #drawerOverlay{display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:40;}
+  #drawerOverlay.open{display:block;}
+  #drawer{position:fixed; top:0; right:0; height:100%; width:320px; max-width:88vw; background:var(--card); border-left:1px solid var(--line); z-index:50; padding:18px; transform:translateX(105%); transition:transform .25s ease; overflow-y:auto; box-sizing:border-box;}
+  #drawer.open{transform:translateX(0);}
+  #drawer h4{margin:18px 0 8px; font-size:12px; text-transform:uppercase; letter-spacing:1px; color:var(--muted);}
+  .dhead{display:flex; justify-content:space-between; align-items:center; font-size:18px;}
+  #drawerClose{background:var(--card2); border:1px solid var(--line); color:var(--ink); border-radius:10px; width:38px; height:38px; font-size:16px; cursor:pointer;}
+  .chip.cat{flex:1 1 45%;}
+  .tglrow{display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 0; border-top:1px dashed var(--line); font-size:14px; font-weight:600;}
+  .tglrow small{display:block; font-weight:400; color:var(--muted); font-size:11px; margin-top:2px;}
+  .tgl{background:var(--card2); border:1px solid var(--line); color:var(--muted); border-radius:20px; padding:6px 14px; font-weight:800; cursor:pointer; min-width:64px;}
+  .tgl.on{background:#331014; border-color:var(--acc); color:var(--acc2);}
+  .dnote{margin-top:14px; font-size:11px; color:var(--muted); line-height:1.5;}
+  .qty{color:var(--acc2); font-weight:800;}
+  @media (prefers-color-scheme: light){
+    :root{
+      color-scheme:light;
+      --bg:#faf6ef; --card:#ffffff; --card2:#f4ede1; --ink:#241a12; --muted:#7d6c57;
+      --acc2:#9a6a00; --line:#e3d9c7;
+    }
+    .chip.on{background:#fde8eb;}
+    .tgl.on{background:#fde8eb;}
+    .demo-pill{background:#fde8eb; border-color:#f0bfc6;}
+    #drawer{box-shadow:-8px 0 30px rgba(0,0,0,.12);}
+  }
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="topbar">
+      <button id="burgerBtn" aria-label="Open filters"><span class="bunT"></span><span class="pat"></span><span class="bunB"></span></button>
+      <div class="logo">GRUB<span>ROULETTE</span></div>
+      <div class="topspace"></div>
+    </div>
+    <div style="text-align:center;"><span class="demo-pill">v4 · live any-ZIP lookup · prices &amp; calories are estimates</span></div>
+  </header>
+
+  <div class="panel">
+    <h3>Where you at</h3>
+    <input class="zip" id="zip" inputmode="numeric" maxlength="5" placeholder="Any US ZIP code">
+    <div class="zipnote" id="zipnote">Type any US ZIP and the app looks up what's actually near it (live OpenStreetMap data). No ZIP = all chains.</div>
+  </div>
+
+  <button id="feedme">FEED ME</button>
+  <div id="filterSummary"></div>
+
+  <div id="result">
+    <div class="chainbar" id="rChain"></div>
+    <div class="rbody">
+      <div id="rItems"></div>
+      <div class="totals">
+        <div class="stat"><b id="rPrice"></b><span>est. total</span></div>
+        <div class="stat"><b id="rCal"></b><span>est. calories</span></div>
+        <div class="stat"><b id="rVal"></b><span>cal / dollar</span></div>
+      </div>
+      <div class="actions">
+        <button class="btn" id="btnAgain">🔄 Roll again</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="history"></div>
+
+  <footer>
+    v4 — live ZIP lookup via OpenStreetMap (free, no key). Combos are generated for fun from estimated menu data.<br>
+    Prices &amp; calories are rough estimates and vary by location. Water cups are free at most places if you ask nicely.<br>
+    <span class="clearlink" id="clearHist">clear history</span>
+  </footer>
+</div>
+<div id="drawerOverlay"></div>
+<aside id="drawer">
+  <div class="dhead"><b>Filters</b><button id="drawerClose">✕</button></div>
+
+  <h4>Max price</h4>
+  <div class="row" id="priceRow">
+    <div class="chip on" data-v="0">Any</div>
+    <div class="chip" data-v="6">$6</div>
+    <div class="chip" data-v="10">$10</div>
+    <div class="chip" data-v="15">$15</div>
+    <div class="chip" data-v="25">$25</div>
+  </div>
+
+  <h4>Calories</h4>
+  <div class="row" id="calRow">
+    <div class="chip on" data-v="any">Any</div>
+    <div class="chip" data-v="light">Under 600</div>
+    <div class="chip" data-v="regular">600–1100</div>
+    <div class="chip" data-v="feast">1100+</div>
+  </div>
+
+  <h4>Categories</h4>
+  <div class="row" id="catRow">
+    <div class="chip cat" data-v="burgers">Burgers</div>
+    <div class="chip cat" data-v="chicken">Chicken</div>
+    <div class="chip cat" data-v="mexican">Mexican</div>
+    <div class="chip cat" data-v="sandwiches">Sandwiches &amp; Subs</div>
+    <div class="chip cat" data-v="asian">Asian</div>
+    <div class="chip cat" data-v="sweets">Sweets &amp; Desserts</div>
+  </div>
+
+  <h4>Special</h4>
+  <div class="tglrow"><span>Ballin' on a Budget<small>most calories per dollar</small></span><button class="tgl" id="tglBallin">OFF</button></div>
+  <div class="tglrow"><span>Under $10, for sure<small>hard cap, no exceptions</small></span><button class="tgl" id="tglUnder10">OFF</button></div>
+  <div class="tglrow"><span>Sweet Tooth<small>desserts &amp; sweet drinks only</small></span><button class="tgl" id="tglSweet">OFF</button></div>
+  <div class="tglrow"><span>Catering<small>feed a crew: bulk order</small></span><button class="tgl" id="tglCatering">OFF</button></div>
+
+  <button class="btn" id="drawerDone" style="width:100%; margin-top:18px;">Done</button>
+  <div class="dnote">Filters apply to your next roll. The chain lock is parked here for a future version.</div>
+</aside>
+<script>
+"use strict";
+/* ================= MENU DATA (estimates!) ================= */
+/* tags: main side drink dessert breakfast | salty sweet spicy greasy cheesy meaty veg value secret */
+const CHAINS = {
+mcdonalds:{ name:"McDonald's", color:"#DA291C", items:[
+  {n:"Big Mac",p:5.99,c:590,t:["main","salty","greasy","meaty"]},
+  {n:"Quarter Pounder w/ Cheese",p:6.49,c:520,t:["main","salty","greasy","meaty"]},
+  {n:"McDouble",p:3.29,c:400,t:["main","salty","meaty","value"]},
+  {n:"McChicken",p:2.99,c:400,t:["main","salty","meaty","value"]},
+  {n:"Filet-O-Fish",p:5.49,c:390,t:["main","salty","meaty"]},
+  {n:"10pc Chicken McNuggets",p:5.49,c:410,t:["main","salty","meaty","value"]},
+  {n:"Fries (M)",p:4.29,c:320,t:["side","salty","veg"]},
+  {n:"Hash Browns",p:2.49,c:140,t:["side","salty","veg","breakfast"]},
+  {n:"Sausage Egg McMuffin",p:4.79,c:480,t:["main","salty","meaty","breakfast"]},
+  {n:"Hotcakes",p:4.29,c:580,t:["main","sweet","veg","breakfast"]},
+  {n:"Oreo McFlurry",p:4.99,c:570,t:["dessert","sweet"]},
+  {n:"Baked Apple Pie",p:2.49,c:230,t:["dessert","sweet","value"]},
+  {n:"Coke (L)",p:2.49,c:290,t:["drink","sweet"]},
+  {n:"Sweet Tea (L)",p:2.29,c:160,t:["drink","sweet","value"]},
+ ], secrets:[
+  {name:"Land, Sea & Air", needs:["Big Mac","McChicken","Filet-O-Fish"], script:"Stack the McChicken patty and the fish patty inside the Big Mac. Yes, really.", why:"The forbidden triple-stack. Order all three and build it yourself like a legend."},
+  {name:"Poor Man's Big Mac", needs:["McDouble"], mods:"Add Mac sauce, no ketchup, no mustard", script:"Ask for a McDouble with Mac sauce instead of ketchup and mustard.", why:"85% of a Big Mac at 60% of the price. The value hack that started it all."},
+  {name:"The Double Stack Hack", needs:["McDouble","McChicken"], script:"Order both, then put the McChicken patty inside the McDouble.", why:"Two sandwiches become one beautiful monster."}
+ ]},
+tacobell:{ name:"Taco Bell", color:"#68217a", items:[
+  {n:"Crunchy Taco",p:2.19,c:170,t:["main","salty","meaty","value"]},
+  {n:"Doritos Locos Taco",p:2.99,c:170,t:["main","salty","meaty"]},
+  {n:"Cheesy Gordita Crunch",p:4.99,c:500,t:["main","salty","cheesy","meaty"]},
+  {n:"Crunchwrap Supreme",p:5.79,c:530,t:["main","salty","meaty"]},
+  {n:"Beefy 5-Layer Burrito",p:3.99,c:490,t:["main","salty","meaty","value"]},
+  {n:"Chicken Quesadilla",p:5.49,c:510,t:["main","salty","cheesy","meaty"]},
+  {n:"Black Bean Crunchwrap",p:5.49,c:510,t:["main","salty","veg"]},
+  {n:"Spicy Potato Soft Taco",p:1.99,c:230,t:["main","spicy","salty","veg","value"]},
+  {n:"Nacho Fries",p:3.49,c:320,t:["side","salty","spicy","veg"]},
+  {n:"Cinnamon Twists",p:1.99,c:170,t:["dessert","sweet","value"]},
+  {n:"Mexican Pizza",p:4.99,c:540,t:["main","salty","cheesy","meaty"]},
+  {n:"Baja Blast (M)",p:2.99,c:200,t:["drink","sweet"]},
+ ], secrets:[
+  {name:"The Cheesarito", needs:["Crunchy Taco"], mods:"Ask for a cheesarito: tortilla with cheese, scallions, taco sauce, rolled up", script:"Ask nicely if they can make a cheesarito — tortilla, cheese, scallions, taco sauce.", why:"The off-menu legend. Not every location will do it, which makes it hit harder."},
+  {name:"Grilled Cheese Burrito x2 Hack", needs:["Beefy 5-Layer Burrito"], mods:"Add grilled cheese blend on top, grilled", script:"Order the Beefy 5-Layer and ask them to grill it with extra cheese on top.", why:"DIY take on the viral grilled-cheese burrito without the upcharge."}
+ ]},
+innout:{ name:"In-N-Out", color:"#c8102e", items:[
+  {n:"Double-Double",p:5.85,c:670,t:["main","salty","greasy","meaty"]},
+  {n:"Cheeseburger",p:4.65,c:480,t:["main","salty","meaty"]},
+  {n:"Hamburger",p:4.30,c:390,t:["main","salty","meaty","value"]},
+  {n:"French Fries",p:2.90,c:360,t:["side","salty","veg","value"]},
+  {n:"Neapolitan Shake",p:3.60,c:590,t:["dessert","drink","sweet"]},
+  {n:"Double-Double Protein Style",p:5.85,c:520,t:["main","salty","meaty"]},
+  {n:"4x4",p:8.50,c:1050,t:["main","salty","greasy","meaty","secret"]},
+  {n:"Animal Style Fries",p:4.50,c:750,t:["side","salty","cheesy","secret"]},
+  {n:"Flying Dutchman",p:5.00,c:660,t:["main","salty","meaty","secret"]},
+ ], secrets:[
+  {name:"3x3 Animal Style", needs:["Double-Double"], mods:"Make it a 3x3, animal style", script:"Order a 3x3 animal style — they'll know exactly what you mean.", why:"The not-so-secret secret. Three patties, animal sauce, grilled onions."},
+  {name:"Monkey Style Fries", needs:["Animal Style Fries"], mods:"Add chopped chilies on top", script:"Order animal style fries and ask for chopped chilies on top.", why:"Animal fries with a kick. In-N-Out's worst-kept secret."}
+ ]},
+chickfila:{ name:"Chick-fil-A", color:"#dd0031", items:[
+  {n:"Chicken Sandwich",p:5.99,c:420,t:["main","salty","meaty"]},
+  {n:"Spicy Chicken Sandwich",p:6.29,c:450,t:["main","spicy","salty","meaty"]},
+  {n:"8ct Nuggets",p:6.49,c:250,t:["main","salty","meaty"]},
+  {n:"3ct Chick-n-Strips",p:6.99,c:310,t:["main","salty","meaty"]},
+  {n:"Waffle Fries (M)",p:3.29,c:320,t:["side","salty","veg"]},
+  {n:"Mac & Cheese",p:4.49,c:450,t:["side","salty","cheesy","veg"]},
+  {n:"Frosted Lemonade",p:4.99,c:330,t:["drink","dessert","sweet"]},
+  {n:"Cookies & Cream Shake",p:5.99,c:700,t:["dessert","sweet"]},
+  {n:"Spicy Southwest Salad",p:7.49,c:350,t:["main","spicy","veg"]},
+ ], secrets:[
+  {name:"Frosted Coffee", needs:["Frosted Lemonade"], mods:"Ask for it made with cold brew instead of lemonade", script:"Ask if they can do a frosted coffee — vanilla ice cream blended with cold brew.", why:"Half the menu board doesn't know it exists. Dessert and caffeine in one cup."},
+  {name:"Double-Stuffed Sandwich", needs:["Chicken Sandwich","8ct Nuggets"], mods:"Add 3 nuggets inside the sandwich", script:"Order the sandwich and nuggets, then stuff a few nuggets inside.", why:"DIY chicken-stacking. Extra crunch per bite."}
+ ]},
+wendys:{ name:"Wendy's", color:"#e10f2e", items:[
+  {n:"Dave's Single",p:6.79,c:590,t:["main","salty","greasy","meaty"]},
+  {n:"Baconator",p:8.49,c:960,t:["main","salty","greasy","meaty"]},
+  {n:"Spicy Chicken Sandwich",p:6.49,c:490,t:["main","spicy","salty","meaty"]},
+  {n:"10pc Nuggets",p:5.99,c:420,t:["main","salty","meaty","value"]},
+  {n:"Jr. Bacon Cheeseburger",p:3.49,c:380,t:["main","salty","meaty","value"]},
+  {n:"Natural-Cut Fries (M)",p:3.49,c:350,t:["side","salty","veg"]},
+  {n:"Baconator Fries",p:4.99,c:490,t:["side","salty","cheesy","meaty"]},
+  {n:"Chili (small)",p:3.29,c:240,t:["side","salty","meaty","value"]},
+  {n:"Frosty (M)",p:3.29,c:350,t:["dessert","sweet"]},
+  {n:"Vanilla Frosty-ccino",p:3.49,c:320,t:["drink","sweet","breakfast"]},
+ ], secrets:[
+  {name:"The Barnyard (DIY)", needs:["Dave's Single","Spicy Chicken Sandwich","10pc Nuggets"], mods:"Stack one beef patty, one spicy chicken filet, and nuggets in the Dave's bun", script:"Order all three and build the stack yourself — beef, spicy chicken, nuggets.", why:"The discontinued T-Rex, resurrected in your own kitchen. A beautiful mess."},
+  {name:"Frosty Fries Dip", needs:["Natural-Cut Fries (M)","Frosty (M)"], script:"Just order both. You know what to do.", why:"Salty-sweet science. The fry-to-Frosty pipeline is undefeated."}
+ ]},
+jackinthebox:{ name:"Jack in the Box", color:"#d7282f", items:[
+  {n:"Jumbo Jack",p:5.49,c:520,t:["main","salty","meaty"]},
+  {n:"Ultimate Cheeseburger",p:6.99,c:920,t:["main","salty","greasy","meaty","cheesy"]},
+  {n:"Sourdough Jack",p:6.49,c:660,t:["main","salty","meaty"]},
+  {n:"2 Tacos",p:1.99,c:340,t:["main","salty","meaty","value"]},
+  {n:"10pc Chicken Nuggets",p:4.99,c:440,t:["main","salty","meaty","value"]},
+  {n:"Curly Fries (M)",p:3.49,c:430,t:["side","salty","veg"]},
+  {n:"Egg Rolls (3pc)",p:3.49,c:400,t:["side","salty"]},
+  {n:"Breakfast Jack",p:3.99,c:280,t:["main","salty","meaty","breakfast"]},
+  {n:"Mini Churros (5pc)",p:2.99,c:340,t:["dessert","sweet"]},
+  {n:"Oreo Shake",p:5.49,c:800,t:["dessert","drink","sweet"]},
+ ], secrets:[
+  {name:"Taco Curly Fry Mash", needs:["2 Tacos","Curly Fries (M)"], mods:"Crumble the tacos over the curly fries", script:"Order both, crumble the tacos over the fries, eat like nachos.", why:"Two dollar-menu legends fused into loaded fries."},
+  {name:"Churro Shake Dip", needs:["Mini Churros (5pc)","Oreo Shake"], script:"Order both and dip the churros in the shake.", why:"Warm cinnamon sugar meets cold Oreo. Late-night elite."}
+ ]},
+deltaco:{ name:"Del Taco", color:"#007a33", items:[
+  {n:"Crunchy Del Taco",p:2.29,c:170,t:["main","salty","meaty","value"]},
+  {n:"Beer Battered Fish Taco",p:3.49,c:280,t:["main","salty","meaty"]},
+  {n:"Epic Beef Burrito",p:8.49,c:1010,t:["main","salty","greasy","meaty"]},
+  {n:"Bean & Cheese Burrito",p:2.99,c:440,t:["main","salty","veg","value"]},
+  {n:"Chicken Quesadilla",p:5.99,c:590,t:["main","salty","cheesy","meaty"]},
+  {n:"Beyond 8 Layer Burrito",p:5.49,c:550,t:["main","salty","veg"]},
+  {n:"Crinkle Cut Fries (M)",p:2.99,c:350,t:["side","salty","veg"]},
+  {n:"Churro",p:1.49,c:220,t:["dessert","sweet","value"]},
+  {n:"Caramel Cheesecake Bites",p:3.49,c:320,t:["dessert","sweet"]},
+ ], secrets:[
+  {name:"Stoner Burrito", needs:["Bean & Cheese Burrito"], mods:"Ask for the secret-menu Stoner Burrito: beans, cheese, fries, red sauce", script:"Ask if they can make the secret-menu Stoner Burrito.", why:"Beans, cheese, fries and red sauce in one tortilla. A Del Taco rite of passage."}
+ ]},
+popeyes:{ name:"Popeyes", color:"#f26522", items:[
+  {n:"Chicken Sandwich",p:5.99,c:700,t:["main","salty","greasy","meaty"]},
+  {n:"Spicy Chicken Sandwich",p:5.99,c:720,t:["main","spicy","salty","greasy","meaty"]},
+  {n:"3pc Tenders",p:6.49,c:340,t:["main","salty","meaty"]},
+  {n:"8pc Nuggets",p:5.99,c:450,t:["main","salty","meaty","value"]},
+  {n:"Ghost Pepper Wings (6pc)",p:7.49,c:560,t:["main","spicy","salty","meaty"]},
+  {n:"Cajun Fries (reg)",p:3.29,c:300,t:["side","salty","spicy","veg"]},
+  {n:"Mashed Potatoes & Cajun Gravy",p:2.99,c:120,t:["side","salty","value"]},
+  {n:"Mac & Cheese",p:3.49,c:300,t:["side","salty","cheesy","veg"]},
+  {n:"Cinnamon Apple Pie",p:2.49,c:240,t:["dessert","sweet","value"]},
+ ], secrets:[
+  {name:"Blackened Tender Dip", needs:["3pc Tenders"], mods:"Get blackened tenders, extra cajun gravy for dipping", script:"Order blackened tenders with a side of cajun gravy for dipping.", why:"The gravy is the move. Dipping blackened tenders in it is top-tier Popeyes."}
+ ]},
+burgerking:{ name:"Burger King", color:"#d62300", items:[
+  {n:"Whopper",p:6.99,c:670,t:["main","salty","greasy","meaty"]},
+  {n:"Double Whopper",p:8.99,c:940,t:["main","salty","greasy","meaty"]},
+  {n:"Cheeseburger",p:2.99,c:290,t:["main","salty","meaty","value"]},
+  {n:"Double Cheeseburger",p:3.99,c:450,t:["main","salty","meaty","value"]},
+  {n:"Original Chicken Sandwich",p:5.99,c:660,t:["main","salty","meaty"]},
+  {n:"BK Royal Crispy Chicken",p:5.49,c:560,t:["main","salty","meaty"]},
+  {n:"8pc Chicken Fries",p:4.99,c:380,t:["main","salty","meaty","value"]},
+  {n:"Fries (M)",p:3.99,c:330,t:["side","salty","veg"]},
+  {n:"Onion Rings (M)",p:3.99,c:410,t:["side","salty","veg"]},
+  {n:"Hershey's Sundae Pie",p:2.99,c:310,t:["dessert","sweet"]},
+  {n:"Soft Serve Cone",p:1.99,c:180,t:["dessert","sweet","value"]},
+  {n:"Coke (M)",p:2.79,c:250,t:["drink","sweet"]},
+ ], secrets:[
+  {name:"DIY Stacker", needs:["Double Whopper"], mods:"Add 2 extra patties + bacon", script:"Order a Double Whopper and ask them to add two extra patties and bacon.", why:"Have it your way, taken literally. A four-patty monument."}
+ ]},
+kfc:{ name:"KFC", color:"#a6192e", items:[
+  {n:"Chicken Sandwich",p:5.99,c:650,t:["main","salty","greasy","meaty"]},
+  {n:"Spicy Chicken Sandwich",p:5.99,c:650,t:["main","spicy","salty","greasy","meaty"]},
+  {n:"8pc Nuggets",p:5.99,c:360,t:["main","salty","meaty"]},
+  {n:"3pc Tenders",p:7.99,c:650,t:["main","salty","meaty"]},
+  {n:"Famous Bowl",p:5.99,c:710,t:["main","salty","meaty"]},
+  {n:"Pot Pie",p:5.99,c:720,t:["main","salty","meaty"]},
+  {n:"Mac & Cheese",p:3.49,c:190,t:["side","salty","cheesy","veg"]},
+  {n:"Mashed Potatoes & Gravy",p:2.99,c:130,t:["side","salty","veg","value"]},
+  {n:"Coleslaw",p:2.99,c:170,t:["side","salty","veg"]},
+  {n:"Biscuit",p:2.49,c:180,t:["side","salty","value"]},
+  {n:"Pepsi (M)",p:2.79,c:260,t:["drink","sweet"]},
+ ], secrets:[
+  {name:"The Double Down", needs:["Chicken Sandwich"], mods:"Ask for the Double Down: two filets as the bun, cheese, bacon, sauce", script:"Ask if they can do the Double Down — two chicken filets instead of a bun.", why:"The bun is chicken. The chicken is the bun. Enough said."}
+ ]},
+carlsjr:{ name:"Carl's Jr.", color:"#e31837", items:[
+  {n:"Famous Star w/ Cheese",p:5.99,c:670,t:["main","salty","greasy","meaty"]},
+  {n:"Double Western Bacon Cheeseburger",p:8.49,c:940,t:["main","salty","greasy","meaty"]},
+  {n:"Super Star",p:7.49,c:920,t:["main","salty","greasy","meaty"]},
+  {n:"Chicken Stars (6pc)",p:4.99,c:260,t:["main","salty","meaty","value"]},
+  {n:"Spicy Chicken Sandwich",p:5.99,c:560,t:["main","spicy","salty","meaty"]},
+  {n:"Breakfast Burger",p:5.49,c:800,t:["main","breakfast","salty","meaty"]},
+  {n:"CrissCut Fries (M)",p:3.99,c:430,t:["side","salty","veg"]},
+  {n:"Fried Zucchini",p:3.99,c:320,t:["side","salty","veg"]},
+  {n:"Chocolate Shake",p:4.99,c:710,t:["dessert","drink","sweet"]},
+  {n:"Coke (M)",p:2.79,c:260,t:["drink","sweet"]},
+ ], secrets:[
+  {name:"Western Fries", needs:["CrissCut Fries (M)"], mods:"Add BBQ sauce, onion rings, and cheese on top", script:"Order CrissCuts and ask for BBQ sauce, onion rings and cheese on top.", why:"The Western Bacon Cheeseburger, reincarnated as fries."}
+ ]},
+chipotle:{ name:"Chipotle", color:"#a81612", items:[
+  {n:"Chicken Burrito",p:9.50,c:700,t:["main","salty","meaty"]},
+  {n:"Steak Burrito",p:10.75,c:690,t:["main","salty","meaty"]},
+  {n:"Chicken Burrito Bowl",p:9.50,c:630,t:["main","salty","meaty"]},
+  {n:"3 Chicken Tacos",p:9.50,c:600,t:["main","salty","meaty"]},
+  {n:"Chicken Quesadilla",p:9.75,c:850,t:["main","salty","cheesy","meaty"]},
+  {n:"Barbacoa Bowl",p:10.75,c:630,t:["main","salty","meaty"]},
+  {n:"Sofritas Bowl",p:9.00,c:540,t:["main","spicy","salty","veg"]},
+  {n:"Chips & Guac",p:5.25,c:500,t:["side","salty","veg"]},
+  {n:"Chips & Queso",p:5.00,c:420,t:["side","salty","cheesy","veg"]},
+  {n:"Large Chips",p:2.25,c:540,t:["side","salty","veg","value"]},
+  {n:"Tractor Lemonade",p:3.75,c:120,t:["drink","sweet"]},
+ ], secrets:[
+  {name:"The Quesarito", needs:["Chicken Burrito"], mods:"Ask for it quesarito-style: burrito wrapped in a cheese quesadilla", script:"Ask nicely for a quesarito — the burrito wrapped in a quesadilla.", why:"A burrito wearing a quesadilla as a jacket. Extra charge, worth it."}
+ ]},
+elpollo:{ name:"El Pollo Loco", color:"#e87722", items:[
+  {n:"2pc Fire-Grilled Chicken",p:7.49,c:400,t:["main","salty","meaty"]},
+  {n:"3pc Fire-Grilled Chicken",p:9.49,c:590,t:["main","salty","meaty"]},
+  {n:"BRC Burrito",p:4.99,c:630,t:["main","salty","veg","value"]},
+  {n:"2 Chicken Tacos al Carbon",p:5.99,c:290,t:["main","salty","meaty","value"]},
+  {n:"Chicken Tostada Salad",p:9.99,c:380,t:["main","salty","meaty"]},
+  {n:"Double Avocado Chicken Salad",p:10.49,c:360,t:["main","salty","meaty"]},
+  {n:"Mac & Cheese (side)",p:2.99,c:230,t:["side","salty","cheesy","veg"]},
+  {n:"Mashed Potatoes & Gravy",p:2.49,c:110,t:["side","salty","veg"]},
+  {n:"Churros (2pc)",p:2.99,c:290,t:["dessert","sweet"]},
+  {n:"Coke (M)",p:2.49,c:260,t:["drink","sweet"]},
+ ], secrets:[
+  {name:"DIY Pollo Bowl", needs:["2pc Fire-Grilled Chicken"], mods:"Add rice + pinto beans, chop the chicken over the top", script:"Order the 2pc chicken with rice and beans, then chop the chicken over the top bowl-style.", why:"The Pollo Bowl, built by hand, cheaper than the menu version of your dreams."}
+ ]},
+subway:{ name:"Subway", color:"#008c15", items:[
+  {n:"Footlong Turkey",p:9.49,c:560,t:["main","salty","meaty"]},
+  {n:"Footlong Meatball Marinara",p:8.49,c:840,t:["main","salty","greasy","meaty"]},
+  {n:"Footlong Italian B.M.T.",p:9.99,c:820,t:["main","salty","greasy","meaty"]},
+  {n:"Footlong Tuna",p:9.49,c:880,t:["main","salty","meaty"]},
+  {n:"Footlong Veggie Delite",p:7.99,c:400,t:["main","salty","veg","value"]},
+  {n:"6in Rotisserie Chicken",p:7.49,c:380,t:["main","salty","meaty"]},
+  {n:"Footlong Steak & Cheese",p:10.99,c:680,t:["main","salty","cheesy","meaty"]},
+  {n:"Chips (Nacho Cheese)",p:1.79,c:260,t:["side","salty","veg","value"]},
+  {n:"Chocolate Chip Cookie",p:1.99,c:210,t:["dessert","sweet"]},
+  {n:"Coke (M)",p:2.49,c:220,t:["drink","sweet"]},
+ ], secrets:[
+  {name:"The Pizza Sub", needs:["Footlong Italian B.M.T."], mods:"Ask for it pizza-style: pepperoni, mozzarella, marinara, toasted extra", script:"Ask for the Italian B.M.T. made pizza-style — pepperoni, mozzarella, marinara, extra toasted.", why:"The worst-kept Subway secret. It's a pizza you hold like a sandwich."}
+ ]},
+panda:{ name:"Panda Express", color:"#c0282d", items:[
+  {n:"Orange Chicken",p:5.20,c:370,t:["main","salty","sweet","meaty","value"]},
+  {n:"Beijing Beef",p:5.20,c:480,t:["main","salty","meaty","value"]},
+  {n:"Kung Pao Chicken",p:5.20,c:290,t:["main","spicy","salty","meaty","value"]},
+  {n:"Broccoli Beef",p:5.20,c:150,t:["main","salty","meaty","value"]},
+  {n:"Honey Walnut Shrimp",p:6.70,c:360,t:["main","salty","sweet","meaty"]},
+  {n:"Chow Mein",p:3.40,c:510,t:["side","salty","veg"]},
+  {n:"Fried Rice",p:3.40,c:520,t:["side","salty","veg"]},
+  {n:"Super Greens",p:3.40,c:90,t:["side","salty","veg","value"]},
+  {n:"Cream Cheese Rangoon (3pc)",p:2.45,c:190,t:["side","salty","cheesy","value"]},
+  {n:"Veggie Spring Rolls (2pc)",p:2.45,c:220,t:["side","salty","veg","value"]},
+  {n:"Dr Pepper (M)",p:2.35,c:270,t:["drink","sweet"]},
+ ], secrets:[
+  {name:"The Bigger Plate", needs:["Orange Chicken","Beijing Beef","Kung Pao Chicken"], mods:"Bigger plate: all three entrées, half chow mein / half fried rice", script:"Order the bigger plate with orange chicken, Beijing beef and kung pao, half-and-half chow mein and fried rice.", why:"Three entrées, one tray, zero restraint. The correct Panda order."}
+ ]},
+};
+const CHAIN_KEYS = Object.keys(CHAINS);
+
+/* ============ LA TEST DATA (2026-09-30, search-based, ~3mi radius) ============ */
+/* Only chains with full menu data are suggested. ZIP_ALSO = nearby but menu data TBD. */
+const ZIP_CHAINS = {
+  "90001": ["mcdonalds","jackinthebox","burgerking","tacobell"],
+  "90026": ["mcdonalds","jackinthebox","kfc","chipotle"],
+  "90066": ["mcdonalds","jackinthebox","chickfila","deltaco","innout"],
+  "90302": ["mcdonalds","carlsjr","popeyes","innout"],
+  "91042": ["mcdonalds","jackinthebox","popeyes","innout"],
+  "91343": ["mcdonalds","jackinthebox","kfc","popeyes"],
+};
+const ZIP_ALSO = {
+  "90001": ["Subway","Panda Express"],
+  "90026": [],
+  "90066": ["Subway","Panda Express"],
+  "90302": [],
+  "91042": ["Subway"],
+  "91343": ["Subway","Panda Express","Chowking"],
+};
+
+/* ============ LIVE ANY-ZIP LOOKUP (v3) ============ */
+/* ZIP -> Nominatim geocode -> OpenStreetMap/Overpass fast-food search -> match brands to menu DB.
+   Free, no API key. Results cached per ZIP for 7 days. Falls back to seed data / all chains. */
+const BRAND_ALIASES = {
+  "mcdonald's":"mcdonalds","mcdonalds":"mcdonalds",
+  "taco bell":"tacobell","burger king":"burgerking","jack in the box":"jackinthebox",
+  "chick-fil-a":"chickfila","wendy's":"wendys","wendys":"wendys",
+  "del taco":"deltaco","popeyes":"popeyes","popeyes louisiana kitchen":"popeyes",
+  "in-n-out burger":"innout","in-n-out":"innout","in n out burger":"innout",
+  "carl's jr.":"carlsjr","carl's jr":"carlsjr","carls jr":"carlsjr",
+  "kfc":"kfc","kentucky fried chicken":"kfc",
+  "chipotle":"chipotle","chipotle mexican grill":"chipotle",
+  "el pollo loco":"elpollo","subway":"subway","panda express":"panda",
+};
+function normalizeBrand(s){ return (s||"").toLowerCase().replace(/['']/g,"'").replace(/\s+/g," ").trim(); }
+function chainKeyFromBrand(brand, name){
+  for (const raw of [brand, name]){
+    if(!raw) continue;
+    const n = normalizeBrand(raw);
+    if (BRAND_ALIASES[n]) return BRAND_ALIASES[n];
+    for (const alias in BRAND_ALIASES){
+      if (n.length>3 && (n.startsWith(alias+" ") || n.startsWith(alias+","))) return BRAND_ALIASES[alias];
+    }
+  }
+  return null;
+}
+function setZipNote(t){ $("zipnote").textContent=t; }
+const OVERPASS_ENDPOINTS = ["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter"];
+async function overpassChains(lat, lon){
+  const q = '[out:json][timeout:20];(node["amenity"="fast_food"](around:5000,'+lat+','+lon+');way["amenity"="fast_food"](around:5000,'+lat+','+lon+'););out tags;';
+  let lastErr = null;
+  for (const ep of OVERPASS_ENDPOINTS){
+    try{
+      const r = await fetch(ep,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"data="+encodeURIComponent(q)});
+      if(!r.ok) throw new Error("http "+r.status);
+      const o = await r.json();
+      const keys = new Set();
+      for (const el of (o.elements||[])){
+        const t = el.tags||{};
+        const k = chainKeyFromBrand(t.brand||t["brand:en"], t.name);
+        if (k && CHAINS[k]) keys.add(k);
+      }
+      return [...keys];
+    }catch(e){ lastErr = e; }
+  }
+  throw lastErr || new Error("overpass failed");
+}
+function applyLive(zip, rec){
+  state.liveKeys = rec.keys.length ? rec.keys : null;
+  const names = rec.keys.map(k=>CHAINS[k].name);
+  if (rec.keys.length>=2) setZipNote(" Near "+zip+(rec.city?" ("+rec.city+")":"")+": "+names.join(", ")+". Live data, cached.");
+  else if (rec.keys.length===1) setZipNote(" Near "+zip+": only "+names[0]+" from our menu list found in open data — rolls stick to it. Clear the ZIP for all chains.");
+  else setZipNote(" Near "+zip+": no chains from our menu list in the open data nearby — showing all chains.");
+}
+async function lookupZip(zip){
+  try{
+    const c = JSON.parse(localStorage.getItem("gr_zipcache")||"{}");
+    if (c[zip] && Date.now()-c[zip].t < 7*24*3600*1000){ applyLive(zip, c[zip]); return; }
+  }catch(e){}
+  setZipNote(" Finding fast food near "+zip+"…");
+  try{
+    const g = await fetch("https://nominatim.openstreetmap.org/search?postalcode="+zip+"&country=US&format=json&limit=1").then(r=>r.json());
+    if(!g.length) throw new Error("zip not found");
+    const city = (g[0].display_name||"").split(",")[1] ? (g[0].display_name||"").split(",")[1].trim() : "";
+    const keys = await overpassChains(+g[0].lat, +g[0].lon);
+    const rec = {t:Date.now(), keys, city};
+    try{ const c=JSON.parse(localStorage.getItem("gr_zipcache")||"{}"); c[zip]=rec; localStorage.setItem("gr_zipcache",JSON.stringify(c)); }catch(e){}
+    applyLive(zip, rec);
+  }catch(e){
+    state.liveKeys = null;
+    if (ZIP_CHAINS[zip]) setZipNote(" Live lookup hiccup — using saved test data for "+zip+".");
+    else setZipNote(" Live lookup hiccup for "+zip+" — showing all chains.");
+  }
+}
+
+/* ================= ENGINE v4 ================= */
+const $ = id => document.getElementById(id);
+const rand = a => a[Math.floor(Math.random()*a.length)];
+const shuffle = a => { const x=[...a]; for(let i=x.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1)); [x[i],x[j]]=[x[j],x[i]];} return x; };
+const WATER = {n:"Water cup", p:0, c:0, t:["drink"], mod:"free at most places if you ask nicely"};
+const CATEGORIES = {
+  burgers:["mcdonalds","burgerking","wendys","carlsjr","innout","jackinthebox"],
+  chicken:["chickfila","kfc","popeyes","elpollo"],
+  mexican:["tacobell","deltaco","elpollo","chipotle"],
+  sandwiches:["subway","chickfila"],
+  asian:["panda"],
+};
+const CAT_LABELS = {burgers:"Burgers", chicken:"Chicken", mexican:"Mexican", sandwiches:"Sandwiches & Subs", asian:"Asian", sweets:"Sweets & Desserts"};
+const state = { zip:"", liveKeys:null, lastKey:null,
+  filters:{ maxPrice:0, cal:"any", cats:[], ballin:false, under10:false, sweet:false, catering:false } };
+
+const price = items => items.reduce((s,i)=>s+i.p*(i.qty||1),0);
+const cals  = items => items.reduce((s,i)=>s+i.c*(i.qty||1),0);
+function cat(items,c){ return items.filter(i=>i.t.includes(c)); }
+function effCap(){ let cap = state.filters.maxPrice>0 ? state.filters.maxPrice : Infinity; if(state.filters.under10) cap = Math.min(cap,10); return cap; }
+function calBounds(){ return {any:[0,Infinity], light:[0,600], regular:[600,1100], feast:[1100,Infinity]}[state.filters.cal]; }
+
+/* ---- budget fitting: swap/downgrade until under budget (never drops the only main) ---- */
+function fitBudget(chainKey, items, budget){
+  items=[...items];
+  let guard=0;
+  while(price(items)>budget && guard++<12){
+    const pool=CHAINS[chainKey].items;
+    const sorted=[...items].sort((a,b)=>b.p-a.p);
+    const victim=sorted[0];
+    const vcat=victim.t.includes("main")?"main":victim.t.includes("side")?"side":victim.t.includes("drink")?"drink":"dessert";
+    const alts=pool.filter(i=>i!==victim && i.t.includes(vcat) && i.p<victim.p && !items.some(p=>p.n===i.n)).sort((a,b)=>b.c-a.c);
+    if(alts.length){ items[items.indexOf(victim)]={...alts[0]}; continue; }
+    const mainCount=items.filter(i=>i.t.includes("main")).length;
+    const droppable=sorted.filter(i=>!(i.t.includes("main")&&mainCount<=1));
+    if(droppable.length && items.length>1){ items.splice(items.indexOf(droppable[0]),1); continue; }
+    break;
+  }
+  if(!items.some(i=>i.t.includes("drink"))) items.push({...WATER});
+  return items;
+}
+
+/* ---- calorie fitting: trim or stack until inside the chosen range ---- */
+function fitCalories(chainKey, picks){
+  const [mn,mx]=calBounds();
+  let guard=0;
+  while(cals(picks)>mx && guard++<10){
+    const extra=picks.filter(i=>!i.t.includes("main")&&i.n!=="Water cup").sort((a,b)=>b.c-a.c)[0];
+    if(extra){ picks.splice(picks.indexOf(extra),1); continue; }
+    const main=picks.find(i=>i.t.includes("main"));
+    if(main){
+      const lighter=CHAINS[chainKey].items.filter(i=>i.t.includes("main")).sort((a,b)=>a.c-b.c)[0];
+      if(lighter && lighter.n!==main.n){ picks[picks.indexOf(main)]={...lighter}; continue; }
+    }
+    break;
+  }
+  guard=0;
+  while(cals(picks)<mn && guard++<10){
+    let extra=CHAINS[chainKey].items.filter(i=>!picks.some(p=>p.n===i.n)&&(i.t.includes("side")||i.t.includes("dessert"))).sort((a,b)=>b.c-a.c)[0];
+    if(!extra) extra=CHAINS[chainKey].items.filter(i=>!picks.some(p=>p.n===i.n)&&i.t.includes("main")).sort((a,b)=>b.c-a.c)[0];
+    if(!extra || price(picks)+extra.p>effCap()) break;
+    picks.push({...extra});
+  }
+  return picks;
+}
+
+/* ---- builders: every roll is a full meal (main + side + drink) unless a special filter says otherwise ---- */
+function bestValue(pool){ return [...pool].sort((a,b)=>(b.c/Math.max(b.p,.01))-(a.c/Math.max(a.p,.01)))[0]; }
+function pickDrink(chain){
+  const d=cat(chain.items,"drink");
+  if(!d.length) return {...WATER};
+  return Math.random()<0.3 ? {...WATER} : {...rand(d)};
+}
+function buildMeal(ck, chain){
+  const F=state.filters;
+  if(F.catering) return buildCatering(ck, chain);
+  if(F.sweet || F.cats.includes("sweets")) return buildSweet(ck, chain);
+  const items=chain.items;
+  let main, side=null, drink;
+  if(F.ballin){
+    main={...bestValue(cat(items,"main"))};
+    const sp=cat(items,"side"); if(sp.length) side={...bestValue(sp)};
+    const dp=cat(items,"drink"); drink = dp.length && Math.random()<0.5 ? {...bestValue(dp)} : {...WATER};
+  } else {
+    main={...rand(cat(items,"main"))};
+    const sp=cat(items,"side"); if(sp.length && Math.random()<0.85) side={...rand(sp)};
+    drink=pickDrink(chain);
+  }
+  let picks=[main]; if(side) picks.push(side); picks.push(drink);
+  const cap=effCap(); if(cap!==Infinity) picks=fitBudget(ck,picks,cap);
+  picks=fitCalories(ck,picks);
+  return {items:picks};
+}
+function sweetPool(chain){
+  return chain.items.filter(i=> i.t.includes("dessert") || (i.t.includes("drink")&&i.t.includes("sweet")) || (i.t.includes("sweet")&&i.t.includes("breakfast")));
+}
+function buildSweet(ck, chain){
+  let pool=shuffle(sweetPool(chain));
+  if(!pool.length) pool=shuffle(chain.items.filter(i=>i.t.includes("sweet")));
+  let picks=pool.slice(0, Math.random()<0.5?2:3).map(i=>({...i}));
+  const cap=effCap(); if(cap!==Infinity) picks=fitBudget(ck,picks,cap);
+  return {items:picks};
+}
+function buildCatering(ck, chain){
+  const mains=shuffle(cat(chain.items,"main")).slice(0,2);
+  const sides=shuffle(cat(chain.items,"side")).slice(0,2);
+  const drinks=cat(chain.items,"drink");
+  let picks=[];
+  mains.forEach(m=>picks.push({...m, qty:4}));
+  sides.forEach(s=>picks.push({...s, qty:2}));
+  if(drinks.length) picks.push({...drinks[0], qty:4});
+  picks.push({...WATER, qty:4});
+  return {items:picks};
+}
+
+/* ---- which chains can this roll pick from ---- */
+function availableChains(){
+  let base;
+  if(state.liveKeys && state.liveKeys.length) base=[...state.liveKeys];
+  else if(state.zip && ZIP_CHAINS[state.zip]) base=[...ZIP_CHAINS[state.zip]];
+  else base=[...CHAIN_KEYS];
+  const cats=state.filters.cats.filter(c=>CATEGORIES[c]);
+  if(cats.length){
+    const allowed=new Set(); cats.forEach(c=>CATEGORIES[c].forEach(k=>allowed.add(k)));
+    const f=base.filter(k=>allowed.has(k));
+    if(f.length) return f;
+  }
+  return base;
+}
+
+/* ---- main roll ---- */
+let rollDepth=0;
+function roll(){
+  const chainKey=rand(availableChains());
+  const chain=CHAINS[chainKey];
+  const combo=buildMeal(chainKey, chain);
+  const key=chainKey+"|"+combo.items.map(i=>(i.qty?i.qty+"x":"")+i.n).join("+");
+  if(key===state.lastKey && rollDepth<3){ rollDepth++; return roll(); }
+  rollDepth=0;
+  state.lastKey=key;
+  render(chain, combo);
+  pushHistory(chain, combo);
+}
+
+function render(chain, combo){
+  $("rChain").textContent=chain.name;
+  $("rChain").style.background=chain.color;
+  $("rItems").innerHTML=combo.items.map(i=>
+    `<div class="item"><div>${i.qty&&i.qty>1?`<span class="qty">${i.qty} × </span>`:""}${i.n}${i.mod?`<span class="mod">↳ ${i.mod}</span>`:""}</div><div class="pr">$${(i.p*(i.qty||1)).toFixed(2)}</div></div>`
+  ).join("");
+  const p=price(combo.items), c=cals(combo.items);
+  $("rPrice").textContent="$"+p.toFixed(2);
+  $("rCal").textContent=c.toLocaleString();
+  $("rVal").textContent = p>0 ? Math.round(c/p) : "∞";
+  $("result").classList.add("show");
+  $("result").scrollIntoView({behavior:"smooth", block:"nearest"});
+}
+
+/* ---- history (localStorage) ---- */
+function pushHistory(chain, combo){
+  try{
+    const h=JSON.parse(localStorage.getItem("gr_history")||"[]");
+    h.unshift({t:new Date().toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}), chain:chain.name, items:combo.items.map(i=>(i.qty&&i.qty>1?i.qty+"x ":"")+i.n).join(", "), price:price(combo.items).toFixed(2)});
+    localStorage.setItem("gr_history",JSON.stringify(h.slice(0,12)));
+    drawHistory();
+  }catch(e){}
+}
+function drawHistory(){
+  let h=[]; try{ h=JSON.parse(localStorage.getItem("gr_history")||"[]"); }catch(e){}
+  $("history").innerHTML = h.length
+    ? "<div class='panel'><h3>Tonight's pulls</h3>"+h.map(x=>
+        `<div class="hitem"><b>${x.chain}</b> <span class="hz">· $${x.price} · ${x.t}</span><br><span class="hz">${x.items}</span></div>`
+      ).join("")+"</div>" : "";
+}
+$("clearHist").onclick=()=>{ try{localStorage.removeItem("gr_history");}catch(e){} drawHistory(); };
+
+/* ---- ZIP input ---- */
+let zipTimer=null;
+$("zip").addEventListener("input",e=>{
+  const z=e.target.value.replace(/\D/g,"").slice(0,5);
+  e.target.value=z;
+  clearTimeout(zipTimer);
+  if(z.length===5){
+    state.zip=z; state.liveKeys=null;
+    setZipNote("Finding fast food near "+z+"…");
+    zipTimer=setTimeout(()=>lookupZip(z), 500);
+  } else {
+    state.zip=""; state.liveKeys=null;
+    setZipNote("Type any US ZIP and the app looks up what's actually near it (live OpenStreetMap data). No ZIP = all "+CHAIN_KEYS.length+" chains.");
+  }
+});
+
+/* ---- filter drawer ---- */
+function openDrawer(){ $("drawer").classList.add("open"); $("drawerOverlay").classList.add("open"); }
+function closeDrawer(){ $("drawer").classList.remove("open"); $("drawerOverlay").classList.remove("open"); }
+$("burgerBtn").onclick=openDrawer;
+$("drawerClose").onclick=closeDrawer;
+$("drawerDone").onclick=closeDrawer;
+$("drawerOverlay").onclick=closeDrawer;
+function wireSingle(id, fn){
+  $(id).querySelectorAll(".chip").forEach(ch=>{
+    ch.onclick=()=>{ $(id).querySelectorAll(".chip").forEach(c=>c.classList.remove("on")); ch.classList.add("on"); fn(ch.dataset.v); updateSummary(); };
+  });
+}
+wireSingle("priceRow", v=>{ state.filters.maxPrice=+v; });
+wireSingle("calRow", v=>{ state.filters.cal=v; });
+$("catRow").querySelectorAll(".chip").forEach(ch=>{
+  ch.onclick=()=>{ ch.classList.toggle("on"); const v=ch.dataset.v; const i=state.filters.cats.indexOf(v);
+    if(i>=0) state.filters.cats.splice(i,1); else state.filters.cats.push(v); updateSummary(); };
+});
+function wireToggle(id, key){
+  $(id).onclick=()=>{ state.filters[key]=!state.filters[key]; $(id).classList.toggle("on",state.filters[key]); $(id).textContent=state.filters[key]?"ON":"OFF"; updateSummary(); };
+}
+wireToggle("tglBallin","ballin"); wireToggle("tglUnder10","under10"); wireToggle("tglSweet","sweet"); wireToggle("tglCatering","catering");
+function updateSummary(){
+  const F=state.filters, parts=[];
+  if(F.maxPrice>0) parts.push("max $"+F.maxPrice);
+  if(F.under10) parts.push("under $10 for sure");
+  if(F.cal!=="any") parts.push({light:"under 600 cal", regular:"600–1100 cal", feast:"1100+ cal"}[F.cal]);
+  F.cats.forEach(c=>parts.push(CAT_LABELS[c]));
+  if(F.ballin) parts.push("Ballin' on a Budget");
+  if(F.sweet) parts.push("Sweet Tooth");
+  if(F.catering) parts.push("Catering");
+  $("filterSummary").textContent = parts.length ? "Filters on: "+parts.join(" · ") : "";
+}
+
+$("feedme").onclick=roll;
+$("btnAgain").onclick=roll;
+drawHistory();
+</script>
+</body>
+</html>
