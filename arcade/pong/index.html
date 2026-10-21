@@ -19,23 +19,36 @@
   button.secondary{background:#232733;color:#fff;border:1px solid #3a4050}
   .hint{color:#9aa3b2;font-size:13px;line-height:1.5;text-align:center;margin-top:10px}
   select{background:#232733;color:#fff;border:1px solid #3a4050;border-radius:10px;padding:12px;font-weight:700}
+  select:disabled{opacity:.4}
+  /* Big-screen mode: court takes the whole screen (used automatically in 2P) */
+  body.big .wrap{width:100%;max-width:none;height:100dvh;padding:8px;display:flex;flex-direction:column}
+  body.big header{display:none}
+  body.big .score{margin:2px 0;font-size:24px}
+  body.big canvas{width:min(100%,calc((100dvh - 132px)*1.3333));margin:auto}
+  body.big .bar{margin-top:8px}
+  body.big .hint{display:none}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header><h1>🏓 Pong</h1><a class="back" href="../index.html">← All games</a></header>
-  <div class="score"><div><small>YOU</small><span id="pScore">0</span></div><div style="color:#666">:</div><div><small>CPU</small><span id="cScore">0</span></div></div>
+  <div class="score"><div><small id="pLabel">YOU</small><span id="pScore">0</span></div><div style="color:#666">:</div><div><small id="cLabel">CPU</small><span id="cScore">0</span></div></div>
   <canvas id="game" width="640" height="480"></canvas>
   <div class="bar">
     <button id="startBtn">Start / Restart</button>
     <button class="secondary" id="pauseBtn">Pause</button>
+    <button class="secondary" id="fsBtn">⛶ Big screen</button>
+    <select id="mode" aria-label="Players">
+      <option value="1p" selected>1 Player</option>
+      <option value="2p">2 Players</option>
+    </select>
     <select id="diff" aria-label="Difficulty">
       <option value="0.055">Easy</option>
       <option value="0.085" selected>Normal</option>
       <option value="0.12">Hard</option>
     </select>
   </div>
-  <p class="hint">Move with your mouse, finger, or ↑ / ↓ keys. First to 7 wins. Ball speeds up every hit.<br>On mobile just drag on the court.</p>
+  <p class="hint">1 Player: mouse, finger, or ↑ / ↓. First to 7 wins. Ball speeds up every hit.<br>2 Players (same phone): left player drags on the left half, right player drags on the right half — at the same time! Keyboard: P1 = W/S, P2 = ↑/↓.</p>
 </div>
 <script>
 (() => {
@@ -43,7 +56,7 @@
   const W=cv.width,H=cv.height;
   const paddle={w:12,h:86, playerX:14, cpuX:W-26, speed:7};
   let py=H/2-paddle.h/2, cy=H/2-paddle.h/2;
-  let ball, pScore=0, cScore=0, running=false, paused=false, keys={};
+  let ball, pScore=0, cScore=0, running=false, paused=false, keys={}, twoP=false;
   const WIN=7;
   function resetBall(dir= Math.random()<.5?-1:1){
     ball={x:W/2,y:H/2,r:9,vx:5.2*dir,vy:(Math.random()*3+1)*(Math.random()<.5?-1:1)};
@@ -61,7 +74,7 @@
     if(!running){
       ctx.fillStyle='rgba(0,0,0,.55)'; ctx.fillRect(0,0,W,H);
       ctx.fillStyle='#fff'; ctx.textAlign='center';
-      ctx.font='900 34px system-ui'; ctx.fillText(pScore>=WIN?'You win! 🏆':cScore>=WIN?'CPU wins': 'PONG', W/2, H/2-10);
+      ctx.font='900 34px system-ui'; ctx.fillText(pScore>=WIN?(twoP?'Player 1 wins! 🏆':'You win! 🏆'):cScore>=WIN?(twoP?'Player 2 wins! 🏆':'CPU wins'): 'PONG', W/2, H/2-10);
       ctx.font='600 17px system-ui'; ctx.fillText('Press Start / Restart', W/2, H/2+24);
     } else if(paused){
       ctx.fillStyle='rgba(0,0,0,.5)'; ctx.fillRect(0,0,W,H);
@@ -70,14 +83,22 @@
   }
   function step(){
     if(running && !paused){
-      if(keys.up) py-=paddle.speed; if(keys.down) py+=paddle.speed;
-      py=Math.max(0,Math.min(H-paddle.h,py));
-      // CPU AI: track ball with difficulty speed, slight lag when ball moves away
-      const cpuSpeed = parseFloat(document.getElementById('diff').value)*H;
-      const target = ball.y - paddle.h/2;
-      const maxMove = ball.vx>0 ? cpuSpeed*0.14 : cpuSpeed*0.07;
-      cy += Math.max(-maxMove, Math.min(maxMove, target-cy));
-      cy=Math.max(0,Math.min(H-paddle.h,cy));
+      if(twoP){
+        // 2P keyboard: P1 = W/S, P2 = arrow keys
+        if(keys.w) py-=paddle.speed; if(keys.s) py+=paddle.speed;
+        if(keys.up) cy-=paddle.speed; if(keys.down) cy+=paddle.speed;
+        py=Math.max(0,Math.min(H-paddle.h,py));
+        cy=Math.max(0,Math.min(H-paddle.h,cy));
+      } else {
+        if(keys.up) py-=paddle.speed; if(keys.down) py+=paddle.speed;
+        py=Math.max(0,Math.min(H-paddle.h,py));
+        // CPU AI: track ball with difficulty speed, slight lag when ball moves away
+        const cpuSpeed = parseFloat(document.getElementById('diff').value)*H;
+        const target = ball.y - paddle.h/2;
+        const maxMove = ball.vx>0 ? cpuSpeed*0.14 : cpuSpeed*0.07;
+        cy += Math.max(-maxMove, Math.min(maxMove, target-cy));
+        cy=Math.max(0,Math.min(H-paddle.h,cy));
+      }
       ball.x+=ball.vx; ball.y+=ball.vy;
       if(ball.y-ball.r<=0||ball.y+ball.r>=H) ball.vy*=-1, ball.y=Math.max(ball.r,Math.min(H-ball.r,ball.y));
       // player paddle
@@ -102,12 +123,46 @@
     return y*(H/r.height);
   }
   cv.addEventListener('mousemove',e=>{ py=pointerY(e)-paddle.h/2; });
-  cv.addEventListener('touchstart',e=>{ py=pointerY(e)-paddle.h/2; e.preventDefault(); },{passive:false});
-  cv.addEventListener('touchmove',e=>{ py=pointerY(e)-paddle.h/2; e.preventDefault(); },{passive:false});
-  addEventListener('keydown',e=>{ if(e.key==='ArrowUp')keys.up=true; if(e.key==='ArrowDown')keys.down=true; if(['ArrowUp','ArrowDown'].includes(e.key))e.preventDefault(); });
-  addEventListener('keyup',e=>{ if(e.key==='ArrowUp')keys.up=false; if(e.key==='ArrowDown')keys.down=false; });
+  // Multi-touch: each finger is tracked by its own id, so in 2P mode both
+  // players can drag their own half of the court at the same time.
+  const activeTouches=new Map();
+  function handleTouch(e){
+    e.preventDefault();
+    const r=cv.getBoundingClientRect();
+    for(const t of e.changedTouches){
+      if(e.type==='touchend'||e.type==='touchcancel'){ activeTouches.delete(t.identifier); continue; }
+      const x=(t.clientX-r.left)*(W/r.width), y=(t.clientY-r.top)*(H/r.height);
+      const side = twoP ? (x<W/2?'L':'R') : 'L';
+      activeTouches.set(t.identifier,side);
+      if(side==='L') py=Math.max(0,Math.min(H-paddle.h,y-paddle.h/2));
+      else cy=Math.max(0,Math.min(H-paddle.h,y-paddle.h/2));
+    }
+  }
+  cv.addEventListener('touchstart',handleTouch,{passive:false});
+  cv.addEventListener('touchmove',handleTouch,{passive:false});
+  cv.addEventListener('touchend',handleTouch,{passive:false});
+  cv.addEventListener('touchcancel',handleTouch,{passive:false});
+  addEventListener('keydown',e=>{ if(e.key==='ArrowUp')keys.up=true; if(e.key==='ArrowDown')keys.down=true; if(e.key==='w'||e.key==='W')keys.w=true; if(e.key==='s'||e.key==='S')keys.s=true; if(['ArrowUp','ArrowDown'].includes(e.key))e.preventDefault(); });
+  addEventListener('keyup',e=>{ if(e.key==='ArrowUp')keys.up=false; if(e.key==='ArrowDown')keys.down=false; if(e.key==='w'||e.key==='W')keys.w=false; if(e.key==='s'||e.key==='S')keys.s=false; });
   document.getElementById('startBtn').onclick=()=>{ pScore=0;cScore=0;update(); resetBall(); running=true; paused=false; };
   document.getElementById('pauseBtn').onclick=()=>{ if(running) paused=!paused; };
+  document.getElementById('mode').onchange=e=>{
+    twoP = e.target.value==='2p';
+    document.getElementById('pLabel').textContent = twoP?'PLAYER 1':'YOU';
+    document.getElementById('cLabel').textContent = twoP?'PLAYER 2':'CPU';
+    document.getElementById('diff').disabled = twoP;
+    if(twoP) document.body.classList.add('big'); // 2P gets the whole screen
+    pScore=0; cScore=0; update(); resetBall(); running=false; paused=false; draw();
+  };
+  document.getElementById('fsBtn').onclick=async()=>{
+    const big=document.body.classList.toggle('big');
+    try{
+      if(big){
+        if(document.documentElement.requestFullscreen && !document.fullscreenElement) await document.documentElement.requestFullscreen();
+        if(screen.orientation && screen.orientation.lock){ try{ await screen.orientation.lock('landscape'); }catch(_){} }
+      } else if(document.fullscreenElement) await document.exitFullscreen();
+    }catch(_){ /* iPhone Safari blocks page fullscreen — the big layout still applies */ }
+  };
   resetBall(); step();
 })();
 </script>
