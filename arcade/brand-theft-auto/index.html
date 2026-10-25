@@ -138,7 +138,7 @@
       ()=>{ S.mood=clamp(S.mood+7); return 'Mom made Bran’s favorite breakfast. Baked beans.'; },
       ()=>{ S.inv.weed++; return 'Brandino’s plug swung by last night and left a little weed in the stash.'; },
       ()=>{ S.health=clamp(S.health-4); S.mood=clamp(S.mood-4); return 'The puerto rican neighbor’s music was bumping through the wall half the night.'; },
-      ()=>{ S.energy=clamp(S.energy+6); return 'Brandino actually slept like a baby for once.'; },
+      ()=>{ S.energy=clamp(S.energy+6); return 'Bradbon actually slept like a baby for once.'; },
       ()=>{ S.mom=clamp(S.mom-4); return 'Mom found Brando’s dishes in the bathroom again. She is keeping score.'; }
     ]);
     addLog(ev());
@@ -148,14 +148,14 @@
     const common=[
       ()=>{ S.mood=clamp(S.mood+5); return 'A song Brendan loves came on and fixed his whole attitude for an hour.'; },
       ()=>{ S.mood=clamp(S.mood-5); return 'Some honky was driving slow in front of B for no reason. Infuriating.'; },
-      ()=>{ S.energy=clamp(S.energy+5); return 'Brandino dropped a massive log.'; },
+      ()=>{ S.energy=clamp(S.energy+5); return 'Blandon dropped a massive log.'; },
       ()=>{ S.inv.weed++; return 'The homie Stevie blessed Brandino with a little weed for the stash.'; }
     ];
     const byPlace={
       home:[()=>{ S.mom=clamp(S.mom+4); S.mood=clamp(S.mood+4); return 'Mom was in a good mood and told Bran a story he’d never heard before about him being not so gay. :(.'; },
             ()=>{ S.mood=clamp(S.mood+6); return 'Brandino found the good channel with back-to-back hentai.'; }],
       factory:[()=>{ earn(12); return 'A coworker covered part of Brandino’s station while he took a poop, so the shift felt shorter (same pay, better vibes).'; },
-               ()=>{ S.health=clamp(S.health-5); S.mood=clamp(S.mood-4); return 'A blade kicked back on the grinder. No stitches, but Brandino felt that one.'; }],
+               ()=>{ S.health=clamp(S.health-5); S.mood=clamp(S.mood-4); return 'A blade kicked back on the grinder. No stitches, but Bradbon felt that one.'; }],
       liquor:[()=>{ S.mood=clamp(S.mood+5); return 'A regular told El Brando he runs the slowest register in the neighborhood.'; },
               ()=>{ S.mood=clamp(S.mood-5); S.energy=clamp(S.energy-4); return 'Somebody tried to argue about expired coupons at the liquor store. For thirty minutes... they pulled out a gun and brand cried.'; }],
       shotz:[()=>{ S.mood=clamp(S.mood+8); return 'Somebody at Shotz told Brandino he looks like Clay Aiken.'; },
@@ -176,7 +176,7 @@
         S.ateDay=S.day; S.energy=clamp(S.energy+14); S.health=clamp(S.health+6); S.mood=clamp(S.mood+4); touchMom(2);
         addLog('Brandino ate Mom’s spaghetti. Knees weak, arms are heavy.'); passTime(1); break;
       case 'chillMom': {
-        const lines=['Mom says Brandino needs a haircut, a savings account, and some hoez','Mom asked why Brandino’s friends only come over when she cooks.','Mom says the shitfactory is good honest work and Brandino should stick with it.','Mom ranked Brandino’s life choices “not bad, just gay.”'];
+        const lines=['Mom says Bardon needs a haircut, a savings account, and some hoez','Mom asked why Brandino’s friends only come over when she cooks.','Mom says the shitfactory is good honest work and Brandino should stick with it.','Mom ranked Brandino’s life choices “not bad, just gay.”'];
         touchMom(7); S.mood=clamp(S.mood+6); addLog('Brandino chilled with Mom. '+pick(lines)); passTime(1); break; }
       case 'help': S.energy=clamp(S.energy-8); touchMom(10); S.mood=clamp(S.mood+2); addLog('Branman helped around the house — trash out, yard touched, dishes handled. Mom saw it.'); passTime(1); break;
       case 'smokeWeed':
@@ -186,7 +186,7 @@
       case 'drinkBeer':
         if(S.inv.beer<=0){ addLog('No beer in the stash. Wine Cellar run required.'); break; }
         S.inv.beer--; S.drinks++; S.mood=clamp(S.mood+8); S.health=clamp(S.health-2); S.energy=clamp(S.energy-3);
-        addLog('Brandino cracked a voodoo ranger at the crib.'); passTime(1); break;
+        addLog('Barndon cracked a voodoo ranger at the crib.'); passTime(1); break;
       case 'drinkBottle':
         if(S.inv.bottle<=0){ addLog('No BV in the stash. Liquor store run required.'); break; }
         S.inv.bottle--; S.drinks++; S.mood=clamp(S.mood+13); S.health=clamp(S.health-5); S.energy=clamp(S.energy-5);
@@ -197,7 +197,7 @@
         addLog('Brandino smoked a cig on the couch and thought about absolutely nothing.'); passTime(1); break;
       // FACTORY
             case 'buyWeed':
-        if(spend(25)){ S.inv.weed++; addLog('Brando bought weed from Eduardo by the loading dock ($25). Eduardo said tell nobody.'); }
+        if(spend(25)){ S.inv.weed++; addLog('Bhad Bhrandon bought weed from Eduardo by the loading dock ($25). Eduardo said tell nobody.'); }
         else addLog('Eduardo doesn’t do IOUs. Bran needs $25 cash.');
         break;
       case 'factoryShift': {
@@ -208,7 +208,7 @@
         if(r<0.14){ earn(36); extra=' The friendly skinhead manager kept him for overtime (+$36).'; passTime(9); }
         else if(r<0.26){ S.health=clamp(S.health-9); S.mood=clamp(S.mood-5); extra=' He sliced his fingertip on a blade again — nothing serious, but it stung all shift.'; passTime(8); }
         else passTime(8);
-        addLog('Brando worked a shit-factory shift (+$144).'+extra); break; }
+        addLog('Brondo worked a shit-factory shift (+$144).'+extra); break; }
       // LIQUOR STORE — WORK
       case 'liquorShift': {
         if(!needEnergy(18)){ addLog('Brandino is too tired and musty to run a register and smile at customers. Sleep first.'); break; }
@@ -221,14 +221,14 @@
       // LIQUOR STORE — BUY (alcohol + cigs only)
       case 'buyBeer': if(spend(9)){ S.inv.beer++; addLog('B bought a six pack for the stash ($9).'); } else addLog('Not enough skrill for booze. Work pays, vibes don’t.'); break;
       case 'buyBottle': if(spend(22)){ S.inv.bottle++; addLog('Brando bought a bottle of BV for the stash ($22).'); } else addLog('Not enough cash for a bottle. The good stuff waits for payday.'); break;
-      case 'buyCigs': if(spend(13)){ S.inv.cigs++; addLog('Brandino bought a pack of fags ($13).'); } else addLog('Not enough cash for ciggies.'); break;
+      case 'buyCigs': if(spend(13)){ S.inv.cigs++; addLog('Brondon bought a pack of fags ($13).'); } else addLog('Not enough cash for ciggies.'); break;
       // SHOTZ — buy drinks only, consumed on the spot
       case 'shotzBeer':
         if(!spend(7)){ addLog('Brandino can’t cover a $7 beer at Shotz. Down bad.'); break; }
         S.drinks++; S.mood=clamp(S.mood+9); S.health=clamp(S.health-2); S.energy=clamp(S.energy-2);
         addLog('Big bran bought a coors at Shotz and posted up like he owned the joint.'); passTime(1); break;
       case 'shotzShot':
-        if(!spend(9)){ addLog('Brandino can’t cover a $9 shot at Shotz. The hot bartender looked away politely. Ouch.'); break; }
+        if(!spend(9)){ addLog('Brand can’t cover a $9 shot at Shotz. The hot bartender looked away politely. Ouch.'); break; }
         S.drinks++; S.mood=clamp(S.mood+12); S.health=clamp(S.health-4); S.energy=clamp(S.energy-3);
         addLog('Brandino took a shot at Shotz. Immediate rizz boost.'); passTime(1); break;
       // WEST SIDE BOWL — no entry in v1
