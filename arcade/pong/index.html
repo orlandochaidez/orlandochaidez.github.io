@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pong</title>
 <style>
-  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
   body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0f1115;color:#f5f5f5;display:flex;justify-content:center}
   .wrap{width:min(720px,100%);padding:18px 16px 24px}
   header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px}
@@ -27,6 +27,9 @@
   body.big canvas{width:min(100%,calc((100dvh - 132px)*1.3333));margin:auto}
   body.big .bar{margin-top:8px}
   body.big .hint{display:none}
+  /* Vertical face-to-face court (2P): portrait 3:4 */
+  body.vert canvas{aspect-ratio:3/4}
+  body.big.vert canvas{width:min(100%,calc((100dvh - 132px)*.75))}
 </style>
 </head>
 <body>
@@ -48,7 +51,7 @@
       <option value="0.12">Hard</option>
     </select>
   </div>
-  <p class="hint">1 Player: mouse, finger, or ↑ / ↓. First to 7 wins. Ball speeds up every hit.<br>2 Players (same phone): left player drags on the left half, right player drags on the right half — at the same time! Keyboard: P1 = W/S, P2 = ↑/↓.</p>
+  <p class="hint">1 Player: mouse, finger, or ↑ / ↓. First to 7 wins. Ball speeds up every hit.<br>2 Players — hold the phone upright, one player at each end: Player 1 (bottom, by the home button) drags the bottom half, Player 2 (top, by the earpiece) drags the top half — at the same time! Keyboard: P1 = ↑/↓, P2 = W/S.</p>
 </div>
 <script>
 (() => {
@@ -62,8 +65,17 @@
     ball={x:W/2,y:H/2,r:9,vx:5.2*dir,vy:(Math.random()*3+1)*(Math.random()<.5?-1:1)};
   }
   function draw(){
-    ctx.clearRect(0,0,W,H);
-    ctx.fillStyle='#161a22'; ctx.fillRect(0,0,W,H);
+    ctx.clearRect(0,0,cv.width,cv.height);
+    ctx.fillStyle='#161a22'; ctx.fillRect(0,0,cv.width,cv.height);
+    ctx.save();
+    if(twoP){
+      // Vertical face-to-face mode: the 640x480 game is drawn rotated 90 deg
+      // into the portrait 480x640 canvas. Logical left paddle = top player,
+      // logical right paddle = bottom player.
+      ctx.translate(cv.width/2, cv.height/2);
+      ctx.rotate(Math.PI/2);
+      ctx.translate(-W/2, -H/2);
+    }
     ctx.strokeStyle='rgba(255,255,255,.35)'; ctx.setLineDash([10,14]);
     ctx.beginPath(); ctx.moveTo(W/2,0); ctx.lineTo(W/2,H); ctx.stroke(); ctx.setLineDash([]);
     ctx.beginPath(); ctx.arc(W/2,H/2,58,0,Math.PI*2); ctx.stroke();
@@ -71,20 +83,23 @@
     ctx.fillRect(paddle.playerX,py,paddle.w,paddle.h);
     ctx.fillRect(paddle.cpuX,cy,paddle.w,paddle.h);
     ctx.beginPath(); ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+    // Overlays draw upright in screen coords (readable by the bottom player).
+    const SW=cv.width, SH=cv.height;
     if(!running){
-      ctx.fillStyle='rgba(0,0,0,.55)'; ctx.fillRect(0,0,W,H);
+      ctx.fillStyle='rgba(0,0,0,.55)'; ctx.fillRect(0,0,SW,SH);
       ctx.fillStyle='#fff'; ctx.textAlign='center';
-      ctx.font='900 34px system-ui'; ctx.fillText(pScore>=WIN?(twoP?'Player 1 wins! 🏆':'You win! 🏆'):cScore>=WIN?(twoP?'Player 2 wins! 🏆':'CPU wins'): 'PONG', W/2, H/2-10);
-      ctx.font='600 17px system-ui'; ctx.fillText('Press Start / Restart', W/2, H/2+24);
+      ctx.font='900 34px system-ui'; ctx.fillText(pScore>=WIN?(twoP?'Player 1 wins! 🏆':'You win! 🏆'):cScore>=WIN?(twoP?'Player 2 wins! 🏆':'CPU wins'): 'PONG', SW/2, SH/2-10);
+      ctx.font='600 17px system-ui'; ctx.fillText('Press Start / Restart', SW/2, SH/2+24);
     } else if(paused){
-      ctx.fillStyle='rgba(0,0,0,.5)'; ctx.fillRect(0,0,W,H);
-      ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.font='900 30px system-ui'; ctx.fillText('Paused',W/2,H/2);
+      ctx.fillStyle='rgba(0,0,0,.5)'; ctx.fillRect(0,0,SW,SH);
+      ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.font='900 30px system-ui'; ctx.fillText('Paused',SW/2,SH/2);
     }
   }
   function step(){
     if(running && !paused){
       if(twoP){
-        // 2P keyboard: P1 = W/S, P2 = arrow keys
+        // 2P keyboard: P2 (top) = W/S, P1 (bottom) = arrow keys
         if(keys.w) py-=paddle.speed; if(keys.s) py+=paddle.speed;
         if(keys.up) cy-=paddle.speed; if(keys.down) cy+=paddle.speed;
         py=Math.max(0,Math.min(H-paddle.h,py));
@@ -111,31 +126,41 @@
         const rel=(ball.y-(cy+paddle.h/2))/(paddle.h/2);
         ball.vx=-Math.abs(ball.vx)*1.05; ball.vy=rel*6; ball.x=paddle.cpuX-ball.r;
       }
-      if(ball.x<-20){ cScore++; update(); if(cScore>=WIN) running=false; else resetBall(1); }
-      if(ball.x>W+20){ pScore++; update(); if(pScore>=WIN) running=false; else resetBall(-1); }
+      // In vertical 2P the bottom player (P1) is the logical right paddle
+      // and the top player (P2) is the logical left one, so a ball slipping
+      // past an end scores for the player at the OTHER end.
+      if(ball.x<-20){ if(twoP) pScore++; else cScore++; update(); if((twoP?pScore:cScore)>=WIN) running=false; else resetBall(1); }
+      if(ball.x>W+20){ if(twoP) cScore++; else pScore++; update(); if((twoP?cScore:pScore)>=WIN) running=false; else resetBall(-1); }
     }
     draw(); requestAnimationFrame(step);
   }
   function update(){ document.getElementById('pScore').textContent=pScore; document.getElementById('cScore').textContent=cScore; }
-  function pointerY(e){
+  function courtPoint(clientX,clientY){
     const r=cv.getBoundingClientRect();
-    const y=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
-    return y*(H/r.height);
+    const bx=(clientX-r.left)*(cv.width/r.width), by=(clientY-r.top)*(cv.height/r.height);
+    // In vertical 2P the screen is the game rotated 90 deg: screen-y is the
+    // game's x axis, screen-x is the game's y axis (mirrored).
+    return twoP ? {x:by, y:H-bx} : {x:bx, y:by};
   }
-  cv.addEventListener('mousemove',e=>{ py=pointerY(e)-paddle.h/2; });
+  function movePaddle(side,y){
+    const v=Math.max(0,Math.min(H-paddle.h,y-paddle.h/2));
+    if(side==='L') py=v; else cy=v;
+  }
+  cv.addEventListener('mousemove',e=>{
+    const p=courtPoint(e.clientX,e.clientY);
+    if(twoP) movePaddle(p.x<W/2?'L':'R',p.y); else movePaddle('L',p.y);
+  });
   // Multi-touch: each finger is tracked by its own id, so in 2P mode both
   // players can drag their own half of the court at the same time.
   const activeTouches=new Map();
   function handleTouch(e){
     e.preventDefault();
-    const r=cv.getBoundingClientRect();
     for(const t of e.changedTouches){
       if(e.type==='touchend'||e.type==='touchcancel'){ activeTouches.delete(t.identifier); continue; }
-      const x=(t.clientX-r.left)*(W/r.width), y=(t.clientY-r.top)*(H/r.height);
-      const side = twoP ? (x<W/2?'L':'R') : 'L';
+      const p=courtPoint(t.clientX,t.clientY);
+      const side = twoP ? (p.x<W/2?'L':'R') : 'L';
       activeTouches.set(t.identifier,side);
-      if(side==='L') py=Math.max(0,Math.min(H-paddle.h,y-paddle.h/2));
-      else cy=Math.max(0,Math.min(H-paddle.h,y-paddle.h/2));
+      movePaddle(side,p.y);
     }
   }
   cv.addEventListener('touchstart',handleTouch,{passive:false});
@@ -151,6 +176,9 @@
     document.getElementById('pLabel').textContent = twoP?'PLAYER 1':'YOU';
     document.getElementById('cLabel').textContent = twoP?'PLAYER 2':'CPU';
     document.getElementById('diff').disabled = twoP;
+    // Vertical face-to-face court in 2P: portrait 480x640 canvas.
+    cv.width = twoP?480:640; cv.height = twoP?640:480;
+    document.body.classList.toggle('vert', twoP);
     if(twoP) document.body.classList.add('big'); // 2P gets the whole screen
     pScore=0; cScore=0; update(); resetBall(); running=false; paused=false; draw();
   };
@@ -159,7 +187,7 @@
     try{
       if(big){
         if(document.documentElement.requestFullscreen && !document.fullscreenElement) await document.documentElement.requestFullscreen();
-        if(screen.orientation && screen.orientation.lock){ try{ await screen.orientation.lock('landscape'); }catch(_){} }
+        if(screen.orientation && screen.orientation.lock){ try{ await screen.orientation.lock(twoP?'portrait':'landscape'); }catch(_){} }
       } else if(document.fullscreenElement) await document.exitFullscreen();
     }catch(_){ /* iPhone Safari blocks page fullscreen — the big layout still applies */ }
   };
