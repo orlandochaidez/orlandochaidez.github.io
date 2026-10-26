@@ -23,7 +23,7 @@
   .sq .coord{position:absolute;font-size:9px;font-weight:800;opacity:.75;pointer-events:none}
   .sq .coord.rank{top:2px;left:3px}.sq .coord.file{bottom:2px;right:3px}
   .sq.light .coord{color:#b58863}.sq.dark .coord{color:#f0d9b5}
-  .piece-w{color:#ffffff;text-shadow:0 0 3px #000,0 0 3px #000,1px 1px 2px #000}
+  .piece-w{color:#ffffff;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000,0 0 4px rgba(0,0,0,.7)}
   .piece-b{color:#161616;text-shadow:0 0 2px rgba(255,255,255,.35)}
   .sq.sel{box-shadow:inset 0 0 0 4px #ffcf3f}
   .sq.lastmove{box-shadow:inset 0 0 0 100px rgba(255,213,79,.38)}
@@ -81,7 +81,11 @@ var Chess=function(r){var e="b",n="w",t=-1,o="p",i="b",f="k",u="rnbqkbnr/ppppppp
   const SUPABASE_URL='https://qewxxfmdkichcmhyxqjo.supabase.co';
   const SUPABASE_KEY='sb_publishable_-siKrI5IZ3TjXC_TWcRbDw_9cbY6NaB';
   const START_FEN='rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-  const GLYPH={k:'♚',q:'♛',r:'♜',b:'♝',n:'♞',p:'♟'};
+  // Separate glyph sets per side: the filled set (♚…) is black-only on iOS —
+  // colouring it white works for the big pieces but the pawn ♟ always renders
+  // black, so White gets the outline set (♔…) instead.
+  const GLYPH_W={k:'♔',q:'♕',r:'♖',b:'♗',n:'♘',p:'♙'};
+  const GLYPH_B={k:'♚',q:'♛',r:'♜',b:'♝',n:'♞',p:'♟'};
   const FILES='abcdefgh';
 
   let game=new Chess();
@@ -132,7 +136,7 @@ var Chess=function(r){var e="b",n="w",t=-1,o="p",i="b",f="k",u="rnbqkbnr/ppppppp
       html+='<div class="'+cls+'" data-sq="'+sq+'">'
         +(f===files[0]?'<span class="coord rank">'+rank+'</span>':'')
         +(rank===ranks[ranks.length-1]?'<span class="coord file">'+FILES[f]+'</span>':'')
-        +(piece?'<span class="'+(piece.color==='w'?'piece-w':'piece-b')+'">'+GLYPH[piece.type]+'</span>':'')
+        +(piece?'<span class="'+(piece.color==='w'?'piece-w':'piece-b')+'">'+(piece.color==='w'?GLYPH_W:GLYPH_B)[piece.type]+'</span>':'')
         +(target?(target.captured||target.flags.includes('e')?'<span class="ring"></span>':'<span class="dot"></span>'):'')
         +'</div>';
     }
@@ -151,7 +155,7 @@ var Chess=function(r){var e="b",n="w",t=-1,o="p",i="b",f="k",u="rnbqkbnr/ppppppp
     } else $('lastMove').textContent='Fresh board — opening move is up for grabs.';
     // captured pieces
     const capW=[], capB=[];
-    for(const m of game.history({verbose:true})) if(m.captured) (m.color==='w'?capW:capB).push(GLYPH[m.captured]);
+    for(const m of game.history({verbose:true})) if(m.captured) (m.color==='w'?capW:capB).push((m.color==='w'?GLYPH_B:GLYPH_W)[m.captured]);
     $('capByWhite').textContent=capW.join(' ');
     $('capByBlack').textContent=capB.join(' ');
     // move list
@@ -258,7 +262,7 @@ var Chess=function(r){var e="b",n="w",t=-1,o="p",i="b",f="k",u="rnbqkbnr/ppppppp
         if(target.flags.includes('p')){ // promotion — ask which piece
           pendingPromo={from:selected,to:sq};
           const color=turn;
-          $('promoChoices').innerHTML=['q','r','b','n'].map(t=>'<button data-promo="'+t+'" class="'+(color==='w'?'piece-w':'piece-b')+'" style="color:'+(color==='w'?'#fff':'#161616')+'">'+GLYPH[t]+'</button>').join('');
+          $('promoChoices').innerHTML=['q','r','b','n'].map(t=>'<button data-promo="'+t+'" class="'+(color==='w'?'piece-w':'piece-b')+'" style="color:'+(color==='w'?'#fff':'#161616')+'">'+(color==='w'?GLYPH_W:GLYPH_B)[t]+'</button>').join('');
           $('promo').classList.add('show');
           return;
         }
