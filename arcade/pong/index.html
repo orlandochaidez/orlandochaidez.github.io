@@ -34,7 +34,7 @@
 </head>
 <body>
 <div class="wrap">
-  <header><h1>🏓 Pong</h1><a class="back" href="../index.html">← All games</a></header>
+  <header><h1 id="gameTitle">🏓 Pong</h1><a class="back" href="../index.html">← All games</a></header>
   <div class="score"><div><small id="pLabel">YOU</small><span id="pScore">0</span></div><div style="color:#666">:</div><div><small id="cLabel">CPU</small><span id="cScore">0</span></div></div>
   <canvas id="game" width="640" height="480"></canvas>
   <div class="bar">
@@ -44,6 +44,7 @@
     <select id="mode" aria-label="Players">
       <option value="1p" selected>1 Player</option>
       <option value="2p">2 Players</option>
+      <option value="hockey">🏒 Ice Hockey (2P)</option>
     </select>
     <select id="diff" aria-label="Difficulty">
       <option value="0.055">Easy</option>
@@ -51,7 +52,7 @@
       <option value="0.12">Hard</option>
     </select>
   </div>
-  <p class="hint">1 Player: mouse, finger, or ↑ / ↓. First to 7 wins. Ball speeds up every hit.<br>2 Players — hold the phone upright, one player at each end: Player 1 (bottom, by the home button) drags the bottom half, Player 2 (top, by the earpiece) drags the top half — at the same time! Keyboard: P1 = ↑/↓, P2 = W/S.</p>
+  <p class="hint">1 Player: mouse, finger, or ↑ / ↓. First to 7 wins. Ball speeds up every hit.<br>2 Players — hold the phone upright, one player at each end: Player 1 (bottom, by the home button) drags the bottom half, Player 2 (top, by the earpiece) drags the top half — at the same time! Keyboard: P1 = ↑/↓, P2 = W/S.<br>🏒 Ice Hockey: same two-player setup, on the ice — red vs blue, black puck, first to 7. GOAL! 🥅</p>
 </div>
 <script>
 (() => {
@@ -59,14 +60,16 @@
   const W=cv.width,H=cv.height;
   const paddle={w:12,h:86, playerX:14, cpuX:W-26, speed:7};
   let py=H/2-paddle.h/2, cy=H/2-paddle.h/2;
-  let ball, pScore=0, cScore=0, running=false, paused=false, keys={}, twoP=false;
+  let ball, pScore=0, cScore=0, running=false, paused=false, keys={}, twoP=false, hockey=false, goalFlash=0;
   const WIN=7;
   function resetBall(dir= Math.random()<.5?-1:1){
-    ball={x:W/2,y:H/2,r:9,vx:5.2*dir,vy:(Math.random()*3+1)*(Math.random()<.5?-1:1)};
+    // Two-player (Pong + Hockey) plays ~30% faster than 1P vs CPU.
+    const f=twoP?1.3:1;
+    ball={x:W/2,y:H/2,r:9,vx:5.2*f*dir,vy:(Math.random()*3+1)*f*(Math.random()<.5?-1:1)};
   }
   function draw(){
     ctx.clearRect(0,0,cv.width,cv.height);
-    ctx.fillStyle='#161a22'; ctx.fillRect(0,0,cv.width,cv.height);
+    ctx.fillStyle=hockey?'#dceefb':'#161a22'; ctx.fillRect(0,0,cv.width,cv.height);
     ctx.save();
     if(twoP){
       // Vertical face-to-face mode: the 640x480 game is drawn rotated 90 deg
@@ -76,28 +79,56 @@
       ctx.rotate(Math.PI/2);
       ctx.translate(-W/2, -H/2);
     }
-    ctx.strokeStyle='rgba(255,255,255,.35)'; ctx.setLineDash([10,14]);
-    ctx.beginPath(); ctx.moveTo(W/2,0); ctx.lineTo(W/2,H); ctx.stroke(); ctx.setLineDash([]);
-    ctx.beginPath(); ctx.arc(W/2,H/2,58,0,Math.PI*2); ctx.stroke();
-    ctx.fillStyle='#fff';
+    if(hockey){
+      // Ice rink: red center line, blue lines, faceoff circles, goal creases.
+      ctx.strokeStyle='#d62626'; ctx.lineWidth=4; ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(W/2,0); ctx.lineTo(W/2,H); ctx.stroke();
+      ctx.strokeStyle='#2563eb'; ctx.lineWidth=3;
+      ctx.beginPath(); ctx.moveTo(W/2-150,0); ctx.lineTo(W/2-150,H); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(W/2+150,0); ctx.lineTo(W/2+150,H); ctx.stroke();
+      ctx.strokeStyle='#d62626'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.arc(W/2,H/2,58,0,Math.PI*2); ctx.stroke();
+      for(const fx of [W/2-150,W/2+150]) for(const fy of [120,H-120]){
+        ctx.beginPath(); ctx.arc(fx,fy,34,0,Math.PI*2); ctx.stroke();
+        ctx.fillStyle='#d62626'; ctx.beginPath(); ctx.arc(fx,fy,3,0,Math.PI*2); ctx.fill();
+      }
+      ctx.beginPath(); ctx.arc(0,H/2,44,-Math.PI/2,Math.PI/2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(W,H/2,44,Math.PI/2,Math.PI*3/2); ctx.stroke();
+      ctx.lineWidth=1;
+    } else {
+      ctx.strokeStyle='rgba(255,255,255,.35)'; ctx.setLineDash([10,14]);
+      ctx.beginPath(); ctx.moveTo(W/2,0); ctx.lineTo(W/2,H); ctx.stroke(); ctx.setLineDash([]);
+      ctx.beginPath(); ctx.arc(W/2,H/2,58,0,Math.PI*2); ctx.stroke();
+    }
+    // Team colors in hockey: top player (P2) red, bottom player (P1) blue.
+    ctx.fillStyle=hockey?'#d62626':'#fff';
     ctx.fillRect(paddle.playerX,py,paddle.w,paddle.h);
+    ctx.fillStyle=hockey?'#2563eb':'#fff';
     ctx.fillRect(paddle.cpuX,cy,paddle.w,paddle.h);
-    ctx.beginPath(); ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2); ctx.fill();
+    // Black puck in hockey (white outline so it pops on the ice), white ball in Pong.
+    ctx.beginPath(); ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
+    if(hockey){ ctx.fillStyle='#111'; ctx.fill(); ctx.strokeStyle='rgba(255,255,255,.85)'; ctx.lineWidth=2; ctx.stroke(); ctx.lineWidth=1; }
+    else { ctx.fillStyle='#fff'; ctx.fill(); }
     ctx.restore();
     // Overlays draw upright in screen coords (readable by the bottom player).
     const SW=cv.width, SH=cv.height;
     if(!running){
       ctx.fillStyle='rgba(0,0,0,.55)'; ctx.fillRect(0,0,SW,SH);
       ctx.fillStyle='#fff'; ctx.textAlign='center';
-      ctx.font='900 34px system-ui'; ctx.fillText(pScore>=WIN?(twoP?'Player 1 wins! 🏆':'You win! 🏆'):cScore>=WIN?(twoP?'Player 2 wins! 🏆':'CPU wins'): 'PONG', SW/2, SH/2-10);
+      ctx.font='900 34px system-ui'; ctx.fillText(pScore>=WIN?(twoP?'Player 1 wins! 🏆':'You win! 🏆'):cScore>=WIN?(twoP?'Player 2 wins! 🏆':'CPU wins'): (hockey?'HOCKEY':'PONG'), SW/2, SH/2-10);
       ctx.font='600 17px system-ui'; ctx.fillText('Press Start / Restart', SW/2, SH/2+24);
     } else if(paused){
       ctx.fillStyle='rgba(0,0,0,.5)'; ctx.fillRect(0,0,SW,SH);
       ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.font='900 30px system-ui'; ctx.fillText('Paused',SW/2,SH/2);
     }
+    if(hockey && goalFlash>0){
+      ctx.fillStyle='#d62626'; ctx.textAlign='center'; ctx.font='900 44px system-ui';
+      ctx.fillText('GOAL! 🥅',SW/2,SH/2);
+    }
   }
   function step(){
     if(running && !paused){
+      if(goalFlash>0) goalFlash--;
       if(twoP){
         // 2P keyboard: P2 (top) = W/S, P1 (bottom) = arrow keys
         if(keys.w) py-=paddle.speed; if(keys.s) py+=paddle.speed;
@@ -129,8 +160,8 @@
       // In vertical 2P the bottom player (P1) is the logical right paddle
       // and the top player (P2) is the logical left one, so a ball slipping
       // past an end scores for the player at the OTHER end.
-      if(ball.x<-20){ if(twoP) pScore++; else cScore++; update(); if((twoP?pScore:cScore)>=WIN) running=false; else resetBall(1); }
-      if(ball.x>W+20){ if(twoP) cScore++; else pScore++; update(); if((twoP?cScore:pScore)>=WIN) running=false; else resetBall(-1); }
+      if(ball.x<-20){ if(twoP) pScore++; else cScore++; update(); if((twoP?pScore:cScore)>=WIN) running=false; else { if(hockey) goalFlash=55; resetBall(1); } }
+      if(ball.x>W+20){ if(twoP) cScore++; else pScore++; update(); if((twoP?cScore:pScore)>=WIN) running=false; else { if(hockey) goalFlash=55; resetBall(-1); } }
     }
     draw(); requestAnimationFrame(step);
   }
@@ -169,10 +200,13 @@
   cv.addEventListener('touchcancel',handleTouch,{passive:false});
   addEventListener('keydown',e=>{ if(e.key==='ArrowUp')keys.up=true; if(e.key==='ArrowDown')keys.down=true; if(e.key==='w'||e.key==='W')keys.w=true; if(e.key==='s'||e.key==='S')keys.s=true; if(['ArrowUp','ArrowDown'].includes(e.key))e.preventDefault(); });
   addEventListener('keyup',e=>{ if(e.key==='ArrowUp')keys.up=false; if(e.key==='ArrowDown')keys.down=false; if(e.key==='w'||e.key==='W')keys.w=false; if(e.key==='s'||e.key==='S')keys.s=false; });
-  document.getElementById('startBtn').onclick=()=>{ pScore=0;cScore=0;update(); resetBall(); running=true; paused=false; };
+  document.getElementById('startBtn').onclick=()=>{ pScore=0;cScore=0;update(); goalFlash=0; resetBall(); running=true; paused=false; };
   document.getElementById('pauseBtn').onclick=()=>{ if(running) paused=!paused; };
   document.getElementById('mode').onchange=e=>{
-    twoP = e.target.value==='2p';
+    hockey = e.target.value==='hockey';
+    twoP = e.target.value!=='1p';
+    document.getElementById('gameTitle').textContent = hockey?'🏒 Ice Hockey':'🏓 Pong';
+    document.title = hockey?'Ice Hockey':'Pong';
     document.getElementById('pLabel').textContent = twoP?'PLAYER 1':'YOU';
     document.getElementById('cLabel').textContent = twoP?'PLAYER 2':'CPU';
     document.getElementById('diff').disabled = twoP;
@@ -180,7 +214,7 @@
     cv.width = twoP?480:640; cv.height = twoP?640:480;
     document.body.classList.toggle('vert', twoP);
     if(twoP) document.body.classList.add('big'); // 2P gets the whole screen
-    pScore=0; cScore=0; update(); resetBall(); running=false; paused=false; draw();
+    pScore=0; cScore=0; update(); goalFlash=0; resetBall(); running=false; paused=false; draw();
   };
   document.getElementById('fsBtn').onclick=async()=>{
     const big=document.body.classList.toggle('big');
