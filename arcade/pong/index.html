@@ -49,7 +49,7 @@
     <select id="diff" aria-label="Difficulty">
       <option value="0.055">Easy</option>
       <option value="0.085" selected>Normal</option>
-      <option value="0.12">Hard</option>
+      <option value="0.19">Hard</option>
     </select>
   </div>
   <p class="hint">1 Player: mouse, finger, or ↑ / ↓. First to 7 wins. Ball speeds up every hit.<br>2 Players — hold the phone upright, one player at each end: Player 1 (bottom, by the home button) drags the bottom half, Player 2 (top, by the earpiece) drags the top half — at the same time! Keyboard: P1 = ↑/↓, P2 = W/S.<br>🏒 Ice Hockey: same two-player setup, on the ice — red vs blue, black puck, first to 7. GOAL! 🥅</p>
@@ -62,9 +62,15 @@
   let py=H/2-paddle.h/2, cy=H/2-paddle.h/2;
   let ball, pScore=0, cScore=0, running=false, paused=false, keys={}, twoP=false, hockey=false, goalFlash=0;
   const WIN=7;
+  // Speed factor: 2P (Pong + Hockey) runs 2.6x — double the old 1.3 boost.
+  // Hard mode vs CPU also serves faster (1.4x). Angles stay the same in
+  // every mode; only the pace changes.
+  function speedF(){
+    if(twoP) return 2.6;
+    return parseFloat(document.getElementById('diff').value)>=0.15 ? 1.4 : 1;
+  }
   function resetBall(dir= Math.random()<.5?-1:1){
-    // Two-player (Pong + Hockey) plays ~30% faster than 1P vs CPU.
-    const f=twoP?1.3:1;
+    const f=speedF();
     ball={x:W/2,y:H/2,r:9,vx:7.8*f*dir,vy:(Math.random()*3+1)*f*(Math.random()<.5?-1:1)};
   }
   function draw(){
@@ -145,17 +151,19 @@
         cy += Math.max(-maxMove, Math.min(maxMove, target-cy));
         cy=Math.max(0,Math.min(H-paddle.h,cy));
       }
+      const prevX=ball.x;
       ball.x+=ball.vx; ball.y+=ball.vy;
       if(ball.y-ball.r<=0||ball.y+ball.r>=H) ball.vy*=-1, ball.y=Math.max(ball.r,Math.min(H-ball.r,ball.y));
-      // player paddle
-      if(ball.vx<0 && ball.x-ball.r<=paddle.playerX+paddle.w && ball.x-ball.r>=paddle.playerX && ball.y>=py && ball.y<=py+paddle.h){
+      // player paddle (swept check: the ball crossing the paddle plane counts
+      // as a hit, so high speeds can't tunnel straight through the paddle)
+      if(ball.vx<0 && prevX-ball.r>paddle.playerX+paddle.w && ball.x-ball.r<=paddle.playerX+paddle.w && ball.y>=py && ball.y<=py+paddle.h){
         const rel=(ball.y-(py+paddle.h/2))/(paddle.h/2);
-        ball.vx=Math.abs(ball.vx)*1.05; ball.vy=rel*7; ball.x=paddle.playerX+paddle.w+ball.r;
+        ball.vx=Math.abs(ball.vx)*1.05; ball.vy=rel*7*speedF(); ball.x=paddle.playerX+paddle.w+ball.r;
       }
       // cpu paddle
-      if(ball.vx>0 && ball.x+ball.r>=paddle.cpuX && ball.x+ball.r<=paddle.cpuX+paddle.w && ball.y>=cy && ball.y<=cy+paddle.h){
+      if(ball.vx>0 && prevX+ball.r<paddle.cpuX && ball.x+ball.r>=paddle.cpuX && ball.y>=cy && ball.y<=cy+paddle.h){
         const rel=(ball.y-(cy+paddle.h/2))/(paddle.h/2);
-        ball.vx=-Math.abs(ball.vx)*1.05; ball.vy=rel*7; ball.x=paddle.cpuX-ball.r;
+        ball.vx=-Math.abs(ball.vx)*1.05; ball.vy=rel*7*speedF(); ball.x=paddle.cpuX-ball.r;
       }
       // In vertical 2P the bottom player (P1) is the logical right paddle
       // and the top player (P2) is the logical left one, so a ball slipping
