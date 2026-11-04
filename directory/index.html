@@ -5,137 +5,270 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>welcome</title>
 <style>
-  *{box-sizing:border-box}
-  html,body{margin:0;padding:0}
-  html{background:#6c5eb5;min-height:100%}
+  html,body{margin:0;padding:0;background:#fff}
   body{
-    font-family:"Courier New",Courier,monospace;
-    background:#6c5eb5;
-    color:#6c5eb5;
-    padding:4vmin;
-    min-height:100vh;min-height:-webkit-fill-available;min-height:100dvh;
-    display:flex;
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    color:#111;
     -webkit-text-size-adjust:100%;
   }
-  .screen{
-    background:#352879;
-    flex:1;
-    max-width:960px;
-    margin:0 auto;
-    padding:30px 26px 64px;
-    text-transform:uppercase;
-    line-height:1.9;
-    font-size:clamp(15px,2.4vw,19px);
-    letter-spacing:1px;
+  .wrap{max-width:680px;margin:0 auto;padding:28px 18px 40px}
+
+  /* ---------- header ---------- */
+  .logo{
+    display:flex;align-items:flex-end;justify-content:center;gap:10px;
+    margin:6px 0 4px;user-select:none;
   }
-  .center{text-align:center}
-  .head{margin:0 0 2px}
-  .cursor{display:inline-block;width:.62em;height:1.05em;background:#6c5eb5;vertical-align:-.16em;margin-left:.1em;
+  .logo .palm{width:clamp(30px,8vw,52px);height:auto;flex:none}
+  .logo h1{
+    margin:0;
+    font-family:"Arial Black","Segoe UI",system-ui,sans-serif;
+    font-weight:900;
+    font-size:clamp(40px,11.5vw,76px);
+    letter-spacing:1px;
+    line-height:.95;
+    transform:rotate(-2deg);
+    background:linear-gradient(180deg,#ffb03a 15%,#ff7a1a 55%,#f43f5e 115%);
+    -webkit-background-clip:text;background-clip:text;
+    -webkit-text-fill-color:transparent;color:transparent;
+  }
+  .tagline{text-align:center;color:#666;font-size:15px;margin:2px 0 26px}
+  .star{color:#ffb03a}
+
+  /* ---------- cards ---------- */
+  .card{
+    position:relative;display:block;
+    border-radius:18px;overflow:hidden;
+    margin:0 0 14px;
+    min-height:132px;
+    text-decoration:none;
+    box-shadow:0 2px 10px rgba(0,0,0,.10);
+    transition:transform .12s ease, box-shadow .12s ease;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .card:hover,.card:focus{transform:scale(1.015);box-shadow:0 6px 22px rgba(0,0,0,.18);outline:none}
+  .card svg.art{position:absolute;inset:0;width:100%;height:100%}
+  .card .txt{position:absolute;left:18px;bottom:14px;right:18px;color:#fff;z-index:2}
+  .card .name{
+    font-size:clamp(22px,5.6vw,30px);font-weight:800;letter-spacing:.2px;
+    text-shadow:0 2px 10px rgba(0,0,0,.35);
+  }
+  .card .sub{font-size:14px;opacity:.92;margin-top:2px;text-shadow:0 1px 6px rgba(0,0,0,.35)}
+  .card.dark .txt{color:#422006}
+  .card.dark .name,.card.dark .sub{text-shadow:none}
+  .badge{
+    position:absolute;top:12px;right:14px;z-index:2;
+    background:#fff;color:#b91c1c;font-weight:900;font-size:15px;
+    border-radius:999px;padding:4px 11px;box-shadow:0 2px 8px rgba(0,0,0,.25);
+  }
+
+  /* ---------- footer (the old ways live on) ---------- */
+  .foot{
+    margin-top:30px;text-align:center;
+    font-family:"Courier New",Courier,monospace;
+    color:#9ca3af;font-size:12px;letter-spacing:.5px;
+  }
+  .foot a{color:inherit;text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .cursor{display:inline-block;width:.55em;height:.95em;background:#9ca3af;vertical-align:-.12em;margin-left:.15em;
     animation:blink 1.05s steps(1) infinite}
   @keyframes blink{50%{opacity:0}}
-  .folder{cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;
-    padding:8px 10px;margin-left:-10px;border-radius:2px;outline:none;
-    animation:pulse 1.8s ease-in-out infinite}
-  @keyframes pulse{0%,100%{background:rgba(108,94,181,0)}50%{background:rgba(108,94,181,.32)}}
-  body.touched .folder{animation:none}
-  @media (prefers-reduced-motion:reduce){.folder{animation:none}}
-  .hint{font-size:.9em;opacity:.9}
-  .soldout{padding:8px 10px;margin-left:-10px;opacity:.6;cursor:default;user-select:none}
-  .folder:hover,.folder:focus{background:#6c5eb5;color:#352879}
-  .toggle{margin-left:1ch}
-  .indent{padding-left:3ch}
-  .item{display:block;padding:9px 10px;margin-left:-10px;color:#6c5eb5;text-decoration:none;cursor:pointer;
-    -webkit-tap-highlight-color:transparent;border-radius:2px}
-  .item:hover,.item:focus{background:#6c5eb5;color:#352879}
-  .item.big{font-size:1.6em}
-  .hidden{display:none}
-  .foot{margin-top:40px;font-size:.85em}
-  .hid{color:inherit;text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
-  .easter{color:#6c5eb5;text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
-  a{color:#6c5eb5}
 </style>
 </head>
 <body>
-<div class="screen">
+<div class="wrap">
 
-<div class="center head">****&nbsp;&nbsp;Orlando&nbsp;&nbsp;****</div>
-<div class="center" id="sysdate">System date</div>
-<br>
-<div>Ready.</div>
-<div class="hint">&#9660; Tap a folder to open it &#9660;</div>
-<br>
+  <div class="logo" aria-label="Orlando">
+    <svg class="palm" viewBox="0 0 64 64" aria-hidden="true"><path d="M30 62 C31 46 30 34 24 24 L28 22 C35 33 36 46 35 62 Z" fill="#0e9f6e"/><g stroke="#0e9f6e" stroke-width="4.5" stroke-linecap="round" fill="none"><path d="M26 24 C18 14 8 12 2 16"/><path d="M26 23 C24 12 28 4 34 1"/><path d="M27 23 C34 13 44 11 50 14"/><path d="M26 25 C17 22 9 24 4 30"/><path d="M27 24 C36 21 44 23 49 28"/></g></svg>
+    <h1>ORLANDO</h1>
+    <svg class="palm" viewBox="0 0 64 64" aria-hidden="true"><path d="M30 62 C31 46 30 34 24 24 L28 22 C35 33 36 46 35 62 Z" fill="#0e9f6e"/><g stroke="#0e9f6e" stroke-width="4.5" stroke-linecap="round" fill="none"><path d="M26 24 C18 14 8 12 2 16"/><path d="M26 23 C24 12 28 4 34 1"/><path d="M27 23 C34 13 44 11 50 14"/><path d="M26 25 C17 22 9 24 4 30"/><path d="M27 24 C36 21 44 23 49 28"/></g></svg>
+  </div>
+  <div class="tagline"><span class="star">&#10022;</span> games &amp; side missions <span class="star">&#10022;</span></div>
 
-<div class="folder" id="f-arcade" role="button" tabindex="0" aria-expanded="false">
-  [DIR] arcade<span class="toggle" id="t-arcade">[+]</span>
+  <!-- PONG -->
+  <a class="card" href="/arcade/pong/index.html">
+    <svg class="art" viewBox="0 0 400 160" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs><linearGradient id="g-pong" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#111827"/><stop offset="1" stop-color="#1f2937"/></linearGradient></defs>
+      <rect width="400" height="160" fill="url(#g-pong)"/>
+      <line x1="200" y1="8" x2="200" y2="152" stroke="#ffffff" stroke-opacity=".35" stroke-width="4" stroke-dasharray="10 12"/>
+      <rect x="26" y="42" width="12" height="76" rx="5" fill="#fff"/>
+      <rect x="362" y="42" width="12" height="76" rx="5" fill="#fff"/>
+      <circle cx="238" cy="66" r="10" fill="#fff"/>
+    </svg>
+    <span class="txt"><span class="name">Pong</span><div class="sub">The classic. First to 7 wins.</div></span>
+  </a>
+
+  <!-- SNAKE -->
+  <a class="card" href="/arcade/snake/index.html">
+    <svg class="art" viewBox="0 0 400 160" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs><linearGradient id="g-snake" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#15803d"/><stop offset="1" stop-color="#22c55e"/></linearGradient></defs>
+      <rect width="400" height="160" fill="url(#g-snake)"/>
+      <g fill="#dcfce7">
+        <rect x="238" y="98" width="26" height="26" rx="8"/><rect x="266" y="98" width="26" height="26" rx="8"/>
+        <rect x="294" y="98" width="26" height="26" rx="8"/><rect x="294" y="70" width="26" height="26" rx="8"/>
+        <rect x="294" y="42" width="26" height="26" rx="8"/><rect x="322" y="42" width="26" height="26" rx="8"/>
+      </g>
+      <circle cx="335" cy="55" r="4" fill="#14532d"/>
+      <circle cx="86" cy="52" r="11" fill="#ef4444"/><path d="M86 41 q4 -10 12 -11" stroke="#14532d" stroke-width="4" fill="none" stroke-linecap="round"/>
+    </svg>
+    <span class="txt"><span class="name">Snake</span><div class="sub">Eat, grow, don't bite yourself.</div></span>
+  </a>
+
+  <!-- BRICK BREAKER -->
+  <a class="card" href="/arcade/brick-breaker/index.html">
+    <svg class="art" viewBox="0 0 400 160" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs><linearGradient id="g-brick" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ea580c"/><stop offset="1" stop-color="#f59e0b"/></linearGradient></defs>
+      <rect width="400" height="160" fill="url(#g-brick)"/>
+      <g rx="4">
+        <rect x="216" y="20" width="52" height="18" rx="4" fill="#fff" fill-opacity=".9"/><rect x="274" y="20" width="52" height="18" rx="4" fill="#7c2d12" fill-opacity=".45"/><rect x="332" y="20" width="52" height="18" rx="4" fill="#fff" fill-opacity=".9"/>
+        <rect x="216" y="44" width="52" height="18" rx="4" fill="#7c2d12" fill-opacity=".45"/><rect x="274" y="44" width="52" height="18" rx="4" fill="#fff" fill-opacity=".9"/><rect x="332" y="44" width="52" height="18" rx="4" fill="#7c2d12" fill-opacity=".45"/>
+      </g>
+      <rect x="286" y="128" width="86" height="12" rx="6" fill="#fff"/>
+      <circle cx="316" cy="102" r="9" fill="#fff"/>
+    </svg>
+    <span class="txt"><span class="name">Brick Breaker</span><div class="sub">Smash every last brick.</div></span>
+  </a>
+
+  <!-- BLOCK DROP -->
+  <a class="card" href="/arcade/block-drop/index.html">
+    <svg class="art" viewBox="0 0 400 160" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs><linearGradient id="g-drop" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6d28d9"/><stop offset="1" stop-color="#3b82f6"/></linearGradient></defs>
+      <rect width="400" height="160" fill="url(#g-drop)"/>
+      <g>
+        <rect x="252" y="26" width="30" height="30" rx="5" fill="#facc15"/><rect x="282" y="26" width="30" height="30" rx="5" fill="#facc15"/><rect x="267" y="56" width="30" height="30" rx="5" fill="#facc15"/>
+        <rect x="330" y="66" width="30" height="30" rx="5" fill="#22d3ee"/><rect x="330" y="96" width="30" height="30" rx="5" fill="#22d3ee"/><rect x="330" y="126" width="30" height="30" rx="5" fill="#22d3ee"/><rect x="300" y="126" width="30" height="30" rx="5" fill="#22d3ee"/>
+        <rect x="222" y="126" width="30" height="30" rx="5" fill="#f472b6"/><rect x="252" y="126" width="30" height="30" rx="5" fill="#f472b6"/>
+      </g>
+    </svg>
+    <span class="txt"><span class="name">Block Drop</span><div class="sub">Tetris-style falling blocks.</div></span>
+  </a>
+
+  <!-- LEMONADE STAND -->
+  <a class="card dark" href="/arcade/lemonade-stand/index.html">
+    <svg class="art" viewBox="0 0 400 160" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs><linearGradient id="g-lem" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fde047"/><stop offset="1" stop-color="#fb923c"/></linearGradient></defs>
+      <rect width="400" height="160" fill="url(#g-lem)"/>
+      <g>
+        <path d="M312 44 L356 44 L349 128 L319 128 Z" fill="#fff" fill-opacity=".85"/>
+        <path d="M315 62 L353 62 L349 128 L319 128 Z" fill="#facc15"/>
+        <line x1="338" y1="18" x2="330" y2="66" stroke="#ef4444" stroke-width="7" stroke-linecap="round"/>
+        <circle cx="306" cy="52" r="15" fill="#fef08a" stroke="#eab308" stroke-width="4"/>
+        <circle cx="368" cy="118" r="12" fill="#fef08a" stroke="#eab308" stroke-width="4"/>
+      </g>
+    </svg>
+    <span class="txt"><span class="name">Lemonade Stand</span><div class="sub">Run the stand, stack the cash.</div></span>
+  </a>
+
+  <!-- FRACTALS -->
+  <a class="card" href="/arcade/fractal-maker/index.html">
+    <svg class="art" viewBox="0 0 400 160" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs><linearGradient id="g-frac" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#312e81"/><stop offset="1" stop-color="#7c3aed"/></linearGradient></defs>
+      <rect width="400" height="160" fill="url(#g-frac)"/>
+      <g fill="none" stroke="#c4b5fd">
+        <rect x="272" y="16" width="112" height="112" stroke-opacity=".95" stroke-width="3"/>
+        <rect x="284" y="28" width="88" height="88" stroke-opacity=".7" stroke-width="3" transform="rotate(12 328 72)"/>
+        <rect x="296" y="40" width="64" height="64" stroke-opacity=".5" stroke-width="3" transform="rotate(24 328 72)"/>
+        <rect x="306" y="50" width="44" height="44" stroke-opacity=".35" stroke-width="3" transform="rotate(36 328 72)"/>
+        <circle cx="328" cy="72" r="7" fill="#c4b5fd" stroke="none"/>
+      </g>
+    </svg>
+    <span class="txt"><span class="name">Fractals</span><div class="sub">Make your own trippy math art.</div></span>
+  </a>
+
+  <!-- FRED -->
+  <a class="card" href="https://orlandochaidez.com/fred/">
+    <svg class="art" viewBox="0 0 400 160" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs><linearGradient id="g-fred" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#134e4a"/><stop offset="1" stop-color="#0f766e"/></linearGradient></defs>
+      <rect width="400" height="160" fill="url(#g-fred)"/>
+      <g stroke="#5eead4" stroke-opacity=".3" stroke-width="2"><line x1="0" y1="46" x2="400" y2="46"/><line x1="0" y1="86" x2="400" y2="86"/><line x1="0" y1="126" x2="400" y2="126"/></g>
+      <polyline points="196,124 246,104 282,112 318,72 352,80 382,34" fill="none" stroke="#5eead4" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="382" cy="34" r="7" fill="#5eead4"/>
+    </svg>
+    <span class="txt"><span class="name">FRED</span><div class="sub">Live economic data dashboard.</div></span>
+  </a>
+
+  <!-- MUSCLE ANATOMY 3D -->
+  <a class="card" href="https://orlandochaidez.com/muscle-anatomy-3d/">
+    <svg class="art" viewBox="0 0 400 160" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs><linearGradient id="g-mus" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7f1d1d"/><stop offset="1" stop-color="#b91c1c"/></linearGradient></defs>
+      <rect width="400" height="160" fill="url(#g-mus)"/>
+      <g transform="translate(258,-16) scale(0.98)">
+        <circle cx="100" cy="24" r="12" fill="#d43a2f"/>
+        <path d="M88 38 L62 50 L52 102 L50 114 L58 116 L68 106 L74 76 L78 120 L76 152 L74 188 L86 188 L90 142 L100 134 L110 142 L114 188 L126 188 L124 152 L122 120 L126 76 L132 106 L142 116 L150 114 L148 102 L138 50 L112 38 Q100 44 88 38 Z" fill="#d43a2f"/>
+        <g stroke="#7f1d1d" stroke-width="2.4" fill="none" stroke-linecap="round">
+          <path d="M80 62 Q90 56 98 62"/><path d="M102 62 Q110 56 120 62"/>
+          <path d="M84 84 L116 84"/><path d="M86 98 L114 98"/><path d="M88 112 L112 112"/>
+          <path d="M100 66 L100 116"/>
+          <path d="M82 140 L88 168"/><path d="M118 140 L112 168"/>
+          <path d="M62 60 L56 92"/><path d="M138 60 L144 92"/>
+        </g>
+        <g stroke="#f0766a" stroke-width="2" fill="none" stroke-linecap="round" opacity=".8">
+          <path d="M80 58 Q90 52 98 58"/><path d="M102 58 Q110 52 120 58"/>
+        </g>
+      </g>
+    </svg>
+    <span class="badge">3D</span>
+    <span class="txt"><span class="name">Muscle Anatomy 3D</span><div class="sub">Spin the body, tap a muscle, get the moves.</div></span>
+  </a>
+
+  <!-- COSMOS -->
+  <a class="card" href="https://orlandochaidez.com/ar-sky/">
+    <svg class="art" viewBox="0 0 400 160" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs><linearGradient id="g-cos" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0b1026"/><stop offset="1" stop-color="#312e81"/></linearGradient></defs>
+      <rect width="400" height="160" fill="url(#g-cos)"/>
+      <g fill="#fff"><circle cx="238" cy="30" r="2.4"/><circle cx="288" cy="58" r="1.8"/><circle cx="352" cy="22" r="2.2"/><circle cx="376" cy="96" r="1.7"/><circle cx="222" cy="120" r="1.6"/><circle cx="306" cy="132" r="2"/></g>
+      <circle cx="316" cy="76" r="27" fill="#818cf8"/>
+      <ellipse cx="316" cy="76" rx="52" ry="14" fill="none" stroke="#c7d2fe" stroke-width="5" transform="rotate(-14 316 76)"/>
+      <path d="M96 30 l2.6 6.4 6.4 2.6 -6.4 2.6 -2.6 6.4 -2.6 -6.4 -6.4 -2.6 6.4 -2.6 Z" fill="#fde68a"/>
+    </svg>
+    <span class="txt"><span class="name">Cosmos</span><div class="sub">Point your phone at the sky.</div></span>
+  </a>
+
+  <!-- POLL APP -->
+  <a class="card" href="https://orlandochaidez.com/poll-app/">
+    <svg class="art" viewBox="0 0 400 160" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs><linearGradient id="g-poll" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0d9488"/><stop offset="1" stop-color="#2dd4bf"/></linearGradient></defs>
+      <rect width="400" height="160" fill="url(#g-poll)"/>
+      <g fill="#f0fdfa">
+        <rect x="248" y="86" width="30" height="52" rx="6"/><rect x="290" y="58" width="30" height="80" rx="6"/><rect x="332" y="30" width="30" height="108" rx="6"/>
+      </g>
+      <path d="M238 44 l10 10 l18 -20" stroke="#f0fdfa" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span class="txt"><span class="name">Poll App</span><div class="sub">Endless polls — scroll and vote.</div></span>
+  </a>
+
+  <!-- GRUB ROULETTE -->
+  <a class="card" href="https://orlandochaidez.com/grubroulette/">
+    <svg class="art" viewBox="0 0 400 160" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs><linearGradient id="g-grub" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#be123c"/><stop offset="1" stop-color="#f97316"/></linearGradient></defs>
+      <rect width="400" height="160" fill="url(#g-grub)"/>
+      <g transform="rotate(-10 300 62)">
+        <rect x="262" y="24" width="76" height="76" rx="14" fill="#fff"/>
+        <g fill="#be123c"><circle cx="284" cy="46" r="8"/><circle cx="316" cy="46" r="8"/><circle cx="300" cy="62" r="8"/><circle cx="284" cy="78" r="8"/><circle cx="316" cy="78" r="8"/></g>
+      </g>
+      <g transform="rotate(12 348 116)">
+        <rect x="316" y="84" width="64" height="64" rx="12" fill="#fff" fill-opacity=".92"/>
+        <g fill="#be123c"><circle cx="348" cy="116" r="8"/></g>
+      </g>
+    </svg>
+    <span class="txt"><span class="name">Grub Roulette</span><div class="sub">Can't pick dinner? Let it decide.</div></span>
+  </a>
+
+  <!-- ODC PARTNERS -->
+  <a class="card" href="https://odcpartners.com">
+    <svg class="art" viewBox="0 0 400 160" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs><linearGradient id="g-odc" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#14532d"/><stop offset="1" stop-color="#166534"/></linearGradient></defs>
+      <rect width="400" height="160" fill="url(#g-odc)"/>
+      <path d="M0 128 Q90 96 190 118 T400 108 L400 160 L0 160 Z" fill="#052e16" fill-opacity=".35"/>
+      <path d="M0 142 Q110 116 220 134 T400 126 L400 160 L0 160 Z" fill="#052e16" fill-opacity=".45"/>
+      <g transform="translate(302,26)">
+        <path d="M24 0 C10 0 0 10 0 22 C0 38 24 58 24 58 C24 58 48 38 48 22 C48 10 38 0 24 0 Z" fill="#fbbf24"/>
+        <circle cx="24" cy="22" r="10" fill="#14532d"/>
+      </g>
+    </svg>
+    <span class="txt"><span class="name">ODC Partners</span><div class="sub">The land business.</div></span>
+  </a>
+
+  <div class="foot"><a href="https://coffeehotbox.com" aria-label="Coffee Hotbox">C:</a>\<a href="https://odcpartners.com" aria-label="ODC Partners land biz">ORLANDO&gt;</a> loading complete. pick something<a href="/arcade/brand-theft-auto/index.html" aria-label="secret">.</a><span class="cursor"></span></div>
+
 </div>
-<div id="arcade" class="indent hidden">
-  <a class="item" href="/arcade/fractal-maker/index.html">Fractals</a>
-  <a class="item" href="/arcade/lemonade-stand/index.html">Lemonade Stand</a>
-  <a class="item" href="/arcade/chess/index.html">Live Chess</a>
-  <a class="item" href="/arcade/pong/index.html">Pong</a>
-  <a class="item" href="/arcade/snake/index.html">Snake</a>
-  <a class="item" href="/arcade/brick-breaker/index.html">Brick Breaker</a>
-  <a class="item" href="/arcade/block-drop/index.html">Block Drop (Tetris)</a>
-</div>
-<br>
-
-<div class="folder" id="f-side" role="button" tabindex="0" aria-expanded="false">
-  [DIR] side missions<span class="toggle" id="t-side">[+]</span>
-</div>
-<div id="side" class="indent hidden">
-  <a class="item" href="https://orlandochaidez.com/fred/">FRED</a>
-  <a class="item" href="https://orlandochaidez.com/muscle-anatomy-3d/">Muscle Anatomy 3D</a>
-  <a class="item" href="https://orlandochaidez.com/ar-sky/">Cosmos</a>
-  <a class="item" href="https://orlandochaidez.com/poll-app/">Poll App</a>
-      <a class="item" href="https://orlandochaidez.com/grubroulette/">Grub Roulette</a>
-</div>
-
-<div class="foot"><a class="hid" href="https://coffeehotbox.com" aria-label="Coffee Hotbox">C:</a>\<a class="hid" href="https://odcpartners.com" aria-label="ODC Partners land biz">ORLANDO&gt;</a> <span id="typed"></span><span class="cursor"></span></div>
-
-</div>
-<script>
-  // live system date, C64 style: FRIDAY OCTOBER 16TH 2026
-  (function(){
-    var days = ['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'];
-    var months = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
-    var d = new Date();
-    var n = d.getDate();
-    var suf = 'TH';
-    if(n % 10 === 1 && n % 100 !== 11) suf = 'ST';
-    else if(n % 10 === 2 && n % 100 !== 12) suf = 'ND';
-    else if(n % 10 === 3 && n % 100 !== 13) suf = 'RD';
-    document.getElementById('sysdate').textContent =
-      'SYSTEM DATE   ' + days[d.getDay()] + ' ' + months[d.getMonth()] + ' ' + n + suf + ' ' + d.getFullYear();
-  })();
-
-  function toggle(id, folderEl, ev){
-    if(ev){ ev.stopPropagation(); }
-    document.body.classList.add('touched');
-    var el = document.getElementById(id);
-    var nowHidden = el.classList.toggle('hidden');
-    document.getElementById('t-' + id).textContent = nowHidden ? '[+]' : '[\u2013]';
-    if(folderEl){ folderEl.setAttribute('aria-expanded', String(!nowHidden)); }
-  }
-  function wire(folderId, panelId){
-    var f = document.getElementById(folderId);
-    f.addEventListener('click', function(ev){ toggle(panelId, f, ev); });
-    f.addEventListener('keydown', function(ev){
-      if(ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); toggle(panelId, f, ev); }
-    });
-  }
-  wire('f-arcade', 'arcade');
-  wire('f-side', 'side');
-
-  // little boot text typing effect, purely cosmetic
-  var msg = 'LOADING COMPLETE. PICK A FOLDER.';
-  var i = 0, out = document.getElementById('typed');
-  (function type(){
-    if(i < msg.length){ out.textContent = msg.slice(0, i++); setTimeout(type, 28); }
-    else{
-      out.innerHTML = 'LOADING COMPLETE. PICK A FOLDER' +
-        '<a class="easter" href="/arcade/brand-theft-auto/index.html" aria-label="secret">&period;</a>';
-    }
-  })();
-</script>
 </body>
 </html>
