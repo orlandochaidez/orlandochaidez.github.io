@@ -50,7 +50,7 @@
       <button class="sbtn" id="nextDayBtn" style="display:none">Next Day ▶</button>
     </div>
   </div>
-  <p class="hint">Hold <b>▲ / ▼</b> (or ↑ / ↓ keys) to run the hoist — or tap a floor to send the cage there. The view rides with you, Tiny Tower style. Folks page you with the floor they want in a big bubble: grab 'em fast for fat tips, leave 'em hanging and they'll take the stairs talking smack. Watch for carne asada o'clock, falling wrenches 😬, and the 3:30 quitting-time rush. New floor gets built every day. 🏗️</p>
+  <p class="hint">Hold <b>▲ / ▼</b> (or ↑ / ↓ keys) to run the hoist — it flies PAST floors until you ease off near the one you want, just like a real cage. Tap a floor to express straight there. Doors open when you're parked at a floor with business. The view rides with you, Tiny Tower style. Folks page you with the floor they want in a big bubble: grab 'em fast for fat tips, leave 'em hanging and they'll take the stairs talking smack. Watch for carne asada o'clock, falling wrenches 😬, and the 3:30 quitting-time rush. New floor gets built every day. 🏗️</p>
 </div>
 <script>
 (() => {
@@ -108,7 +108,7 @@
   const KEY='hoist-life-v1';
   let save={bestDay:0,days:0}; try{ save=Object.assign(save,JSON.parse(localStorage.getItem(KEY)||'{}')); }catch(e){}
   let S=null;
-  let held={up:false,down:false}, auto=null, soundOn=true;
+  let held={up:false,down:false}, auto=null, soundOn=true, stopT=null, prevWant=0, lastDir=1;
   function quotaFor(floors){ return 100+floors*25; }
   function newDay(day,floors){
     S={ day, floors, t:0, cash:0, served:0, missed:0, people:[], pid:1, camB:0,
@@ -260,27 +260,43 @@
     S.people=S.people.filter(p=>p.state!=='gone');
     for(const b of S.bubbles) b.t-=dt; S.bubbles=S.bubbles.filter(b=>b.t>0);
     for(const f of S.floaters){ f.t-=dt; f.fy+=0.16*dt; } S.floaters=S.floaters.filter(f=>f.t>0);
-    // car
+    // car — operator-run: it only stops where YOU stop it
     const car=S.car;
-    if(car.doors>0){ car.doors=Math.max(0,car.doors-dt); }
+    if(car.doors>0){ car.doors=Math.max(0,car.doors-dt); prevWant=0; }
     else{
       let want=0;
-      if(held.up) want=1; else if(held.down) want=-1;
-      else if(auto!=null){ if(car.pos<auto-0.001) want=1; else if(car.pos>auto+0.001) want=-1; else auto=null; }
+      if(held.up){ want=1; auto=null; stopT=null; }
+      else if(held.down){ want=-1; auto=null; stopT=null; }
+      else if(stopT!=null){
+        if(car.pos<stopT-0.001) want=1; else if(car.pos>stopT+0.001) want=-1;
+        else { car.pos=stopT; const T=stopT; stopT=null; if(serviceNeeded(T)) openDoors(T); }
+      }
+      else if(auto!=null){
+        if(car.pos<auto-0.001) want=1; else if(car.pos>auto+0.001) want=-1;
+        else { const T=auto; auto=null; if(serviceNeeded(T)) openDoors(T); }
+      }
+      // just let go of the button mid-ride? coast to the nearest floor in your direction
+      if(want===0 && prevWant!==0 && auto==null && stopT==null){
+        const r=Math.round(car.pos);
+        if(Math.abs(car.pos-r)>0.01) stopT=Math.max(0,Math.min(S.floors,Math.round(car.pos+lastDir*0.2)));
+      }
       if(want!==0){
+        lastDir=want;
         const prev=car.pos;
         car.pos+=want*CAR_SPEED*dt;
         car.pos=Math.max(0,Math.min(S.floors,car.pos));
         const crossedF= want>0 ? Math.floor(car.pos) : Math.ceil(car.pos);
         const prevF= want>0 ? Math.floor(prev+1e-9) : Math.ceil(prev-1e-9);
         if(crossedF!==prevF){
-          if(serviceNeeded(crossedF)){ car.pos=crossedF; openDoors(crossedF); }
-          else if(auto===crossedF){ car.pos=crossedF; auto=null; }
+          const T= stopT!=null? stopT : auto;
+          if(T!=null && crossedF===T){ car.pos=T; if(stopT===T) stopT=null; if(auto===T) auto=null; if(serviceNeeded(T)) openDoors(T); }
         }
+        // note: crossing a floor with people waiting does NOT stop the cage anymore — operator's choice
       } else {
         const f=Math.round(car.pos);
         if(Math.abs(car.pos-f)<0.01 && serviceNeeded(f)) openDoors(f);
       }
+      prevWant=want;
     }
     // ambient crew: just living their shift — walking, working, vibing
     for(const a of S.ambient){
@@ -581,7 +597,7 @@
 
   // ---------- test hooks ----------
   window.__hoist={ get S(){return S;}, tick, spawnPerson, maybeSpawn, openDoors, serviceNeeded, payFor, spawnHazard,
-    quotaFor, newDay, endDay, setAuto:f=>{auto=f;}, TYPES, CAP, PPF, VIS, wrapLines,
+    quotaFor, newDay, endDay, setAuto:f=>{auto=f;}, setHeld:(u,d)=>{ held.up=!!u; held.down=!!d; }, TYPES, CAP, PPF, VIS, wrapLines,
     els:{pages:()=>$('pages')},
     saveGame:()=>save };
 
