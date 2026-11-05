@@ -77,10 +77,11 @@
     bowl:{name:"🎳 West Side Bowl", text:"IT'S OPEN. Lanes are oiled, the rental shoes are questionably sanitized, and Brandino is about to put up a number."},
     hunan:{name:"🥡 Hunan Express", text:"The good Chinese spot next to the Bowl. Plates that undo a whole factory shift, egg rolls that fix a mood."},
     circlek:{name:"⛽ Circle K", text:"Snacks, scratchers, and 24-hour fluorescent-light honesty. Brandino's third home, honestly."},
+    wedgewood:{name:'Wedgewood Pizzeria', text:'Wedgewood. The ovens are roaring, the line is real, and nobody in the Valley has ever once said \'let\'s just get Domino\'s.\''},
     steel:{name:"🏭 Abandoned Steel Factory", text:"The plant that built Youngstown, quiet for decades. Rust, pigeons, and Stevie — the last man on shift."},
     schwebels:{name:"🍞 Schwebel's (Abandoned)", text:"Baked fresh daily for sixty years, then one day just… didn't. The racks are still full of bread built to outlive us all."},
     ysu:{name:"🎓 YSU Lecture Hall", text:"Youngstown State, home of the Penguins. Brandino is not enrolled, but nobody's checking."},
-    town:{name:"🛣️ The Block", text:"YSU's campus caps the north end (Go Penguins), Main Street runs the whole block — both jobs, Mom's, Shotz, the Bowl, Hunan, Circle K, the ghosts in between — and Mill Creek's golf course rolls out down south."}
+    town:{name:"🛣️ The Block", text:"YSU's campus caps the north end (Go Penguins), Main Street runs the whole block — both jobs, Mom's, Shotz, Wedgewood slinging pies, the Bowl, Hunan, Circle K, and the ghosts in between (dead steel, Schwebel's, La Terrazza) — and Mill Creek's golf course rolls out down south."}
   };
   let S;
   function fresh(){
@@ -228,6 +229,14 @@
         if(!spend(11)){ addLog('Brandino can’t cover an $11 plate at Hunan. The egg rolls mock him from the warmer.'); break; }
         S.energy=clamp(S.energy+16); S.mood=clamp(S.mood+6); S.health=clamp(S.health+3);
         addLog('Brandino put down a whole Hunan plate. Elite-tier refuel.'); passTime(1); break;
+      case 'buySlice':
+        if(!spend(4)){ addLog('Brandino can’t cover a $4 slice. Wedgewood deserves better planning than this.'); break; }
+        S.energy=clamp(S.energy+6); S.mood=clamp(S.mood+4);
+        addLog('Brandino grabbed a slice at Wedgewood and folded it like a Valley native.'); break;
+      case 'buyPie':
+        if(!spend(14)){ addLog('Brandino can’t cover a $14 pie. The whole pizza stays a beautiful dream.'); break; }
+        S.energy=clamp(S.energy+18); S.mood=clamp(S.mood+8); S.health=clamp(S.health+2);
+        addLog('Brandino put down a whole Wedgewood pie by himself. A religious experience.'); passTime(1); break;
       case 'buyEggRoll':
         if(!spend(4)){ addLog('Not enough for even an egg roll ($4). Humbling.'); break; }
         S.energy=clamp(S.energy+6); S.mood=clamp(S.mood+3);
@@ -269,6 +278,7 @@
     shotzBeer:['🍺 Buy a Beer at Shotz','$7 · drank on the spot · mood +',0], shotzShot:['🥃 Buy a Shot at Shotz','$9 · drank on the spot · mood ++',0],
     bowlGame:['🎳 Bowl a Game','$6 · 1 hr · mood ++ · score posted to the log',1],
     buyPlate:['🍜 Buy a Plate','$11 · 1 hr · energy ++ · mood +',0], buyEggRoll:['🥟 Buy an Egg Roll','$4 · quick bite · energy +',0],
+    buySlice:['🍕 Order a Slice','$4 · quick bite · energy +',0], buyPie:['🍕 Order a Whole Pie','$14 · 1 hr · energy ++ · mood ++',0],
     attendClass:['🎓 Sit In On a Class','1 hr · feel smarter, retain nothing',0], staleBread:['🍞 Eat the Ancient Bread','free · a 1997 original · energy +, health −',0], buySnack:['🍫 Grab a Snack','$4 · eaten on the spot · energy +',0], buyScratcher:['🎟️ Buy a Scratcher','$5 · might hit, probably won’t',0],
     bowlDoor:['🎳 Try the Door','West Side Bowl is not enterable yet',0]
   };
@@ -369,6 +379,7 @@
   const PAL_STU2={H:'#e8641c',S:'#f7d3ac',T:'#e8e8e8',G:'#e8e8e8',P:'#33383f',R:'#f2f2f2'};
   const PAL_STU3={H:'#3a2a1a',S:'#c98d5f',T:'#7a3b8f',G:'#7a3b8f',P:'#22242c',R:'#111111',stringy:true};
   const PAL_GOLF={H:'#f2f2f2',S:'#eec39a',T:'#31517a',G:'#31517a',P:'#e8e8e8',R:'#f2f2f2',cap:true};
+  const PAL_SAL={H:'#2a2a2e',S:'#d99e63',T:'#c9403d',G:'#c9403d',P:'#2e2a26',R:'#5d4a36'};
   const MOM_LINES=["Did you eat? You're always not eating.","Your cousin's doing GREAT, by the way.","I saved you a plate. It's in the fridge.","That factory better appreciate you.","Call your aunt. She asks about you.","You look thin. Sit. I'm making something."];
   function drawPeep(x,y,pal,frame,faceLeft){
     let rows=(pal.spr||SPR).slice();
@@ -443,12 +454,12 @@
         {i0:6,j0:8,i1:7,j1:9,h:50,wall:'#51545a',roof:'#3a3d42',windows:false},
         {i0:12,j0:6,i1:17,j1:8,h:24,wall:'#7d7468',roof:'#5d564d',label:"🍞 SCHWEBEL'S — ABANDONED",labelC:'#cbbc9e',detail:true,boarded:true},
         {i0:12,j0:8,i1:17,j1:10,h:22,wall:'#71685c',roof:'#575046',label:'🌮 LA TERRAZZA — ABANDONED',labelC:'#b8ab94',detail:true,boarded:true},
-        {i0:3,j0:10,i1:8,j1:12,h:20,wall:'#6e625a',roof:'#59504a',label:"🍔 McDONALD'S — ABANDONED",labelC:'#b0a696',detail:true,boarded:true},
+        {i0:3,j0:10,i1:8,j1:12,h:22,wall:'#b8512f',roof:'#7c2d1e',label:'🍕 WEDGEWOOD PIZZERIA',labelC:'#ffe9a8',detail:true,awning:'#3f7a3f',litPct:85},
         {i0:12,j0:10,i1:17,j1:12,h:24,wall:'#31517a',roof:'#1d3350',label:'🍸 SHOTZ',labelC:'#ffe9a8',detail:true,awning:'#ff5da2'},
         {i0:3,j0:12,i1:8,j1:14,h:30,wall:'#7a3b8f',roof:'#4a2358',label:'🍾 LIQUOR',labelC:'#ffe9a8',detail:true,awning:'#7a3b8f'},
         {i0:12,j0:12,i1:17,j1:14,h:28,wall:'#6e6e6e',roof:'#4a4a4a',label:'🎳 WEST SIDE BOWL',labelC:'#ffe9a8',detail:true,awning:'#31517a'},
         {i0:3,j0:14,i1:8,j1:16,h:24,wall:'#e8e8e8',roof:'#d43a2f',label:'⛽ CIRCLE K',labelC:'#7a1610',detail:true},
-        {i0:3,j0:14,i1:8,j1:16,h:9,wall:'#d43a2f',roof:'#f2f2f2',windows:false},
+        {i0:3,j0:15,i1:8,j1:16,h:8,wall:'#f2f2f2',roof:'#d43a2f',windows:false},
         {i0:12,j0:14,i1:17,j1:16,h:22,wall:'#c9403d',roof:'#8f2a28',label:'🥡 HUNAN EXPRESS',labelC:'#ffe9a8',detail:true,awning:'#c9403d'},
         {i0:2,j0:16,i1:5,j1:18,h:14,wall:'#e3dcc8',roof:'#7c5a36',label:'⛳ MILL CREEK GOLF',labelC:'#ffe9a8',detail:true,litPct:40}
       ],
@@ -458,7 +469,7 @@
       spots:[
         {p:[8.4,5.9],r:1.15,acts:['buyWeed'],place:'factory',label:'Eduardo'}
       ],
-      doors:{ '8,5':{to:'factory',at:[5,5]}, '8,8':{to:'steel',at:[4,4.5]}, '8,12':{to:'liquor',at:[2,5]}, '8,14':{to:'circlek',at:[2,3.5]},
+      doors:{ '8,5':{to:'factory',at:[5,5]}, '8,8':{to:'steel',at:[4,4.5]}, '8,11':{to:'wedgewood',at:[4,4.5]}, '8,12':{to:'liquor',at:[2,5]}, '8,14':{to:'circlek',at:[2,3.5]},
               '11,4':{to:'home',at:[4,6]}, '11,6':{to:'schwebels',at:[4,4.5]}, '11,10':{to:'shotz',at:[6,4]},
               '11,12':{to:'bowl',at:[2,4]}, '11,14':{to:'hunan',at:[4,3]}, '10,3':{to:'ysu',at:[4,4.5]} },
       eduardo:[8.4,5.9],
@@ -573,6 +584,33 @@
       spots:[ {p:[4,1.6],r:1.5,acts:['attendClass'],place:'ysu',label:'Lecture seats'} ],
       doors:{ '4,5':{to:'town',at:[9.5,3.6]} },
       npcs:[ {p:[5.6,1.5],pal:PAL_PROF,off:6.5,lines:["This will be on the exam. All of it.","Office hours are whenever you find me.","Penguins play Saturday. Plan accordingly.","Tuition went up. So did my coffee intake.","Read chapter 9. Nobody will. I accept this."]} ]
+    },
+    wedgewood:{ w:10,h:7,oy:64,walls:true,zoom:1.55,sign:{text:'🍕 WEDGEWOOD PIZZERIA 🍕',at:[5,0],c:'#ffb35c'},
+      floor(i,j){
+        if(j===0) return '#4a3b2a';
+        if(j<=2) return (i+j)%2?'#9aa0a3':'#8f959a';
+        return (i+j)%2?'#e8dcc0':'#b8433a';
+      },
+      boxes:[
+        {i0:1,j0:1,i1:9,j1:2,h:9,wall:'#8a5a34',roof:'#c9a06a',label:'ORDER HERE'},
+        {i0:7,j0:0,i1:9,j1:1,h:16,wall:'#8f3a2a',roof:'#5d3226',emoji:'🔥'},
+        {i0:2,j0:3,i1:3,j1:4,h:6,wall:'#8a5a34',roof:'#a5713f'},
+        {i0:5,j0:4,i1:6,j1:5,h:6,wall:'#8a5a34',roof:'#a5713f'},
+        {i0:7,j0:3,i1:8,j1:4,h:6,wall:'#8a5a34',roof:'#a5713f'}
+      ],
+      spots:[
+        {p:[5,2.2],r:1.1,acts:['buySlice','buyPie'],place:'wedgewood',label:'Counter'}
+      ],
+      doors:{ '4,6':{to:'town',at:[9.5,11.4]} },
+      npcs:[
+        {p:[7.5,2.4],pal:PAL_SAL,off:1,lines:["Best pie in the Valley. Don't @ me.","Wedgewood Wednesday is a real holiday.","Extra pepperoni. Always. This is not a debate.","I've been coming here since before you were a thought."]},
+        {p:[3.4,2.4],pal:PAL_STU1,off:0,lines:[]},
+        {p:[5.6,2.5],pal:PAL_STU3,off:0,lines:[]},
+        {p:[2.6,3.5],pal:PAL_STU2,off:0,lines:[]},
+        {p:[4.4,4.5],pal:PAL_GOLF,off:0,lines:[]},
+        {p:[7.6,4.4],pal:PAL_DALE,off:0,lines:[]},
+        {p:[8.6,5.2],pal:PAL_STU1,off:0,lines:[]}
+      ]
     },
     steel:{ w:9,h:6,oy:72,walls:true,zoom:1.5,sign:{text:'🏭 STEEL FACTORY — SHUT DOWN',at:[4,0],c:'#9aa3ad'},
       floor(i,j){ if(j===2) return (i+j)%2?'#6e4a38':'#654331'; return (i+j)%2?'#5a5c60':'#515357'; },
