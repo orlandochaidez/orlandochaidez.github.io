@@ -93,7 +93,9 @@
   function save(){ try{ localStorage.setItem('brand-theft-auto-v1',JSON.stringify(S)); }catch(e){} }
   function load(){ try{ const s=JSON.parse(localStorage.getItem('brand-theft-auto-v1')); return s && typeof s.cash==='number' ? s : null; }catch(e){ return null; } }
   function fmtHour(h){ let hh=Math.floor(h), ap=hh>=12?'PM':'AM'; let d=hh%12; if(d===0)d=12; return d+' '+ap; }
-  function addLog(t){ S.log.unshift('Day '+S.day+' · '+fmtHour(S.hour)+' — '+t); S.log=S.log.slice(0,7); }
+  const NAMES=['Brand','Bran','Brando','Brendan','Brundo','Bradbon','Brandoni','Big Bran','Bhad Bhrandon','Brandino'];
+  function nz(t){ return t.replace(/Brandino(’s|'s)?/g,(m,poss)=>{ const n=NAMES[Math.floor(Math.random()*NAMES.length)]; return poss? n+poss : n; }); }
+  function addLog(t){ S.log.unshift('Day '+S.day+' · '+fmtHour(S.hour)+' — '+nz(t)); S.log=S.log.slice(0,7); }
   function earn(n){ S.cash+=n; S.earned+=n; }
   function spend(n){ if(S.cash<n) return false; S.cash-=n; return true; }
   function touchMom(n){ S.mom=clamp(S.mom+n); S.momTouchedDay=S.day; }
@@ -288,16 +290,27 @@
   // ---- pixel peep sprites (12 wide x 16 tall) ----
   const SPR=['............','...HHHHHH...','..HHHHHHHH..','..HSSSSSSH..','..SSSSSSSS..','...SSSSSS...','.TTTTTTTTTT.','.STTTTTTTTS.','.STTGTTGTTS.','..TTTTTTTT..','...PPPPPP...','...PP..PP...','...PP..PP...','...PP..PP...','..RRR..RRR..','..RRR..RRR..'];
   const LEGS_B=['............','............','............','............','............','............','............','............','............','............','....PPPP....','....P..P....','....P..P....','....P..P....','...RR..RR...','...RR..RR...'];
-  const PAL_B={H:'#20242c',S:'#c98d5f',T:'#f2f2f2',G:'#f5c542',P:'#2b4d9b',R:'#e8e8e8'};
+  const PAL_B={H:'#e8641c',S:'#f7d3ac',T:'#f2f2f2',G:'#f5c542',P:'#2b4d9b',R:'#e8e8e8',tail:true,glasses:true};
   const PAL_E={H:'#14100c',S:'#8a5a34',T:'#7a3b8f',G:'#7a3b8f',P:'#26221f',R:'#111111'};
   const PAL_M={H:'#8a8a92',S:'#d9a06b',T:'#b03060',G:'#b03060',P:'#7a2547',R:'#2a2a2a'};
   function drawPeep(x,y,pal,frame,faceLeft){
     const rows=frame===1?LEGS_B:SPR, w=12,h=16,px=2;
     const x0=Math.round(x-w*px/2), y0=Math.round(y-h*px);
+    const cell=(c,r,col)=>{ const sc=faceLeft?(w-1-c):c; ctx.fillStyle=col; ctx.fillRect(x0+sc*px,y0+r*px,px,px); };
+    if(pal.tail){ // ginger ponytail, swinging off the back of the head
+      for(const [c,r] of [[10,2],[10,3],[10,4],[10,5],[9,5],[10,6]]) cell(c,r,pal.H);
+    }
     for(let r=0;r<h;r++) for(let c0=0;c0<w;c0++){
       const c=faceLeft?(w-1-c0):c0, ch=rows[r][c0];
       if(ch==='.'||!pal[ch]) continue;
       ctx.fillStyle=pal[ch]; ctx.fillRect(x0+c*px,y0+r*px,px,px);
+    }
+    if(pal.tail) cell(9,2,'#173f35'); // the hair tie, on top of the hair
+    if(pal.glasses){ // spectacles: frames around both eyes + bridge + temples
+      const ink='#14161c';
+      for(const c of [2,3,4,7,8,9]) cell(c,4,ink);
+      for(const c of [2,4,7,9]) cell(c,5,ink);
+      cell(5,4,ink); cell(6,4,ink); cell(1,4,ink); cell(10,4,ink);
     }
   }
   function drawEduardo(p,t){ const [sx,sy]=iso(p[0],p[1],SCENES.town.oy); drawPeep(sx,sy-2,PAL_E,0,false); }
@@ -484,7 +497,7 @@
     scene=to; P.i=atX; P.j=atY; doorCool=0.6;
     toast=PLACES[to].name; toastT=2.2;
     $('placeName').textContent=PLACES[to].name;
-    $('placeText').textContent=PLACES[to].text;
+    $('placeText').textContent=nz(PLACES[to].text);
     curSpotKey='__force__';
     save();
   }
@@ -620,7 +633,7 @@
   }
   $('resetBtn').onclick=()=>{ if(confirm('Start Brandino over from Day 1?')){ try{ localStorage.removeItem('brand-theft-auto-v1'); }catch(e){} S=fresh(); switchScene('home',3.5,4.4); renderHUD(); } };
   S=load()||fresh();
-  $('placeName').textContent=PLACES.home.name; $('placeText').textContent=PLACES.home.text;
+  $('placeName').textContent=PLACES.home.name; $('placeText').textContent=nz(PLACES.home.text);
   renderHUD();
   requestAnimationFrame(frame);
   window.__bta={ get S(){return S;}, get scene(){return scene;}, P, mom,
