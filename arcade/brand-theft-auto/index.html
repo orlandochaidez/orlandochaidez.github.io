@@ -15,7 +15,7 @@
   .chip{background:#0e2a23;border:1px solid #2a6b58;border-radius:20px;padding:3px 9px;font-size:12px;font-weight:700;color:#cfe8dd;font-family:ui-monospace,Menlo,monospace;white-space:nowrap}
   .chip.warn{border-color:#a33;color:#ffb3b3}
   .stage{position:relative;margin-top:10px}
-  canvas{display:block;width:100%;height:auto;background:#3f7a34;border:2px solid #0b2a22;border-radius:8px;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none}
+  canvas{display:block;width:100%;height:auto;background:#3f7a34;border:2px solid #0b2a22;border-radius:8px;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
   /* contextual action bar */
   #actions{margin-top:10px;background:#fff;color:#171a22;border:2px solid #e8dcc0;border-radius:12px;padding:10px;display:none}
   #actions.show{display:block}
@@ -30,14 +30,13 @@
   #log h3{margin:0 0 6px;font-size:12px;letter-spacing:1px;color:#9aa3b2}
   #log div{padding:5px 0;border-bottom:1px solid rgba(255,255,255,.08)}
   #log div:last-child{border:0}
-  /* bottom bar: place flavor + dpad */
+  /* bottom bar: place flavor */
   .botbar{display:flex;gap:10px;align-items:stretch;margin-top:10px}
   .ticker{flex:1;background:#1b1f27;border:2px solid #333a47;border-radius:8px;padding:9px 11px;font-size:13px;line-height:1.45;color:#c9d2de}
   .ticker b{color:#ffe9a8;display:block;margin-bottom:2px}
-  .dpad{position:absolute;left:8px;bottom:8px;z-index:5;display:grid;grid-template-columns:repeat(3,46px);grid-template-rows:repeat(3,46px);gap:4px;touch-action:none}
-  .dpad button{border:2px solid rgba(130,140,160,.55);background:rgba(28,33,44,.68);color:#ffe9a8;font-size:17px;border-radius:10px;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:none;padding:0}
-  .dpad button.on{background:rgba(255,176,58,.9);color:#111;border-color:#ffb03a}
-  .dpad .blank{background:transparent;border-color:transparent}
+  /* floating translucent joystick — blooms wherever the thumb lands */
+  #joy{position:absolute;width:104px;height:104px;border-radius:50%;border:2px solid rgba(255,255,255,.35);background:rgba(20,26,36,.25);z-index:6;display:none;pointer-events:none;transform:translate(-50%,-50%)}
+  #joyKnob{position:absolute;left:50%;top:50%;width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.42);border:2px solid rgba(255,255,255,.55);transform:translate(-50%,-50%)}
   .row{display:flex;margin-top:12px}
   .row button{flex:1;border:1px solid #3a4050;border-radius:10px;padding:11px;font-weight:800;cursor:pointer;background:#232733;color:#fff;font-family:inherit}
   .note{text-align:center;color:#8b94a3;font-size:12.5px;margin-top:10px;line-height:1.5}
@@ -53,11 +52,7 @@
   </div>
   <div class="stage">
     <canvas id="game" width="480" height="320"></canvas>
-    <div class="dpad" id="dpad">
-      <span class="blank"></span><button data-dir="up" aria-label="Up">▲</button><span class="blank"></span>
-      <button data-dir="left" aria-label="Left">◀</button><span class="blank"></span><button data-dir="right" aria-label="Right">▶</button>
-      <span class="blank"></span><button data-dir="down" aria-label="Down">▼</button><span class="blank"></span>
-    </div>
+    <div id="joy"><div id="joyKnob"></div></div>
   </div>
   <div id="actions"><p class="where" id="actWhere"></p><div class="grid" id="actGrid"></div></div>
   <div id="log"><h3>📓 WHAT HAPPENED</h3><div id="logBody"></div></div>
@@ -65,7 +60,7 @@
     <div class="ticker"><b id="placeName">🏠 Mom's Crib</b><span id="placeText"></span></div>
   </div>
   <div class="row"><button id="resetBtn">Start over</button></div>
-  <p class="note">Walk with the D-pad, WASD, or arrow keys. Step on a door mat to go inside.<br>Walk up to furniture, counters, and people to do stuff. Game saves automatically.</p>
+  <p class="note">Drag anywhere on the game — a floating joystick blooms under your thumb (mouse works too). WASD / arrow keys on desktop. Step on a door mat to go inside.<br>Walk up to furniture, counters, and people to do stuff. Game saves automatically.</p>
 </div>
 <script>
 (() => {
@@ -652,36 +647,58 @@
   }
 
   // ================= input + main loop =================
-  const keys={}, held={};
+  const keys={};
   addEventListener('keydown',e=>{ if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault(); keys[e.key.toLowerCase()]=true; });
   addEventListener('keyup',e=>{ keys[e.key.toLowerCase()]=false; });
-  document.querySelectorAll('#dpad button').forEach(b=>{
-    const d=b.dataset.dir;
-    const on=e=>{ if(e&&e.preventDefault) e.preventDefault(); held[d]=true; b.classList.add('on'); };
-    const off=()=>{ held[d]=false; b.classList.remove('on'); };
-    b.addEventListener('pointerdown',on);
-    b.addEventListener('pointerup',off); b.addEventListener('pointerleave',off); b.addEventListener('pointercancel',off);
-    b.addEventListener('touchstart',on,{passive:false}); // fallback for older WebKit
-    b.addEventListener('touchend',off); b.addEventListener('touchcancel',off);
-    b.addEventListener('mousedown',on); b.addEventListener('mouseup',off); b.addEventListener('mouseleave',off);
-    b.addEventListener('contextmenu',e=>e.preventDefault());
+  // floating translucent joystick: drag anywhere on the stage and the stick blooms under your thumb (or mouse)
+  const joy={x:0,y:0,id:null,ox:0,oy:0};
+  const joyEl=$('joy'), knobEl=$('joyKnob');
+  let joyR=44;
+  cv.addEventListener('pointerdown',e=>{
+    if(joy.id!==null) return;
+    joy.id=e.pointerId;
+    const r=cv.getBoundingClientRect();
+    joyR=Math.max(34,Math.min(56,r.width*0.13));
+    joy.ox=e.clientX-r.left; joy.oy=e.clientY-r.top;
+    joyEl.style.display='block'; joyEl.style.width=joyEl.style.height=(joyR*2)+'px';
+    joyEl.style.left=joy.ox+'px'; joyEl.style.top=joy.oy+'px';
+    if(cv.setPointerCapture){ try{ cv.setPointerCapture(e.pointerId); }catch(_){} }
+    joyMove(e);
+    if(e.preventDefault) e.preventDefault();
   });
+  function joyMove(e){
+    if(e.pointerId!==joy.id) return;
+    const r=cv.getBoundingClientRect();
+    let dx=e.clientX-r.left-joy.ox, dy=e.clientY-r.top-joy.oy;
+    const d=Math.hypot(dx,dy);
+    if(d>joyR){ dx*=joyR/d; dy*=joyR/d; }
+    knobEl.style.transform='translate(calc(-50% + '+dx+'px), calc(-50% + '+dy+'px))';
+    if(Math.hypot(dx,dy)/joyR<0.16){ joy.x=0; joy.y=0; } // dead zone
+    else { joy.x=dx/joyR; joy.y=dy/joyR; } // analog: push a little, walk a little
+  }
+  cv.addEventListener('pointermove',joyMove);
+  addEventListener('pointermove',joyMove);
+  const joyEnd=e=>{ if(e.pointerId!==joy.id) return; joy.id=null; joy.x=0; joy.y=0; joyEl.style.display='none'; knobEl.style.transform='translate(-50%,-50%)'; };
+  addEventListener('pointerup',joyEnd); addEventListener('pointercancel',joyEnd);
+  cv.addEventListener('contextmenu',e=>e.preventDefault());
   let last=performance.now(), stepAcc=0;
   function frame(now){
     const dt=Math.min(0.05,(now-last)/1000); last=now;
     if(doorCool>0) doorCool-=dt;
     if(toastT>0) toastT-=dt;
     let mx=0,my=0;
-    if(keys['arrowup']||keys['w']||held.up) my-=1;
-    if(keys['arrowdown']||keys['s']||held.down) my+=1;
-    if(keys['arrowleft']||keys['a']||held.left) mx-=1;
-    if(keys['arrowright']||keys['d']||held.right) mx+=1;
+    if(keys['arrowup']||keys['w']) my-=1;
+    if(keys['arrowdown']||keys['s']) my+=1;
+    if(keys['arrowleft']||keys['a']) mx-=1;
+    if(keys['arrowright']||keys['d']) mx+=1;
+    mx+=joy.x; my+=joy.y;
     const sc=curScene();
-    P.moving=!!(mx||my);
+    const inLen=Math.hypot(mx,my);
+    P.moving=inLen>0.05;
     if(P.moving){
-      const len=Math.hypot(mx,my), ux=mx/len, uy=my/len;
-      const vx=(ux+uy)*Math.SQRT1_2, vy=(uy-ux)*Math.SQRT1_2; // screen dirs -> grid: pad-up = screen-up, pad-right = screen-right
-      const sp=3.4*dt, nx=P.i+vx*sp, ny=P.j+vy*sp;
+      const ux=mx/inLen, uy=my/inLen;
+      const vx=(ux+uy)*Math.SQRT1_2, vy=(uy-ux)*Math.SQRT1_2; // screen dirs -> grid: up = screen-up, right = screen-right
+      const sp=3.4*dt*Math.min(1,inLen), nx=P.i+vx*sp, ny=P.j+vy*sp; // analog: gentle push = gentle walk
       if(Math.abs(vx)>0.25) P.face=vx<0?-1:1;
       if(!blockedAt(sc,nx,P.j)) P.i=nx;
       if(!blockedAt(sc,P.i,ny)) P.j=ny;
@@ -702,7 +719,7 @@
   renderHUD();
   requestAnimationFrame(frame);
   window.__bta={ get S(){return S;}, get scene(){return scene;}, P, mom,
-    act:id=>act(id), goto:(s,x,y)=>switchScene(s,x,y),
+    act:id=>act(id), goto:(s,x,y)=>switchScene(s,x,y), setJoy:(x,y)=>{ joy.x=x; joy.y=y; },
     setPlace:p=>{ actPlace=p; }, nearest:()=>nearestSpot(),
     setDoorCool:v=>{ doorCool=v; }, key:(k,v)=>{ keys[k]=v; },
     freeIn:(s,x,y)=>!blockedAt(SCENES[s],x,y) };
