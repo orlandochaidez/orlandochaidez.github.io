@@ -225,9 +225,7 @@
   function futBuy(k){ const px=S.lemon*10, c=px*k; if(S.cash<c) return false;
     S.cash-=c; S.fut.held+=k; S.fut.totalCost+=c; save(); render(); return true; }
   function futSell(){ if(S.fut.held<=0) return 0; const px=S.lemon*10, proceeds=S.fut.held*px;
-    S.cash+=proceeds; S.lifetime+=0; S.fut.held=0; S.fut.totalCost=0; save(); render(); return proceeds; }
-  function pay(i){ const r=tierRev(i); S.cash+=r; S.lifetime+=r;
-    const e=tierEls[i]; if(e&&e.card){ e.card.classList.add('flash'); setTimeout(()=>e.card.classList.remove('flash'),280); } }
+    S.cash+=proceeds; S.fut.held=0; S.fut.totalCost=0; save(); render(); return proceeds; }
 
   // ================= market + engine =================
   let lastDir=1, priceTimer=0, saveTimer=0;
@@ -246,9 +244,16 @@
       const t=S.tiers[i];
       if(t.n<=0||(!t.mgr&&!t.running)) continue;
       t.prog+=dt/TIERS[i].secs;
-      while(t.prog>=1){ t.prog-=1; pay(i); if(!t.mgr){ t.prog=0; t.running=false; } }
+      if(t.prog>=1){
+        let cycles=Math.floor(t.prog);
+        if(!t.mgr){ cycles=1; t.prog=0; t.running=false; } else t.prog-=cycles;
+        const r=tierRev(i)*cycles; S.cash+=r; S.lifetime+=r;
+        const e=tierEls[i]; if(e&&e.card){ e.card.classList.add('flash'); setTimeout(()=>e.card.classList.remove('flash'),280); }
+      }
     }
-    priceTimer+=dt; if(priceTimer>=2){ priceTimer-=2; marketStep(); }
+    priceTimer+=dt; let steps=0;
+    while(priceTimer>=2&&steps<12){ priceTimer-=2; marketStep(); steps++; }
+    if(priceTimer>=2) priceTimer=0;
     saveTimer+=dt; if(saveTimer>=5){ saveTimer=0; save(); }
     render();
   }
@@ -273,7 +278,10 @@
     setTimeout(()=>{ tb.style.display='none'; },12000);
   }
   render();
-  setInterval(()=>tick(0.1),100);
+  let lastTickMs=Date.now();
+  setInterval(()=>{ const nowMs=Date.now(); let dt=(nowMs-lastTickMs)/1000; lastTickMs=nowMs;
+    if(dt>0.25) dt=Math.min(dt,4*3600); // tab froze / phone slept: catch up in one jump (capped at 4 hrs)
+    tick(dt); },100);
   window.__lem={ get S(){return S;}, buyTier, runTier, hireMgr, buyQuality, futBuy, futSell, tick, perSec, bulkCost,
     setQty:q=>{ buyQty=q; }, contractPx:()=>S.lemon*10, fmt, TIERS, QUALITY };
 })();
