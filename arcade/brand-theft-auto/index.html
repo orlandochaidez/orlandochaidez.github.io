@@ -529,7 +529,7 @@
     shotz:{ w:8,h:6,oy:80,walls:true,zoom:1.75,sign:{text:'✦ SHOTZ ✦',at:[3,0],c:'#ff5da2'},
       floor(i,j){ return (i+j)%2?'#6e4f30':'#644628'; },
       boxes:[
-        {i0:1,j0:1,i1:6,j1:2,h:13,wall:'#5d4028',roof:'#4a3220',emoji:'🍸'},
+        {i0:0,j0:1,i1:8,j1:2,h:13,wall:'#5d4028',roof:'#4a3220',emoji:'🍸'},
         {i0:6,j0:3,i1:7,j1:4,h:8,wall:'#4a3220',roof:'#5d4028',emoji:'🍺'},
         {i0:2,j0:4,i1:3,j1:5,h:8,wall:'#4a3220',roof:'#5d4028',emoji:'🥃'}
       ],
@@ -592,7 +592,7 @@
         return (i+j)%2?'#e8dcc0':'#b8433a';
       },
       boxes:[
-        {i0:1,j0:1,i1:9,j1:2,h:9,wall:'#8a5a34',roof:'#c9a06a',label:'ORDER HERE'},
+        {i0:0,j0:1,i1:10,j1:2,h:9,wall:'#8a5a34',roof:'#c9a06a',label:'ORDER HERE'},
         {i0:7,j0:0,i1:9,j1:1,h:16,wall:'#8f3a2a',roof:'#5d3226',emoji:'🔥'},
         {i0:2,j0:3,i1:3,j1:4,h:6,wall:'#8a5a34',roof:'#a5713f'},
         {i0:5,j0:4,i1:6,j1:5,h:6,wall:'#8a5a34',roof:'#a5713f'},
@@ -779,6 +779,29 @@
       ctx.fillStyle='rgba(205,232,255,.5)'; ctx.fillRect(p[0]+5,p[1]+4,7,2); ctx.fillRect(p[0]-13,p[1]+9,6,2); ctx.fillRect(p[0]+1,p[1]+12,5,2); }
     drawDoorMats(sc);
     const items=[];
+    // painter's-algorithm assist: a character standing south or east of a box is IN FRONT of it,
+    // north or west is BEHIND it — a single depth key can't express that for wide boxes
+    // (an 8-wide counter's key reflects its far corner), which is why Brand used to sink into counter tops.
+    function ptOf(it){
+      if(it.k==='brand') return [P.i,P.j];
+      if(it.k==='mom') return [mom.i,mom.j];
+      if(it.k==='eduardo') return sc.eduardo;
+      if(it.k==='npc') return it.n.p;
+      if(it.k==='roam') return [it.r.i,it.r.j];
+      if(it.k==='prop') return [it.p[0]+0.5,it.p[1]+0.5];
+      return null;
+    }
+    function boxOf(it){
+      if(it.k==='box') return it.b;
+      if(it.k==='prop') return {i0:it.p[0],j0:it.p[1],i1:it.p[0]+1,j1:it.p[1]+1};
+      return null;
+    }
+    function relDepth(a,b){
+      const pa=ptOf(a), bb=boxOf(b), pb=ptOf(b), ba=boxOf(a);
+      if(pa && bb){ if(pa[1]>=bb.j1-0.001||pa[0]>=bb.i1-0.001) return 1; if(pa[1]<=bb.j0+0.001||pa[0]<=bb.i0+0.001) return -1; }
+      if(pb && ba){ if(pb[1]>=ba.j1-0.001||pb[0]>=ba.i1-0.001) return -1; if(pb[1]<=ba.j0+0.001||pb[0]<=ba.i0+0.001) return 1; }
+      return 0;
+    }
     for(const b of sc.boxes) items.push({d:b.i1+b.j1-1,k:'box',b});
     for(const p of (sc.props||[])) items.push({d:p[0]+p[1]+1,k:'prop',p});
     items.push({d:P.i+P.j+0.5,k:'brand'});
@@ -786,7 +809,7 @@
     if(scene==='home') items.push({d:mom.i+mom.j+0.4,k:'mom'});
     for(const n of (sc.npcs||[])) items.push({d:n.p[0]+n.p[1]+0.4,k:'npc',n});
     if(scene==='town'&&sc.roamers) for(const r of sc.roamers) if(r.i!==undefined) items.push({d:r.i+r.j+0.45,k:'roam',r});
-    items.sort((a,b)=>a.d-b.d);
+    items.sort((a,b)=> relDepth(a,b) || (a.d-b.d));
     for(const it of items){
       if(it.k==='box') drawBox(it.b,sc.oy);
       else if(it.k==='prop') drawProp(it.p[2],it.p[0],it.p[1],sc.oy);
