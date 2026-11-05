@@ -3,116 +3,97 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Brand Theft Auto — Life Sim</title>
-<meta name="description" content="Brandino works the knife factory and liquor store, then chills at his mom's crib. It ain't much but it's honest work.">
+<title>Brand Theft Auto — RCT Edition</title>
 <style>
-  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#10131c;color:#f5f5f5;display:flex;justify-content:center}
-  .wrap{width:min(680px,100%);padding:18px 16px 26px}
-  header{display:flex;justify-content:space-between;align-items:center;gap:10px}
-  h1{font-size:29px;margin:0}
-  a.back{color:#9ecbff;text-decoration:none;font-weight:700;font-size:14px;white-space:nowrap}
-  .scene{background:linear-gradient(#7ec8ff 0 58%,#8bd17c 58% 72%,#555 72%);border:2px solid #2a2f3a;border-radius:16px;padding:14px 10px 10px;margin:12px 0;overflow:hidden}
-  .street{display:flex;justify-content:space-between;align-items:end;gap:6px;text-align:center;font-size:30px}
-  .building{flex:1;background:rgba(255,255,255,.22);border-radius:10px 10px 0 0;padding:8px 2px 5px;min-height:74px}
-  .building small{display:block;font:700 9px system-ui;color:#10243e;letter-spacing:.2px}
-  .brandino{text-align:center;font-size:34px;margin-top:6px}
-  .brandino small{display:block;font:800 11px system-ui;color:#fff;text-shadow:0 1px 3px #000}
-  .hud{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
-  .stat{background:#171b2a;border:1px solid #2b3350;border-radius:12px;padding:8px 10px;text-align:center}
-  .stat small{display:block;color:#9aa3b2;font-size:10px;letter-spacing:1px;font-weight:800}
-  .stat b{font-size:19px}
-  .meter{height:8px;background:#262b3d;border-radius:99px;overflow:hidden;margin-top:5px}
-  .meter i{display:block;height:100%;background:#35c759}
-  .meter.mood i{background:#ffcc00}.meter.health i{background:#ff6b81}.meter.mom i{background:#f7a8c4}
-  .places{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin:12px 0}
-  .place{border:1px solid #39415c;background:#1a1f30;color:#fff;border-radius:12px;padding:10px 4px;font-weight:800;font-size:12px;cursor:pointer}
-  .place.active{background:#ffcc00;color:#1c1600;border-color:#ffcc00}
-  .place.locked{opacity:.72}
-  .panel{background:#fff;color:#171a22;border-radius:16px;padding:16px;border:2px solid #e8dcc0}
-  .panel h2{margin:0 0 4px;font-size:25px}
-  .panel p.sub{color:#666;margin:0 0 12px;line-height:1.45;font-size:14px}
-  .actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
-  .act{border:2px solid #222;background:#fff;border-radius:12px;padding:11px 9px;text-align:left;cursor:pointer;color:#171a22}
-  .act b{display:block;font-size:15px}.act span{font-size:12px;color:#666;line-height:1.35}
-  .act:disabled{opacity:.38;cursor:not-allowed}
-  .act.primary{background:#35c759;color:#06130a;border-color:#17763a}.act.primary span{color:#174d29}
-  .act.warn{background:#fff1f1;border-color:#a33}.act.warn span{color:#833}
-  .inv,.log{background:#171b2a;border:1px solid #2b3350;border-radius:14px;padding:12px;margin-top:12px}
-  .inv h3,.log h3{margin:0 0 8px;font-size:14px;letter-spacing:.5px}
-  .chips{display:flex;gap:7px;flex-wrap:wrap}.chip{background:#23293d;border-radius:999px;padding:6px 9px;font-size:13px;font-weight:700}
-  .log{font-size:13px;line-height:1.5;color:#d9deea}.log div{padding:6px 0;border-bottom:1px solid rgba(255,255,255,.08)}.log div:last-child{border:0}
-  .row{display:flex;gap:9px;margin-top:12px}.row button{flex:1;border:0;border-radius:10px;padding:12px;font-weight:800;cursor:pointer}
-  .reset{background:#232733;color:#fff;border:1px solid #3a4050!important}
-  .hint{color:#9aa3b2;font-size:13px;line-height:1.5;text-align:center}
-  @media(max-width:520px){.places{grid-template-columns:repeat(3,1fr)}.actions{grid-template-columns:1fr}.brandino{font-size:30px}}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
+  body{margin:0;background:#10131a;color:#e8e8e8;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;justify-content:center;-webkit-user-select:none;user-select:none}
+  .wrap{width:min(560px,100%);padding:12px 10px 22px}
+  .topbar{background:#173f35;border:2px solid #0b2a22;border-radius:8px;padding:8px 10px;box-shadow:inset 0 0 0 2px #2a6b58}
+  .topbar .title{font-family:ui-monospace,Menlo,monospace;font-weight:900;font-size:16px;color:#ffe9a8;letter-spacing:.5px;text-align:center}
+  .topbar a.back{color:#9ecbff;text-decoration:none;font-weight:700;font-size:12px;font-family:ui-monospace,Menlo,monospace}
+  .chips{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:7px}
+  .chip{background:#0e2a23;border:1px solid #2a6b58;border-radius:20px;padding:3px 9px;font-size:12px;font-weight:700;color:#cfe8dd;font-family:ui-monospace,Menlo,monospace;white-space:nowrap}
+  .chip.warn{border-color:#a33;color:#ffb3b3}
+  .stage{position:relative;margin-top:10px}
+  canvas{display:block;width:100%;height:auto;background:#3f7a34;border:2px solid #0b2a22;border-radius:8px;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none}
+  /* contextual action bar */
+  #actions{margin-top:10px;background:#fff;color:#171a22;border:2px solid #e8dcc0;border-radius:12px;padding:10px;display:none}
+  #actions.show{display:block}
+  #actions .where{font-weight:900;font-size:14px;margin:0 0 8px;color:#7a5b12}
+  #actions .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  @media(max-width:460px){#actions .grid{grid-template-columns:1fr}}
+  .act{border:2px solid #222;background:#fff;border-radius:10px;padding:9px;text-align:left;cursor:pointer;color:#171a22;font-family:inherit}
+  .act b{display:block;font-size:14.5px}.act span{font-size:12px;color:#666;line-height:1.3}
+  .act.primary{background:#35c759;border-color:#17763a;color:#06130a}.act.primary span{color:#174d29}
+  /* log */
+  #log{margin-top:10px;background:#171b2a;border:1px solid #2b3350;border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.5;color:#d9deea}
+  #log h3{margin:0 0 6px;font-size:12px;letter-spacing:1px;color:#9aa3b2}
+  #log div{padding:5px 0;border-bottom:1px solid rgba(255,255,255,.08)}
+  #log div:last-child{border:0}
+  /* bottom bar: place flavor + dpad */
+  .botbar{display:flex;gap:10px;align-items:stretch;margin-top:10px}
+  .ticker{flex:1;background:#1b1f27;border:2px solid #333a47;border-radius:8px;padding:9px 11px;font-size:13px;line-height:1.45;color:#c9d2de}
+  .ticker b{color:#ffe9a8;display:block;margin-bottom:2px}
+  .dpad{position:absolute;left:8px;bottom:8px;z-index:5;display:grid;grid-template-columns:repeat(3,46px);grid-template-rows:repeat(3,46px);gap:4px;touch-action:none}
+  .dpad button{border:2px solid rgba(130,140,160,.55);background:rgba(28,33,44,.68);color:#ffe9a8;font-size:17px;border-radius:10px;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:none;padding:0}
+  .dpad button.on{background:rgba(255,176,58,.9);color:#111;border-color:#ffb03a}
+  .dpad .blank{background:transparent;border-color:transparent}
+  .row{display:flex;margin-top:12px}
+  .row button{flex:1;border:1px solid #3a4050;border-radius:10px;padding:11px;font-weight:800;cursor:pointer;background:#232733;color:#fff;font-family:inherit}
+  .note{text-align:center;color:#8b94a3;font-size:12.5px;margin-top:10px;line-height:1.5}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header><h1>🚶 Brand Theft Auto</h1><a class="back" href="../index.html">← All games</a></header>
-
-  <div class="scene" aria-hidden="true">
-    <div class="street">
-      <div class="building">🏠<small>MOM'S CRIB</small></div>
-      <div class="building">🔪<small>FACTORY</small></div>
-      <div class="building">🍾<small>LIQUOR</small></div>
-      <div class="building">🍸<small>SHOTZ</small></div>
-      <div class="building">🎳<small>WEST SIDE BOWL</small></div>
+  <div class="topbar">
+    <a class="back" href="../index.html">← All games</a>
+    <div class="title">🚗 BRAND THEFT AUTO · RCT EDITION 🚗</div>
+    <div class="chips" id="chips1"></div>
+    <div class="chips" id="chips2"></div>
+  </div>
+  <div class="stage">
+    <canvas id="game" width="480" height="320"></canvas>
+    <div class="dpad" id="dpad">
+      <span class="blank"></span><button data-dir="up" aria-label="Up">▲</button><span class="blank"></span>
+      <button data-dir="left" aria-label="Left">◀</button><span class="blank"></span><button data-dir="right" aria-label="Right">▶</button>
+      <span class="blank"></span><button data-dir="down" aria-label="Down">▼</button><span class="blank"></span>
     </div>
-    <div class="brandino">🚶‍♂️<small>Brandino just tryna live life.</small></div>
   </div>
-
-  <div class="hud">
-    <div class="stat"><small>DAY / TIME</small><b id="clock">Day 1 · 8 AM</b></div>
-    <div class="stat"><small>CASH</small><b id="cash">$35</b></div>
-    <div class="stat"><small>LIFETIME EARNED</small><b id="earned">$0</b></div>
-    <div class="stat"><small>ENERGY</small><b id="energyText">85</b><div class="meter"><i id="energyBar"></i></div></div>
-    <div class="stat"><small>MOOD / CHILL</small><b id="moodText">60</b><div class="meter mood"><i id="moodBar"></i></div></div>
-    <div class="stat"><small>HEALTH</small><b id="healthText">90</b><div class="meter health"><i id="healthBar"></i></div></div>
-    <div class="stat"><small>MOM REP</small><b id="momText">55</b><div class="meter mom"><i id="momBar"></i></div></div>
-    <div class="stat"><small>FACTORY SHIFTS</small><b id="factoryShifts">0</b></div>
-    <div class="stat"><small>LIQUOR SHIFTS</small><b id="liquorShifts">0</b></div>
+  <div id="actions"><p class="where" id="actWhere"></p><div class="grid" id="actGrid"></div></div>
+  <div id="log"><h3>📓 WHAT HAPPENED</h3><div id="logBody"></div></div>
+  <div class="botbar">
+    <div class="ticker"><b id="placeName">🏠 Mom's Crib</b><span id="placeText"></span></div>
   </div>
-
-  <nav class="places" id="places"></nav>
-
-  <section class="panel">
-    <h2 id="placeTitle">🏠 Mom's Crib</h2>
-    <p class="sub" id="placeText"></p>
-    <div class="actions" id="actions"></div>
-  </section>
-
-  <div class="inv"><h3>🎒 BRANDINO'S STASH</h3><div class="chips" id="inv"></div></div>
-  <div class="log"><h3>📓 WHAT HAPPENED</h3><div id="log"></div></div>
-
-  <div class="row"><button class="reset" id="resetBtn">Start over</button></div>
-  <p class="hint">Work is the only way Bran earns money. Spend it, chill at Mom's, sleep, repeat. West Side Bowl is on the street… but he can't go in yet.</p>
+  <div class="row"><button id="resetBtn">Start over</button></div>
+  <p class="note">Walk with the D-pad, WASD, or arrow keys. Step on a door mat to go inside.<br>Walk up to furniture, counters, and people to do stuff. Game saves automatically.</p>
 </div>
-
 <script>
 (() => {
   const $=id=>document.getElementById(id);
   const clamp=(n,a=0,b=100)=>Math.max(a,Math.min(b,Math.round(n)));
   const pick=a=>a[Math.floor(Math.random()*a.length)];
+
+  // ================= game state (same brain as the original BTA) =================
   const PLACES={
-    home:{name:"🏠 Mom's Crib", text:"Da Crib. Mom's got food, cats, and a couch with Brandino's name on it."},
-    factory:{name:"🔪 Knife Sharpening Factory", text:"The good money. Eight hours of slurs, drugs, and trying not to lose a fingertip."},
-    liquor:{name:"🍾 The Wine Cellar", text:"Brando can work the register here — and it's the spot for beer, bottles, and cigs."},
-    shotz:{name:"🍸 Shotz", text:"The neighborhood bar. Brando can only come in to buy drinks… which is honestly fair after last time."},
-    bowl:{name:"🎳 WestSide Bowl", text:"The bowling alley lights are on, people are laughing inside… but Brandins not allowed in. Not in v1."}
+    home:{name:"🏠 Mom's Crib", text:"Home base. Mom's got food, opinions, and a couch with Brandino's name on it."},
+    factory:{name:"🔪 Knife Sharpening Factory", text:"The good money. Eight hours of sparks, blades, and trying not to lose a fingertip. Eduardo hangs by the loading dock outside."},
+    liquor:{name:"🍾 Liquor Store", text:"Brandino can work the register here — and it's the spot for beer, bottles, and cigs."},
+    shotz:{name:"🍸 Shotz", text:"The neighborhood bar. Brandino can only come in to buy drinks… which is honestly enough."},
+    bowl:{name:"🎳 West Side Bowl", text:"IT'S OPEN. Lanes are oiled, the rental shoes are questionably sanitized, and Brandino is about to put up a number."},
+    hunan:{name:"🥡 Hunan Express", text:"The good Chinese spot next to the Bowl. Plates that undo a whole factory shift, egg rolls that fix a mood."},
+    circlek:{name:"⛽ Circle K", text:"Snacks, scratchers, and 24-hour fluorescent-light honesty. Brandino's third home, honestly."},
+    town:{name:"🛣️ The Block", text:"Brandino's whole world in a few blocks — Mill Creek Park woods all around and the creek running right past Mom's crib. Both jobs, the bar, the Bowl (open!), Hunan plates and Circle K scratchers."}
   };
-  let S, place='home';
+  let S;
   function fresh(){
     return {day:1,hour:8,cash:35,earned:0,energy:85,mood:60,health:90,mom:55,
-      inv:{beer:0,bottle:0,cigs:1,weed:2,snack:0},factory:0,liquor:0,drinks:0,
-      ateDay:0,momTouchedDay:0,log:["Brandino woke up at Mom's crib with $35 and 50 cats."]};
+      inv:{beer:0,bottle:0,cigs:1,weed:2},factory:0,liquor:0,drinks:0,
+      ateDay:0,momTouchedDay:0,log:["Brandino woke up at Mom's crib with $35 and big dreams."]};
   }
   function save(){ try{ localStorage.setItem('brand-theft-auto-v1',JSON.stringify(S)); }catch(e){} }
   function load(){ try{ const s=JSON.parse(localStorage.getItem('brand-theft-auto-v1')); return s && typeof s.cash==='number' ? s : null; }catch(e){ return null; } }
   function fmtHour(h){ let hh=Math.floor(h), ap=hh>=12?'PM':'AM'; let d=hh%12; if(d===0)d=12; return d+' '+ap; }
   function addLog(t){ S.log.unshift('Day '+S.day+' · '+fmtHour(S.hour)+' — '+t); S.log=S.log.slice(0,7); }
-  function money(n){ if(n<0) S.cash+=n; }
   function earn(n){ S.cash+=n; S.earned+=n; }
   function spend(n){ if(S.cash<n) return false; S.cash-=n; return true; }
   function touchMom(n){ S.mom=clamp(S.mom+n); S.momTouchedDay=S.day; }
@@ -120,7 +101,8 @@
     S.hour+=h;
     if(S.hour>=26){ // 2 AM collapse
       S.day++; S.hour=8; S.energy=55; S.health=clamp(S.health-8); S.mood=clamp(S.mood-8); S.drinks=0;
-      addLog('Brandini stayed out way too late and basically blacked out. New day, hella hungover.');
+      addLog('Brandino stayed out way too late and basically passed out. New day, rough start.');
+      goHome();
       morningEvent();
     }
   }
@@ -128,163 +110,524 @@
     const ignored = S.momTouchedDay!==S.day;
     S.day++; S.hour=8; S.drinks=0;
     S.energy=96; S.health=clamp(S.health+8); S.mood=clamp(S.mood+5);
-    if(ignored){ S.mom=clamp(S.mom-3); addLog("Brandoni slept at Mom's. She noticed he barely said two words to her yesterday. Mom Rep -3."); }
-    else { S.mom=clamp(S.mom+1); addLog("Bran slept at Mom's and woke up to coffee and daytime TV in the kitchen."); }
-    morningEvent(); render();
+    if(ignored){ S.mom=clamp(S.mom-3); addLog("Brandino slept at Mom's. She noticed he barely said two words to her yesterday. Mom Rep -3."); }
+    else { S.mom=clamp(S.mom+1); addLog("Brandino slept at Mom's and woke up to coffee and daytime TV in the kitchen."); }
+    morningEvent();
   }
   function morningEvent(){
     if(Math.random()>0.45) return;
     const ev=pick([
-      ()=>{ S.mood=clamp(S.mood+7); return 'Mom made Bran’s favorite breakfast. Baked beans.'; },
-      ()=>{ S.inv.weed++; return 'Brandino’s plug swung by last night and left a little weed in the stash.'; },
-      ()=>{ S.health=clamp(S.health-4); S.mood=clamp(S.mood-4); return 'The puerto rican neighbor’s music was bumping through the wall half the night.'; },
-      ()=>{ S.energy=clamp(S.energy+6); return 'Bradbon actually slept like a baby for once.'; },
-      ()=>{ S.mom=clamp(S.mom-4); return 'Mom found Brando’s dishes in the bathroom again. She is keeping score.'; }
+      ()=>{ S.mood=clamp(S.mood+7); return 'Mom made Brandino’s favorite breakfast. Elite start to the day.'; },
+      ()=>{ S.inv.weed++; return 'Brandino’s cousin swung by last night and left a little weed in the stash.'; },
+      ()=>{ S.health=clamp(S.health-4); S.mood=clamp(S.mood-4); return 'The neighbor’s music was bumping through the wall half the night.'; },
+      ()=>{ S.energy=clamp(S.energy+6); return 'Brandino actually slept like a baby for once.'; },
+      ()=>{ S.mom=clamp(S.mom-4); return 'Mom found Brandino’s dishes in the sink again. She is keeping score.'; }
     ]);
     addLog(ev());
   }
   function randomEvent(where){
     if(Math.random()>0.24) return;
     const common=[
-      ()=>{ S.mood=clamp(S.mood+5); return 'A song Brendan loves came on and fixed his whole attitude for an hour.'; },
-      ()=>{ S.mood=clamp(S.mood-5); return 'Some honky was driving slow in front of B for no reason. Infuriating.'; },
-      ()=>{ S.energy=clamp(S.energy+5); return 'Blandon dropped a massive log.'; },
-      ()=>{ S.inv.weed++; return 'The homie Stevie blessed Brandino with a little weed for the stash.'; }
+      ()=>{ S.mood=clamp(S.mood+5); return 'A song Brandino loves came on and fixed his whole attitude for an hour.'; },
+      ()=>{ S.mood=clamp(S.mood-5); return 'Somebody was driving slow in front of Brandino for no reason. Infuriating.'; },
+      ()=>{ S.energy=clamp(S.energy+5); return 'Brandino caught a quick power nap on his break.'; },
+      ()=>{ S.inv.weed++; return 'The homie blessed Brandino with a little weed for the stash.'; }
     ];
     const byPlace={
-      home:[()=>{ S.mom=clamp(S.mom+4); S.mood=clamp(S.mood+4); return 'Mom was in a good mood and told Bran a story he’d never heard before about him being not so gay. :(.'; },
-            ()=>{ S.mood=clamp(S.mood+6); return 'Brandino found the good channel with back-to-back hentai.'; }],
-      factory:[()=>{ earn(12); return 'A coworker covered part of Brandino’s station while he took a poop, so the shift felt shorter (same pay, better vibes).'; },
-               ()=>{ S.health=clamp(S.health-5); S.mood=clamp(S.mood-4); return 'A blade kicked back on the grinder. No stitches, but Bradbon felt that one.'; }],
-      liquor:[()=>{ S.mood=clamp(S.mood+5); return 'A regular told El Brando he runs the slowest register in the neighborhood.'; },
-              ()=>{ S.mood=clamp(S.mood-5); S.energy=clamp(S.energy-4); return 'Somebody tried to argue about expired coupons at the liquor store. For thirty minutes... they pulled out a gun and brand cried.'; }],
-      shotz:[()=>{ S.mood=clamp(S.mood+8); return 'Somebody at Shotz told Brandino he looks like Clay Aiken.'; },
-             ()=>{ S.mood=clamp(S.mood-6); return 'A dude at Shotz kept trying to explain crypto to Brandino... B got scammed.'; }]
+      home:[()=>{ S.mom=clamp(S.mom+4); S.mood=clamp(S.mood+4); return 'Mom was in a good mood and told Brandino a story he’d never heard before.'; },
+            ()=>{ S.mood=clamp(S.mood+6); return 'Brandino found the good channel with back-to-back movies.'; }],
+      factory:[()=>{ earn(12); return 'A coworker covered part of Brandino’s station, so the shift felt shorter (same pay, better vibes).'; },
+               ()=>{ S.health=clamp(S.health-5); S.mood=clamp(S.mood-4); return 'A blade kicked back on the grinder. No stitches, but Brandino felt that one.'; }],
+      liquor:[()=>{ S.mood=clamp(S.mood+5); return 'A regular told Brandino he runs the cleanest register in the neighborhood.'; },
+              ()=>{ S.mood=clamp(S.mood-5); S.energy=clamp(S.energy-4); return 'Somebody tried to argue about expired coupons at the liquor store. For ten minutes.'; }],
+      shotz:[()=>{ S.mood=clamp(S.mood+8); return 'Somebody at Shotz told Brandino he looks like he has his life together. Lying works.'; },
+             ()=>{ S.mood=clamp(S.mood-6); return 'A dude at Shotz kept trying to explain crypto to Brandino.'; }],
+      bowl:[()=>{ S.mood=clamp(S.mood+6); return 'A little kid at the next lane bowled a strike and the whole place lost it. Infectious joy.'; },
+            ()=>{ S.mood=clamp(S.mood-4); return 'Somebody bowled during Brandino’s approach. A formal beef was filed (in his head).'; }],
+      hunan:[()=>{ S.mood=clamp(S.mood+5); return 'The fortune cookie said: “A friend will soon bring snacks.” Brandino chooses to believe.'; },
+             ()=>{ S.mood=clamp(S.mood+4); return 'Fortune cookie: “You will get exactly what you ordered.” He did. It was this meal.'; }],
+      circlek:[()=>{ S.mood=clamp(S.mood+5); return 'The Circle K clerk nodded at Brandino like a fellow night-shift survivor.'; },
+               ()=>{ S.energy=clamp(S.energy-3); S.mood=clamp(S.mood-3); return 'The slushie machine was down. A small grief, but a real one.'; }]
     };
     addLog(pick((byPlace[where]||[]).concat(common))());
   }
   function needEnergy(n){ return S.energy>=n; }
+  let actPlace='home';
   function act(id){
-    const noTime=()=>{};
+    const place=actPlace;
     switch(id){
-      // HOME
-      case 'sleep': sleep(); return;
-      case 'tv': S.mood=clamp(S.mood+8); S.energy=clamp(S.energy-2); addLog('Brando watched youtube on the couch and let his brain fry.'); passTime(1); break;
+      case 'sleep': sleep(); renderHUD(); return;
+      case 'tv': S.mood=clamp(S.mood+8); S.energy=clamp(S.energy-2); addLog('Brandino watched TV on the couch and let his brain idle.'); passTime(1); break;
       case 'eat':
-        if(S.ateDay===S.day){ addLog("Mom already fed big Brand once today. She's not running a buffet."); break; }
+        if(S.ateDay===S.day){ addLog("Mom already fed Brandino today. She's not running a 24-hour diner."); break; }
         if(S.mom<15){ addLog("Mom Rep is too low — Mom told Brandino the kitchen is closed until he acts right."); break; }
         S.ateDay=S.day; S.energy=clamp(S.energy+14); S.health=clamp(S.health+6); S.mood=clamp(S.mood+4); touchMom(2);
-        addLog('Brandino ate Mom’s spaghetti. Knees weak, arms are heavy.'); passTime(1); break;
+        addLog('Brandino ate Mom’s cooking. Elite fuel.'); passTime(1); break;
       case 'chillMom': {
-        const lines=['Mom says Bardon needs a haircut, a savings account, and some hoez','Mom asked why Brandino’s friends only come over when she cooks.','Mom says the shitfactory is good honest work and Brandino should stick with it.','Mom ranked Brandino’s life choices “not bad, just gay.”'];
+        const lines=['Mom says Brandino needs a haircut, a savings account, and “a plan.”','Mom asked why Brandino’s friends only come over when she cooks.','Mom says the factory is good honest work and Brandino should stick with it.','Mom ranked Brandino’s life choices “not bad, just unfinished.”'];
         touchMom(7); S.mood=clamp(S.mood+6); addLog('Brandino chilled with Mom. '+pick(lines)); passTime(1); break; }
-      case 'help': S.energy=clamp(S.energy-8); touchMom(10); S.mood=clamp(S.mood+2); addLog('Branman helped around the house — trash out, yard touched, dishes handled. Mom saw it.'); passTime(1); break;
+      case 'help': S.energy=clamp(S.energy-8); touchMom(10); S.mood=clamp(S.mood+2); addLog('Brandino helped around the house — trash out, yard touched, dishes handled. Mom saw it.'); passTime(1); break;
       case 'smokeWeed':
-        if(S.inv.weed<=0){ addLog('No weed in the stash. Brandino stared at the empty bag and wept.'); break; }
+        if(S.inv.weed<=0){ addLog('No weed in the stash. Eduardo at the factory can hook Brandino up for $25.'); break; }
         S.inv.weed--; S.mood=clamp(S.mood+15); S.energy=clamp(S.energy-6); S.health=clamp(S.health-1);
         addLog('Brandino smoked and watched the ceiling fan like it was a nature documentary.'); passTime(1); break;
       case 'drinkBeer':
-        if(S.inv.beer<=0){ addLog('No beer in the stash. Wine Cellar run required.'); break; }
+        if(S.inv.beer<=0){ addLog('No beer in the stash. Liquor store run required.'); break; }
         S.inv.beer--; S.drinks++; S.mood=clamp(S.mood+8); S.health=clamp(S.health-2); S.energy=clamp(S.energy-3);
-        addLog('Barndon cracked a voodoo ranger at the crib.'); passTime(1); break;
+        addLog('Brandino cracked a beer at the crib.'); passTime(1); break;
       case 'drinkBottle':
-        if(S.inv.bottle<=0){ addLog('No BV in the stash. Liquor store run required.'); break; }
+        if(S.inv.bottle<=0){ addLog('No bottle in the stash. Liquor store run required.'); break; }
         S.inv.bottle--; S.drinks++; S.mood=clamp(S.mood+13); S.health=clamp(S.health-5); S.energy=clamp(S.energy-5);
-        addLog('Bran poured up BV from the bottle. The night got louder.'); passTime(1); break;
+        addLog('Brandino poured up from the bottle. The night got louder.'); passTime(1); break;
       case 'smokeCig':
-        if(S.inv.cigs<=0){ addLog('No cigs. Circle K sells them — Brand knows the way.'); break; }
+        if(S.inv.cigs<=0){ addLog('No cigs. Liquor store sells them — Brandino knows the way.'); break; }
         S.inv.cigs--; S.mood=clamp(S.mood+4); S.health=clamp(S.health-4);
-        addLog('Brandino smoked a cig on the couch and thought about absolutely nothing.'); passTime(1); break;
-      // FACTORY
-            case 'buyWeed':
-        if(spend(25)){ S.inv.weed++; addLog('Bhad Bhrandon bought weed from Eduardo by the loading dock ($25). Eduardo said tell nobody.'); }
-        else addLog('Eduardo doesn’t do IOUs. Bran needs $25 cash.');
+        addLog('Brandino smoked a cig on the porch and thought about absolutely nothing.'); break;
+      case 'buyWeed':
+        if(spend(25)){ S.inv.weed++; addLog('Brandino bought weed from Eduardo by the loading dock ($25). Eduardo said tell nobody.'); }
+        else addLog('Eduardo doesn’t do IOUs. Brandino needs $25 cash.');
         break;
       case 'factoryShift': {
-        if(!needEnergy(25)){ addLog('Brundo is too zonked to safely work around sharp ass blades. Sleep first.'); break; }
+        if(!needEnergy(25)){ addLog('Brandino is too tired to safely work around spinning blades. Sleep first.'); break; }
         earn(144); S.factory++; S.energy=clamp(S.energy-35); S.health=clamp(S.health-3); S.mood=clamp(S.mood-2);
         let extra='';
         const r=Math.random();
-        if(r<0.14){ earn(36); extra=' The friendly skinhead manager kept him for overtime (+$36).'; passTime(9); }
-        else if(r<0.26){ S.health=clamp(S.health-9); S.mood=clamp(S.mood-5); extra=' He sliced his fingertip on a blade again — nothing serious, but it stung all shift.'; passTime(8); }
+        if(r<0.14){ earn(36); extra=' The boss kept him for overtime (+$36).'; passTime(9); }
+        else if(r<0.26){ S.health=clamp(S.health-9); S.mood=clamp(S.mood-5); extra=' He nicked his hand on a blade — nothing serious, but it stung all shift.'; passTime(8); }
         else passTime(8);
-        addLog('Brondo worked a shit-factory shift (+$144).'+extra); break; }
-      // LIQUOR STORE — WORK
+        addLog('Brandino worked a knife factory shift (+$144).'+extra); break; }
       case 'liquorShift': {
-        if(!needEnergy(18)){ addLog('Brandino is too tired and musty to run a register and smile at customers. Sleep first.'); break; }
+        if(!needEnergy(18)){ addLog('Brandino is too tired to run a register and smile at customers. Sleep first.'); break; }
         earn(90); S.liquor++; S.energy=clamp(S.energy-24); S.mood=clamp(S.mood+1);
         let extra='';
         const r=Math.random();
-        if(r<0.22){ const tip=5+Math.floor(Math.random()*16); earn(tip); extra=' A weirdo tipped him $'+tip+' for twerking.'; }
-        else if(r<0.34){ S.mood=clamp(S.mood-6); S.energy=clamp(S.energy-4); extra=' Bran tried to take a creepshot and made it everybody question his motives.'; }
+        if(r<0.22){ const tip=5+Math.floor(Math.random()*16); earn(tip); extra=' A customer tipped him $'+tip+' for carrying bags out.'; }
+        else if(r<0.34){ S.mood=clamp(S.mood-6); S.energy=clamp(S.energy-4); extra=' Somebody tried to shoplift and made it everybody’s problem.'; }
         addLog('Brandino worked a liquor store shift (+$90).'+extra); passTime(6); break; }
-      // LIQUOR STORE — BUY (alcohol + cigs only)
-      case 'buyBeer': if(spend(9)){ S.inv.beer++; addLog('B bought a six pack for the stash ($9).'); } else addLog('Not enough skrill for booze. Work pays, vibes don’t.'); break;
-      case 'buyBottle': if(spend(22)){ S.inv.bottle++; addLog('Brando bought a bottle of BV for the stash ($22).'); } else addLog('Not enough cash for a bottle. The good stuff waits for payday.'); break;
-      case 'buyCigs': if(spend(13)){ S.inv.cigs++; addLog('Brondon bought a pack of fags ($13).'); } else addLog('Not enough cash for ciggies.'); break;
-      // SHOTZ — buy drinks only, consumed on the spot
+      case 'buyBeer': if(spend(9)){ S.inv.beer++; addLog('Brandino bought a beer for the stash ($9).'); } else addLog('Not enough cash for beer. Work pays, vibes don’t.'); break;
+      case 'buyBottle': if(spend(22)){ S.inv.bottle++; addLog('Brandino bought a bottle for the stash ($22).'); } else addLog('Not enough cash for a bottle. The good stuff waits for payday.'); break;
+      case 'buyCigs': if(spend(13)){ S.inv.cigs++; addLog('Brandino bought a pack of cigs ($13).'); } else addLog('Not enough cash for cigs.'); break;
       case 'shotzBeer':
-        if(!spend(7)){ addLog('Brandino can’t cover a $7 beer at Shotz. Down bad.'); break; }
+        if(!spend(7)){ addLog('Brandino can’t cover a $7 beer at Shotz. Humbling.'); break; }
         S.drinks++; S.mood=clamp(S.mood+9); S.health=clamp(S.health-2); S.energy=clamp(S.energy-2);
-        addLog('Big bran bought a coors at Shotz and posted up like he owned the joint.'); passTime(1); break;
+        addLog('Brandino bought a beer at Shotz and posted up like he owned the stool.'); passTime(1); break;
       case 'shotzShot':
-        if(!spend(9)){ addLog('Brand can’t cover a $9 shot at Shotz. The hot bartender looked away politely. Ouch.'); break; }
+        if(!spend(9)){ addLog('Brandino can’t cover a $9 shot at Shotz. The bartender looked away politely.'); break; }
         S.drinks++; S.mood=clamp(S.mood+12); S.health=clamp(S.health-4); S.energy=clamp(S.energy-3);
-        addLog('Brandino took a shot at Shotz. Immediate rizz boost.'); passTime(1); break;
-      // WEST SIDE BOWL — no entry in v1
-      case 'bowlDoor': addLog('Brandino tried the WestSide Bowl door. He is not on the list.  — the bowling life is a v2 feature.'); break;
+        addLog('Brandino took a shot at Shotz. Immediate confidence boost.'); passTime(1); break;
+      case 'bowlGame': {
+        if(!spend(6)){ addLog('Brandino needs $6 to bowl. The shoe guy does not do charity.'); break; }
+        const bscore=60+Math.floor(Math.random()*165); let bfl;
+        if(bscore>=190) bfl=' He was ON FIRE — somebody from league night asked what team he bowls for.';
+        else if(bscore>=140) bfl=' Clean game. The pins feared him.';
+        else if(bscore>=100) bfl=' Respectable. Only two gutters, both blamed on the lane.';
+        else bfl=' Rough one. The ball had its own plans and they were not Brandino’s.';
+        S.energy=clamp(S.energy-4); S.mood=clamp(S.mood+13);
+        addLog('Brandino bowled a '+bscore+'.'+bfl); passTime(1); break; }
+      case 'buyPlate':
+        if(!spend(11)){ addLog('Brandino can’t cover an $11 plate at Hunan. The egg rolls mock him from the warmer.'); break; }
+        S.energy=clamp(S.energy+16); S.mood=clamp(S.mood+6); S.health=clamp(S.health+3);
+        addLog('Brandino put down a whole Hunan plate. Elite-tier refuel.'); passTime(1); break;
+      case 'buyEggRoll':
+        if(!spend(4)){ addLog('Not enough for even an egg roll ($4). Humbling.'); break; }
+        S.energy=clamp(S.energy+6); S.mood=clamp(S.mood+3);
+        addLog('One egg roll, eaten standing up, zero regrets.'); break;
+      case 'buySnack':
+        if(!spend(4)){ addLog('Not even $4 for a Circle K snack. Dark times.'); break; }
+        S.energy=clamp(S.energy+8); S.mood=clamp(S.mood+3); S.health=clamp(S.health+1);
+        addLog('Brandino grabbed a Circle K snack and ate it in the parking lot like a king.'); break;
+      case 'buyScratcher': {
+        if(!spend(5)){ addLog('No $5 for a scratcher. The dream stays unscratched.'); break; }
+        const sr=Math.random();
+        if(sr<0.10){ earn(50); addLog('THE SCRATCHER HIT FOR $50. Brandino is basically a financial advisor now.'); }
+        else if(sr<0.28){ earn(10); addLog('Scratcher paid $10. A free scratcher, technically. Brandino counts it as a win.'); }
+        else { S.mood=clamp(S.mood-2); addLog('Scratcher was a dud. The ticket now lives in the parking lot.'); }
+        break; }
+      case 'bowlDoor': addLog('Brandino tried the West Side Bowl door. Locked for him — the bowling life is a future feature.'); break;
     }
     if(id!=='sleep' && id!=='bowlDoor') randomEvent(place);
     if(S.drinks>=4 && Math.random()<0.5){ S.mood=clamp(S.mood-6); S.energy=clamp(S.energy-6); addLog('Brandino is feeling those drinks. Tomorrow morning might have opinions.'); }
-    render();
+    renderHUD();
   }
   const ACTIONS={
-    home:[
-      ['sleep','😴 Sleep','Next day · energy back up',1],
-      ['eat','🍽️ Eat Mom’s Spaghetti','Free · energy + health · once a day',0],
-      ['chillMom','🛋️ Chill with Ma','Mom Rep + · mood + · 1 hr',0],
-      ['help','🧹 Help Around the House','Mom Rep ++ · energy − · 1 hr',0],
-      ['tv','📺 Watch youtubes','Mood + · 1 hr',0],
-      ['smokeWeed','🌿 Smoke a long crooked joint','Needs weed · mood ++ · 1 hr',0],
-      ['drinkBeer','🍺 Drink a voodoo','Needs beer · mood + · 1 hr',0],
-      ['drinkBottle','🥃 Drink some BV','Needs a bottle · mood ++ · 1 hr',0],
-      ['smokeCig','🚬 Smoke a fag','Needs cigs · mood + · health −',0]
-    ],
-    factory:[['factoryShift','🔪 Work Factory Shift','8 hrs · +$144 · the real payday',1],['buyWeed','🌿 Buy Weed from Eduardo','$25 · +1 weed · by the loading dock',0]],
-   liquor:[
-      ['liquorShift','🧾 Work Liquor Store Shift','6 hrs · +$90 · tips possible',1],
-      ['buyBeer','🍺 Buy six pack','$9 · adds 1 beer to the stash',0],
-      ['buyBottle','🍾 Buy a Bottle of BV','$22 · adds 1 bottle to the stash',0],
-      ['buyCigs','🚬 Buy smokes','$13 · adds 1 pack to the stash',0]
-    ],
-    shotz:[
-      ['shotzBeer','🍺 Buy a coors at Shotz','$7 · drank on the spot · mood +',0],
-      ['shotzShot','🥃 Buy a Shot at Shotz','$9 · drank on the spot · mood ++',0]
-    ],
-    bowl:[['bowlDoor','🎳 Try the Back Door','West Side Bowl is not enterable yet',0]]
+    sleep:['😴 Sleep','Next day · energy back up',1], eat:['🍽️ Eat Mom’s Food','Free · energy + health · once a day',0],
+    chillMom:['🛋️ Chill with Mom','Mom Rep + · mood + · 1 hr',0], help:['🧹 Help Around the House','Mom Rep ++ · energy − · 1 hr',0],
+    tv:['📺 Watch TV','Mood + · 1 hr',0], smokeWeed:['🌿 Smoke Weed','Needs weed · mood ++ · 1 hr',0],
+    drinkBeer:['🍺 Drink a Beer','Needs beer · mood + · 1 hr',0], drinkBottle:['🥃 Drink from the Bottle','Needs a bottle · mood ++ · 1 hr',0],
+    smokeCig:['🚬 Smoke a Cig','Needs cigs · mood + · health −',0],
+    factoryShift:['🔪 Work Factory Shift','8 hrs · +$144 · the real payday',1], buyWeed:['🌿 Buy Weed from Eduardo','$25 · +1 weed · by the loading dock',0],
+    liquorShift:['🧾 Work Liquor Store Shift','6 hrs · +$90 · tips possible',1],
+    buyBeer:['🍺 Buy Beer','$9 · adds 1 beer to the stash',0], buyBottle:['🍾 Buy a Bottle','$22 · adds 1 bottle to the stash',0],
+    buyCigs:['🚬 Buy Cigs','$13 · adds 1 pack to the stash',0],
+    shotzBeer:['🍺 Buy a Beer at Shotz','$7 · drank on the spot · mood +',0], shotzShot:['🥃 Buy a Shot at Shotz','$9 · drank on the spot · mood ++',0],
+    bowlGame:['🎳 Bowl a Game','$6 · 1 hr · mood ++ · score posted to the log',1],
+    buyPlate:['🍜 Buy a Plate','$11 · 1 hr · energy ++ · mood +',0], buyEggRoll:['🥟 Buy an Egg Roll','$4 · quick bite · energy +',0],
+    buySnack:['🍫 Grab a Snack','$4 · eaten on the spot · energy +',0], buyScratcher:['🎟️ Buy a Scratcher','$5 · might hit, probably won’t',0],
+    bowlDoor:['🎳 Try the Door','West Side Bowl is not enterable yet',0]
   };
-  function render(){
-    S.energy=clamp(S.energy); S.mood=clamp(S.mood); S.health=clamp(S.health); S.mom=clamp(S.mom);
-    $('clock').textContent='Day '+S.day+' · '+fmtHour(S.hour);
-    $('cash').textContent='$'+S.cash; $('earned').textContent='$'+S.earned;
-    $('energyText').textContent=S.energy; $('energyBar').style.width=S.energy+'%';
-    $('moodText').textContent=S.mood; $('moodBar').style.width=S.mood+'%';
-    $('healthText').textContent=S.health; $('healthBar').style.width=S.health+'%';
-    $('momText').textContent=S.mom; $('momBar').style.width=S.mom+'%';
-    $('factoryShifts').textContent=S.factory; $('liquorShifts').textContent=S.liquor;
-    $('places').innerHTML=Object.keys(PLACES).map(k=>'<button class="place'+(k===place?' active':'')+(k==='bowl'?' locked':'')+'" data-place="'+k+'">'+PLACES[k].name+(k==='bowl'?' 🔒':'')+'</button>').join('');
-    document.querySelectorAll('[data-place]').forEach(b=>b.onclick=()=>{ place=b.dataset.place; render(); });
-    $('placeTitle').textContent=PLACES[place].name;
-    $('placeText').textContent=PLACES[place].text;
-    $('actions').innerHTML=ACTIONS[place].map(a=>'<button class="act'+(a[3]?' primary':'')+'" data-act="'+a[0]+'"><b>'+a[1]+'</b><span>'+a[2]+'</span></button>').join('');
-    document.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>act(b.dataset.act));
-    $('inv').innerHTML=
-      '<span class="chip">🍺 Beer × '+S.inv.beer+'</span><span class="chip">🍾 Bottles × '+S.inv.bottle+'</span><span class="chip">🚬 Cigs × '+S.inv.cigs+'</span><span class="chip">🌿 Weed × '+S.inv.weed+'</span>';
-    $('log').innerHTML=S.log.map(x=>'<div>'+x+'</div>').join('');
+
+  // ================= isometric pixel engine =================
+  const cv=$('game'), ctx=cv.getContext('2d');
+  const TW=32, TH=16, OX=240;
+  const iso=(i,j,oy)=>[OX+(i-j)*TW/2, oy+(i+j)*TH/2];
+  function tilePoly(i,j,oy){ const t=iso(i,j,oy),r=iso(i+1,j,oy),b=iso(i+1,j+1,oy),l=iso(i,j+1,oy);
+    ctx.beginPath(); ctx.moveTo(t[0],t[1]); ctx.lineTo(r[0],r[1]); ctx.lineTo(b[0],b[1]); ctx.lineTo(l[0],l[1]); ctx.closePath(); }
+  function poly(pts,fill){ ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]); for(let k=1;k<pts.length;k++) ctx.lineTo(pts[k][0],pts[k][1]); ctx.closePath(); ctx.fillStyle=fill; ctx.fill(); }
+  function shade(hex,f){ const n=parseInt(hex.slice(1),16); let r=(n>>16)&255,g=(n>>8)&255,b=n&255;
+    r=Math.max(0,Math.min(255,Math.round(r*f))); g=Math.max(0,Math.min(255,Math.round(g*f))); b=Math.max(0,Math.min(255,Math.round(b*f)));
+    return 'rgb('+r+','+g+','+b+')'; }
+  function drawBox(b,oy){
+    const [x0,y0]=iso(b.i0,b.j0,oy),[xR,yR]=iso(b.i1,b.j0,oy),[xB,yB]=iso(b.i1,b.j1,oy),[xL,yL]=iso(b.i0,b.j1,oy), h=b.h;
+    poly([[xL,yL],[xB,yB],[xB,yB-h],[xL,yL-h]], shade(b.wall,0.78));
+    poly([[xR,yR],[xB,yB],[xB,yB-h],[xR,yR-h]], shade(b.wall,0.6));
+    poly([[x0,y0-h],[xR,yR-h],[xB,yB-h],[xL,yL-h]], b.roof);
+    if(b.emoji){ const [cx,cy]=iso((b.i0+b.i1)/2,(b.j0+b.j1)/2,oy); ctx.font='11px serif'; ctx.textAlign='center'; ctx.fillText(b.emoji,cx,cy-h-3); }
+    if(b.label){ const [cx,cy]=iso((b.i0+b.i1)/2,(b.j0+b.j1)/2,oy); ctx.font='bold 8px ui-monospace,monospace'; ctx.textAlign='center'; ctx.fillStyle=b.labelC||'#fff'; ctx.fillText(b.label,cx,cy-h-13); }
+  }
+
+  // ---- pixel peep sprites (12 wide x 16 tall) ----
+  const SPR=['............','...HHHHHH...','..HHHHHHHH..','..HSSSSSSH..','..SSSSSSSS..','...SSSSSS...','.TTTTTTTTTT.','.STTTTTTTTS.','.STTGTTGTTS.','..TTTTTTTT..','...PPPPPP...','...PP..PP...','...PP..PP...','...PP..PP...','..RRR..RRR..','..RRR..RRR..'];
+  const LEGS_B=['............','............','............','............','............','............','............','............','............','............','....PPPP....','....P..P....','....P..P....','....P..P....','...RR..RR...','...RR..RR...'];
+  const PAL_B={H:'#20242c',S:'#c98d5f',T:'#f2f2f2',G:'#f5c542',P:'#2b4d9b',R:'#e8e8e8'};
+  const PAL_E={H:'#14100c',S:'#8a5a34',T:'#7a3b8f',G:'#7a3b8f',P:'#26221f',R:'#111111'};
+  const PAL_M={H:'#8a8a92',S:'#d9a06b',T:'#b03060',G:'#b03060',P:'#7a2547',R:'#2a2a2a'};
+  function drawPeep(x,y,pal,frame,faceLeft){
+    const rows=frame===1?LEGS_B:SPR, w=12,h=16,px=2;
+    const x0=Math.round(x-w*px/2), y0=Math.round(y-h*px);
+    for(let r=0;r<h;r++) for(let c0=0;c0<w;c0++){
+      const c=faceLeft?(w-1-c0):c0, ch=rows[r][c0];
+      if(ch==='.'||!pal[ch]) continue;
+      ctx.fillStyle=pal[ch]; ctx.fillRect(x0+c*px,y0+r*px,px,px);
+    }
+  }
+  function drawEduardo(p,t){ const [sx,sy]=iso(p[0],p[1],SCENES.town.oy); drawPeep(sx,sy-2,PAL_E,0,false); }
+  function bubble(x,y,text){
+    ctx.font='bold 10px ui-monospace,monospace';
+    const w=ctx.measureText(text).width+14, h=20, bx=x-w/2, by=y-h-10;
+    ctx.fillStyle='#fff'; ctx.strokeStyle='#173f35'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.roundRect(bx,by,w,h,6); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x-4,by+h); ctx.lineTo(x+4,by+h); ctx.lineTo(x,by+h+6); ctx.closePath(); ctx.fillStyle='#fff'; ctx.fill();
+    ctx.fillStyle='#173f35'; ctx.textAlign='center'; ctx.fillText(text,x,by+14);
+  }
+
+  // ================= scenes =================
+  // spot: {p:[x,y], r, acts:[ids], place, label} — door: {'i,j':{to, at:[x,y]}}
+  const SCENES={
+    town:{ w:12,h:10,oy:30,walls:false,zoom:1.25,
+      floor(i,j){
+        if(j===3||j===6) return (i+j)%2?'#c9c2ae':'#beb69f';
+        if(j===4||j===5) return (i+j)%2?'#5d6066':'#565a60';
+        if((i===9&&j<=2)||(i===4&&j===0)) return (i+j)%2?'#3f7fbf':'#3a76b2'; // Mill Creek
+        if((i*7+j*13)%5===0) return '#3f8a35'; // mossy forest floor
+        return (i+j)%2?'#4f9e42':'#47913b';
+      },
+      boxes:[
+        {i0:1,j0:1,i1:3,j1:3,h:34,wall:'#8a9099',roof:'#5b3a2e',label:'🔪 KNIFE FACTORY',labelC:'#ffe9a8'},
+        {i0:6,j0:1,i1:9,j1:3,h:26,wall:'#e07856',roof:'#8a4a3a',label:"🏠 MOM'S CRIB",labelC:'#ffe9a8'},
+        {i0:0,j0:7,i1:2,j1:9,h:30,wall:'#7a3b8f',roof:'#4a2358',label:'🍾 LIQUOR',labelC:'#ffe9a8'},
+        {i0:3,j0:7,i1:5,j1:9,h:24,wall:'#31517a',roof:'#1d3350',label:'🍸 SHOTZ',labelC:'#ffe9a8'},
+        {i0:7,j0:7,i1:10,j1:9,h:28,wall:'#6e6e6e',roof:'#4a4a4a',label:'🎳 WEST SIDE BOWL',labelC:'#ffe9a8'},
+        {i0:5,j0:7,i1:7,j1:9,h:22,wall:'#c9403d',roof:'#8f2a28',label:'🥡 HUNAN EXPRESS',labelC:'#ffe9a8'},
+        {i0:10,j0:7,i1:12,j1:9,h:24,wall:'#e8e8e8',roof:'#d43a2f',label:'⛽ CIRCLE K',labelC:'#7a1610'}
+      ],
+      blockExtra:[[9,0],[9,1],[9,2],[4,0]],
+      water:[[4,0],[9,0],[9,1],[9,2]],
+      props:[[0,0,'tree'],[1,0,'tree'],[2,0,'tree'],[3,0,'tree'],[5,0,'tree'],[6,0,'tree'],[7,0,'tree'],[8,0,'tree'],
+             [3,1,'tree'],[5,1,'tree'],[4,2,'tree'],[0,2,'tree'],[9,3,'tree'],
+             [0,9,'tree'],[3,9,'tree'],[5,9,'tree'],[9,9,'tree'],[11,9,'tree'],[6,9,'car'],
+             [10,0,'tree'],[11,0,'tree']],
+      spots:[
+        {p:[4,3],r:1.15,acts:['buyWeed'],place:'factory',label:'Eduardo'}
+      ],
+      doors:{ '2,3':{to:'factory',at:[5,5]}, '7,3':{to:'home',at:[4,6]}, '1,6':{to:'liquor',at:[2,5]}, '4,6':{to:'shotz',at:[6,4]},
+              '8,6':{to:'bowl',at:[2,4]}, '6,6':{to:'hunan',at:[4,3]}, '10,6':{to:'circlek',at:[2,3.5]} },
+      eduardo:[4,3]
+    },
+    home:{ w:9,h:8,oy:64,walls:true,zoom:1.55,
+      floor(i,j){ if(i>=1&&i<=6&&j>=3&&j<=6) return (i+j)%2?'#a33f3f':'#9c3a3a'; return (i+j)%2?'#b08954':'#a37c48'; },
+      boxes:[
+        {i0:0,j0:0,i1:2,j1:2,h:10,wall:'#7a4a26',roof:'#d94f4f',emoji:'🛏️'},
+        {i0:5,j0:0,i1:9,j1:1,h:12,wall:'#8a9099',roof:'#cfd4d8',emoji:'🍳'},
+        {i0:8,j0:1,i1:9,j1:2,h:22,wall:'#dfe5ea',roof:'#eef2f5',emoji:'🧊'},
+        {i0:2,j0:5,i1:5,j1:6,h:9,wall:'#7a3b3b',roof:'#8f4646',emoji:'🛋️'},
+        {i0:3,j0:3,i1:4,j1:4,h:13,wall:'#22242c',roof:'#3a6ea5',emoji:'📺'},
+        {i0:6,j0:4,i1:7,j1:5,h:8,wall:'#7a4a26',roof:'#a5713d'}
+      ],
+      spots:[
+        {p:[1,2.4],r:1.35,acts:['sleep'],place:'home',label:'Bed'},
+        {p:[7.4,1.7],r:1.4,acts:['eat'],place:'home',label:"Mom's kitchen"},
+        {p:[6,1.7],r:1.25,acts:['help'],place:'home',label:'Kitchen sink'},
+        {p:[3.5,6.3],r:1.5,acts:['tv','smokeWeed','drinkBeer','drinkBottle','smokeCig'],place:'home',label:'Couch'}
+      ],
+      doors:{ '4,7':{to:'town',at:[7.5,4.2]} },
+      mom:{path:[[6.5,2.2],[3.2,4.2]],speed:0.55,pause:2.6}
+    },
+    factory:{ w:10,h:7,oy:64,walls:true,zoom:1.55,
+      floor(i,j){ return (i+j)%2?'#8d9096':'#83868c'; },
+      boxes:[
+        {i0:2,j0:2,i1:3,j1:3,h:13,wall:'#5b6068',roof:'#494e55',emoji:'🔪'},
+        {i0:4,j0:2,i1:5,j1:3,h:13,wall:'#5b6068',roof:'#494e55',emoji:'🔪'},
+        {i0:6,j0:2,i1:7,j1:3,h:13,wall:'#5b6068',roof:'#494e55',emoji:'🔪'},
+        {i0:2,j0:4,i1:8,j1:5,h:7,wall:'#6b5a3e',roof:'#8a744e'},
+        {i0:9,j0:1,i1:10,j1:4,h:18,wall:'#4a5568',roof:'#39424f',emoji:'🗄️'},
+        {i0:1,j0:5,i1:2,j1:6,h:9,wall:'#7a4a26',roof:'#a5713d',emoji:'🕐'}
+      ],
+      spots:[ {p:[1.5,4.5],r:1.35,acts:['factoryShift'],place:'factory',label:'Time clock'} ],
+      doors:{ '5,6':{to:'town',at:[2,4.2]} }
+    },
+    liquor:{ w:8,h:7,oy:70,walls:true,zoom:1.65,
+      floor(i,j){ return (i+j)%2?'#9aa3ad':'#8b939c'; },
+      boxes:[
+        {i0:1,j0:1,i1:3,j1:3,h:16,wall:'#5d4632',roof:'#7a5c40',emoji:'🍾'},
+        {i0:5,j0:1,i1:7,j1:3,h:16,wall:'#5d4632',roof:'#7a5c40',emoji:'🍺'},
+        {i0:4,j0:5,i1:7,j1:6,h:11,wall:'#4a3b2a',roof:'#6e5638',emoji:'🧾'},
+        {i0:7,j0:3,i1:8,j1:4,h:15,wall:'#b9c4cc',roof:'#d3dde3',emoji:'🧊'}
+      ],
+      spots:[ {p:[5.5,4.3],r:1.5,acts:['liquorShift','buyBeer','buyBottle','buyCigs'],place:'liquor',label:'Register'} ],
+      doors:{ '1,6':{to:'town',at:[1.5,5.3]} }
+    },
+    shotz:{ w:8,h:6,oy:80,walls:true,zoom:1.75,sign:{text:'✦ SHOTZ ✦',at:[3,0],c:'#ff5da2'},
+      floor(i,j){ return (i+j)%2?'#6e4f30':'#644628'; },
+      boxes:[
+        {i0:1,j0:1,i1:6,j1:2,h:13,wall:'#5d4028',roof:'#4a3220',emoji:'🍸'},
+        {i0:6,j0:3,i1:7,j1:4,h:8,wall:'#4a3220',roof:'#5d4028',emoji:'🍺'},
+        {i0:2,j0:4,i1:3,j1:5,h:8,wall:'#4a3220',roof:'#5d4028',emoji:'🥃'}
+      ],
+      spots:[ {p:[3.5,2.4],r:1.6,acts:['shotzBeer','shotzShot'],place:'shotz',label:'Bar'} ],
+      doors:{ '6,5':{to:'town',at:[4.5,5.3]} }
+    },
+    bowl:{ w:10,h:7,oy:64,walls:true,zoom:1.55,sign:{text:'🎳 WEST SIDE BOWL 🎳',at:[5,0],c:'#7ec8ff'},
+      floor(i,j){
+        if(j>=1&&j<=4) return j%2?'#dcbc7d':'#d3ae68';
+        if(j===5) return (i+j)%2?'#8a6a44':'#7f623e';
+        if(j===6) return (i+j)%2?'#5e3a63':'#54335a';
+        return '#4a3b2a';
+      },
+      boxes:[
+        {i0:9,j0:1,i1:10,j1:2,h:5,wall:'#e8e8e8',roof:'#ffffff',emoji:'🎳'},
+        {i0:9,j0:2,i1:10,j1:3,h:5,wall:'#e8e8e8',roof:'#ffffff',emoji:'🎳'},
+        {i0:9,j0:3,i1:10,j1:4,h:5,wall:'#e8e8e8',roof:'#ffffff',emoji:'🎳'},
+        {i0:9,j0:4,i1:10,j1:5,h:5,wall:'#e8e8e8',roof:'#ffffff',emoji:'🎳'},
+        {i0:2,j0:3,i1:3,j1:4,h:8,wall:'#2b2f38',roof:'#3a3f4a',emoji:'🎱'},
+        {i0:1,j0:0,i1:3,j1:1,h:11,wall:'#5d4028',roof:'#7a5638',emoji:'👟'},
+        {i0:6,j0:5,i1:8,j1:6,h:6,wall:'#31517a',roof:'#3f6494',emoji:'🪑'}
+      ],
+      spots:[
+        {p:[2,1.7],r:1.35,acts:['bowlGame'],place:'bowl',label:'Shoe counter'},
+        {p:[7,2.5],r:1.8,acts:['bowlGame'],place:'bowl',label:'Lane 3'}
+      ],
+      doors:{ '1,6':{to:'town',at:[8.5,5.3]} }
+    },
+    hunan:{ w:8,h:6,oy:80,walls:true,zoom:1.75,sign:{text:'🥡 HUNAN EXPRESS',at:[4,0],c:'#ffb03a'},
+      floor(i,j){ return (i+j)%2?'#a34a3a':'#964233'; },
+      boxes:[
+        {i0:1,j0:0,i1:7,j1:1,h:13,wall:'#8a8f96',roof:'#c8ccd2',emoji:'🍳'},
+        {i0:2,j0:3,i1:3,j1:4,h:7,wall:'#7a4a26',roof:'#a5713d',emoji:'🥡'},
+        {i0:6,j0:3,i1:7,j1:4,h:7,wall:'#7a4a26',roof:'#a5713d',emoji:'🍵'}
+      ],
+      spots:[ {p:[4,1.7],r:1.45,acts:['buyPlate','buyEggRoll'],place:'hunan',label:'Counter'} ],
+      doors:{ '7,5':{to:'town',at:[5.5,5.3]} }
+    },
+    circlek:{ w:8,h:6,oy:80,walls:true,zoom:1.75,sign:{text:'⛽ CIRCLE K',at:[4,0],c:'#ff6b5e'},
+      floor(i,j){ return (i+j)%2?'#cfd6da':'#bfc8cd'; },
+      boxes:[
+        {i0:1,j0:1,i1:3,j1:3,h:16,wall:'#5d6a72',roof:'#7c8a91',emoji:'🧃'},
+        {i0:5,j0:1,i1:7,j1:3,h:16,wall:'#5d6a72',roof:'#7c8a91',emoji:'🍫'},
+        {i0:7,j0:3,i1:8,j1:4,h:15,wall:'#b9c4cc',roof:'#d3dde3',emoji:'🥤'},
+        {i0:3,j0:4,i1:6,j1:5,h:11,wall:'#4a3b2a',roof:'#6e5638',emoji:'🧾'}
+      ],
+      spots:[ {p:[4.5,3.5],r:1.45,acts:['buySnack','buyScratcher','buyBeer','buyCigs'],place:'circlek',label:'Register'} ],
+      doors:{ '1,5':{to:'town',at:[10.5,5.3]} }
+    }
+  };
+  // build blocked-tile sets per scene
+  for(const k in SCENES){ const sc=SCENES[k]; sc.blocked=new Set();
+    for(const b of sc.boxes) for(let i=b.i0;i<b.i1;i++) for(let j=b.j0;j<b.j1;j++) sc.blocked.add(i+','+j);
+    for(const e of (sc.blockExtra||[])) sc.blocked.add(e[0]+','+e[1]);
+    for(const p of (sc.props||[])) sc.blocked.add(p[0]+','+p[1]);
+  }
+  function blockedAt(sc,x,y){
+    if(x<0.15||y<0.15||x>sc.w-0.15||y>sc.h-0.15) return true;
+    return sc.blocked.has(Math.floor(x)+','+Math.floor(y));
+  }
+  function drawWalls(sc){
+    ctx.strokeStyle='rgba(0,0,0,.18)'; ctx.lineWidth=1;
+    for(let i=0;i<sc.w;i++){ const [x0,y0]=iso(i,0,sc.oy),[x1,y1]=iso(i+1,0,sc.oy);
+      poly([[x0,y0],[x1,y1],[x1,y1-34],[x0,y0-34]], i%2?'#9c8468':'#a68d6e'); }
+    for(let j=0;j<sc.h;j++){ const [x0,y0]=iso(0,j,sc.oy),[x1,y1]=iso(0,j+1,sc.oy);
+      poly([[x0,y0],[x1,y1],[x1,y1-34],[x0,y0-34]], j%2?'#7d6a50':'#86745a'); }
+    if(sc.sign){ const [sx,sy]=iso(sc.sign.at[0],sc.sign.at[1],sc.oy);
+      ctx.font='bold 13px ui-monospace,monospace'; ctx.textAlign='center'; ctx.fillStyle=sc.sign.c;
+      ctx.fillText(sc.sign.text,sx,sy-40); }
+  }
+  function drawProp(kind,i,j,oy){
+    const [x,y]=iso(i+0.5,j+0.5,oy);
+    if(kind==='tree'){ ctx.fillStyle='#5d4028'; ctx.fillRect(x-1,y-9,3,9);
+      ctx.fillStyle='#27632a'; ctx.fillRect(x-10,y-24,20,7); ctx.fillRect(x-8,y-31,16,7); ctx.fillStyle='#2f7a32'; ctx.fillRect(x-5,y-37,10,6); }
+    else if(kind==='car'){ ctx.fillStyle='#274b8f'; ctx.fillRect(x-14,y-10,28,6); ctx.fillRect(x-8,y-15,15,5); ctx.fillStyle='#bcd6ff'; ctx.fillRect(x-5,y-14,5,4); ctx.fillRect(x+1,y-14,5,4); ctx.fillStyle='#14161c'; ctx.fillRect(x-11,y-5,5,4); ctx.fillRect(x+7,y-5,5,4); }
+  }
+  function drawDoorMats(sc){
+    for(const key in sc.doors){ const [i,j]=key.split(',').map(Number);
+      tilePoly(i,j,sc.oy); ctx.fillStyle='#e8c85a'; ctx.fill();
+      ctx.fillStyle='rgba(0,0,0,.35)'; ctx.font='bold 9px ui-monospace,monospace'; ctx.textAlign='center';
+      const [cx,cy]=iso(i+0.5,j+0.5,sc.oy); ctx.fillText('▼',cx,cy+3); }
+  }
+
+  // ================= world state, scenes, HUD =================
+  let scene='home';
+  const P={i:3.5,j:4.4,face:1,frame:0,moving:false};
+  let doorCool=0, toast='', toastT=0;
+  const mom={i:6.5,j:2.2,wp:0,pause:0,face:1};
+  function curScene(){ return SCENES[scene]; }
+  function goHome(){ switchScene('home',1.5,2.9); }
+  function switchScene(to,atX,atY){
+    scene=to; P.i=atX; P.j=atY; doorCool=0.6;
+    toast=PLACES[to].name; toastT=2.2;
+    $('placeName').textContent=PLACES[to].name;
+    $('placeText').textContent=PLACES[to].text;
+    curSpotKey='__force__';
     save();
   }
-  $('resetBtn').onclick=()=>{ if(confirm('Start Brandino over from Day 1?')){ localStorage.removeItem('brand-theft-auto-v1'); S=fresh(); place='home'; render(); } };
-  S=load()||fresh(); render();
+  function updateMom(dt){
+    if(scene!=='home') return;
+    const path=SCENES.home.mom.path;
+    if(mom.pause>0){ mom.pause-=dt; return; }
+    const t=path[mom.wp], dx=t[0]-mom.i, dy=t[1]-mom.j, d=Math.hypot(dx,dy);
+    if(d<0.08){ mom.wp=(mom.wp+1)%path.length; mom.pause=SCENES.home.mom.pause; return; }
+    const sp=SCENES.home.mom.speed*dt;
+    mom.face=dx<0?-1:1; mom.i+=dx/d*sp; mom.j+=dy/d*sp;
+  }
+  function allSpots(){
+    const list=curScene().spots.slice();
+    if(scene==='home') list.push({p:[mom.i,mom.j],r:1.3,acts:['chillMom'],place:'home',label:'Mom',dyn:true});
+    return list;
+  }
+  let curSpotKey='';
+  function nearestSpot(){
+    let best=null,bd=1e9;
+    for(const s of allSpots()){ const d=Math.hypot(P.i-s.p[0],P.j-s.p[1]); if(d<=s.r&&d<bd){ bd=d; best=s; } }
+    return best;
+  }
+  function renderHUD(){
+    S.energy=clamp(S.energy); S.mood=clamp(S.mood); S.health=clamp(S.health); S.mom=clamp(S.mom);
+    $('chips1').innerHTML=
+      '<span class="chip">📅 Day '+S.day+' · '+fmtHour(S.hour)+'</span>'+
+      '<span class="chip">💰 $'+S.cash+'</span>'+
+      '<span class="chip">🏦 Earned $'+S.earned+'</span>'+
+      '<span class="chip">⚡ '+S.energy+'</span>'+
+      '<span class="chip">😊 '+S.mood+'</span>'+
+      '<span class="chip">❤️ '+S.health+'</span>'+
+      '<span class="chip'+(S.mom<20?' warn':'')+'">💗 Mom '+S.mom+'</span>';
+    $('chips2').innerHTML=
+      '<span class="chip">🔪 Shifts '+S.factory+'</span>'+
+      '<span class="chip">🧾 Shifts '+S.liquor+'</span>'+
+      '<span class="chip">🍺 ×'+S.inv.beer+'</span>'+
+      '<span class="chip">🍾 ×'+S.inv.bottle+'</span>'+
+      '<span class="chip">🚬 ×'+S.inv.cigs+'</span>'+
+      '<span class="chip">🌿 ×'+S.inv.weed+'</span>';
+    $('logBody').innerHTML=S.log.slice(0,5).map(x=>'<div>'+x+'</div>').join('');
+    save();
+  }
+  function updateActionBar(){
+    const s=nearestSpot();
+    const key=s?(s.label+'@'+s.p.map(n=>Math.round(n*2)).join(',')):'';
+    if(key===curSpotKey) return; curSpotKey=key;
+    const bar=$('actions');
+    if(!s){ bar.style.display='none'; return; }
+    actPlace=s.place;
+    bar.style.display='block';
+    $('actWhere').textContent='📍 '+s.label;
+    $('actGrid').innerHTML=s.acts.map(id=>{ const a=ACTIONS[id];
+      return '<button class="act'+(a[2]?' primary':'')+'" data-act="'+id+'"><b>'+a[0]+'</b><span>'+a[1]+'</span></button>'; }).join('');
+    bar.querySelectorAll('[data-act]').forEach(b=>{ b.onclick=()=>act(b.dataset.act); });
+  }
+  function draw(){
+    const sc=curScene();
+    ctx.fillStyle=scene==='town'?'#2e6630':'#241d16';
+    ctx.fillRect(0,0,480,320);
+    const mc=iso(sc.w/2,sc.h/2,sc.oy), Z=sc.zoom||1;
+    ctx.save(); ctx.translate(240,160); ctx.scale(Z,Z); ctx.translate(-mc[0],-mc[1]);
+    if(sc.walls) drawWalls(sc);
+    for(let j=0;j<sc.h;j++) for(let i=0;i<sc.w;i++){ tilePoly(i,j,sc.oy); ctx.fillStyle=sc.floor(i,j); ctx.fill(); ctx.strokeStyle='rgba(0,0,0,.08)'; ctx.stroke(); }
+    if(sc.water) for(const w of sc.water){ const p=iso(w[0],w[1],sc.oy);
+      ctx.fillStyle='rgba(205,232,255,.5)'; ctx.fillRect(p[0]+5,p[1]+4,7,2); ctx.fillRect(p[0]-13,p[1]+9,6,2); ctx.fillRect(p[0]+1,p[1]+12,5,2); }
+    drawDoorMats(sc);
+    const items=[];
+    for(const b of sc.boxes) items.push({d:b.i1+b.j1-1,k:'box',b});
+    for(const p of (sc.props||[])) items.push({d:p[0]+p[1]+1,k:'prop',p});
+    items.push({d:P.i+P.j+0.5,k:'brand'});
+    if(scene==='town'&&sc.eduardo) items.push({d:sc.eduardo[0]+sc.eduardo[1]+0.4,k:'eduardo'});
+    if(scene==='home') items.push({d:mom.i+mom.j+0.4,k:'mom'});
+    items.sort((a,b)=>a.d-b.d);
+    for(const it of items){
+      if(it.k==='box') drawBox(it.b,sc.oy);
+      else if(it.k==='prop') drawProp(it.p[2],it.p[0],it.p[1],sc.oy);
+      else if(it.k==='brand'){ const s=iso(P.i,P.j,sc.oy); drawPeep(s[0],s[1],PAL_B,P.moving&&P.frame?1:0,P.face<0); }
+      else if(it.k==='eduardo') drawEduardo(sc.eduardo,0);
+      else if(it.k==='mom'){ const s=iso(mom.i,mom.j,sc.oy); drawPeep(s[0],s[1],PAL_M,0,mom.face<0); }
+    }
+    if(scene==='town'&&Math.hypot(P.i-4,P.j-3)<1.6){ const e=iso(4,3,sc.oy); bubble(e[0],e[1]-46,'psst… $25. you know the deal.'); }
+    ctx.restore();
+    if(toastT>0){ ctx.font='bold 13px ui-monospace,monospace'; const w=ctx.measureText(toast).width+18;
+      ctx.fillStyle='rgba(14,26,22,.88)'; ctx.beginPath(); ctx.roundRect(240-w/2,8,w,24,8); ctx.fill();
+      ctx.fillStyle='#ffe9a8'; ctx.textAlign='center'; ctx.fillText(toast,240,24); }
+  }
+
+  // ================= input + main loop =================
+  const keys={}, held={};
+  addEventListener('keydown',e=>{ if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault(); keys[e.key.toLowerCase()]=true; });
+  addEventListener('keyup',e=>{ keys[e.key.toLowerCase()]=false; });
+  document.querySelectorAll('#dpad button').forEach(b=>{
+    const d=b.dataset.dir;
+    const on=e=>{ if(e&&e.preventDefault) e.preventDefault(); held[d]=true; b.classList.add('on'); };
+    const off=()=>{ held[d]=false; b.classList.remove('on'); };
+    b.addEventListener('pointerdown',on);
+    b.addEventListener('pointerup',off); b.addEventListener('pointerleave',off); b.addEventListener('pointercancel',off);
+    b.addEventListener('touchstart',on,{passive:false}); // fallback for older WebKit
+    b.addEventListener('touchend',off); b.addEventListener('touchcancel',off);
+    b.addEventListener('mousedown',on); b.addEventListener('mouseup',off); b.addEventListener('mouseleave',off);
+    b.addEventListener('contextmenu',e=>e.preventDefault());
+  });
+  let last=performance.now(), stepAcc=0;
+  function frame(now){
+    const dt=Math.min(0.05,(now-last)/1000); last=now;
+    if(doorCool>0) doorCool-=dt;
+    if(toastT>0) toastT-=dt;
+    let mx=0,my=0;
+    if(keys['arrowup']||keys['w']||held.up) my-=1;
+    if(keys['arrowdown']||keys['s']||held.down) my+=1;
+    if(keys['arrowleft']||keys['a']||held.left) mx-=1;
+    if(keys['arrowright']||keys['d']||held.right) mx+=1;
+    const sc=curScene();
+    P.moving=!!(mx||my);
+    if(P.moving){
+      const len=Math.hypot(mx,my), ux=mx/len, uy=my/len;
+      const vx=(ux+uy)*Math.SQRT1_2, vy=(uy-ux)*Math.SQRT1_2; // screen dirs -> grid: pad-up = screen-up, pad-right = screen-right
+      const sp=3.4*dt, nx=P.i+vx*sp, ny=P.j+vy*sp;
+      if(Math.abs(vx)>0.25) P.face=vx<0?-1:1;
+      if(!blockedAt(sc,nx,P.j)) P.i=nx;
+      if(!blockedAt(sc,P.i,ny)) P.j=ny;
+      stepAcc+=dt; if(stepAcc>0.16){ P.frame=P.frame?0:1; stepAcc=0; }
+      if(doorCool<=0){
+        const d=sc.doors[Math.floor(P.i)+','+Math.floor(P.j)];
+        if(d) switchScene(d.to,d.at[0],d.at[1]);
+      }
+    } else P.frame=0;
+    updateMom(dt);
+    updateActionBar();
+    draw();
+    requestAnimationFrame(frame);
+  }
+  $('resetBtn').onclick=()=>{ if(confirm('Start Brandino over from Day 1?')){ try{ localStorage.removeItem('brand-theft-auto-v1'); }catch(e){} S=fresh(); switchScene('home',3.5,4.4); renderHUD(); } };
+  S=load()||fresh();
+  $('placeName').textContent=PLACES.home.name; $('placeText').textContent=PLACES.home.text;
+  renderHUD();
+  requestAnimationFrame(frame);
+  window.__bta={ get S(){return S;}, get scene(){return scene;}, P, mom,
+    act:id=>act(id), goto:(s,x,y)=>switchScene(s,x,y),
+    setPlace:p=>{ actPlace=p; }, nearest:()=>nearestSpot(),
+    setDoorCool:v=>{ doorCool=v; }, key:(k,v)=>{ keys[k]=v; },
+    freeIn:(s,x,y)=>!blockedAt(SCENES[s],x,y) };
 })();
 </script>
 </body>
