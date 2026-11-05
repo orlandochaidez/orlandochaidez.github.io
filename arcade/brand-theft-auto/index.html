@@ -320,8 +320,9 @@
   const PAL_STU3={H:'#3a2a1a',S:'#c98d5f',T:'#7a3b8f',G:'#7a3b8f',P:'#22242c',R:'#111111',stringy:true};
   const MOM_LINES=["Did you eat? You're always not eating.","Your cousin's doing GREAT, by the way.","I saved you a plate. It's in the fridge.","That factory better appreciate you.","Call your aunt. She asks about you.","You look thin. Sit. I'm making something."];
   function drawPeep(x,y,pal,frame,faceLeft){
-    let rows=pal.spr||(frame===1?LEGS_B:SPR);
-    if(pal.short&&frame!==1) rows=['............'].concat(rows.slice(0,12),rows.slice(13)); // one leg-row shorter
+    let rows=(pal.spr||SPR).slice();
+    if(!pal.spr && frame===1){ for(let r=10;r<16;r++) rows[r]=LEGS_B[r]; } // stride frame swaps ONLY the legs — swapping the whole sprite made heads vanish (the "blinking gingers" bug)
+    if(pal.short) rows=['............'].concat(rows.slice(0,12),rows.slice(13)); // one leg-row shorter
     const w=12,h=16,px=2;
     const x0=Math.round(x-w*px/2), y0=Math.round(y-h*px);
     const cell=(c,r,col)=>{ const sc=faceLeft?(w-1-c):c; ctx.fillStyle=col; ctx.fillRect(x0+sc*px,y0+r*px,px,px); };
