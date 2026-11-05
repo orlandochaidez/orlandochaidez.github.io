@@ -82,7 +82,9 @@
     bowl:{name:"🎳 West Side Bowl", text:"IT'S OPEN. Lanes are oiled, the rental shoes are questionably sanitized, and Brandino is about to put up a number."},
     hunan:{name:"🥡 Hunan Express", text:"The good Chinese spot next to the Bowl. Plates that undo a whole factory shift, egg rolls that fix a mood."},
     circlek:{name:"⛽ Circle K", text:"Snacks, scratchers, and 24-hour fluorescent-light honesty. Brandino's third home, honestly."},
-    town:{name:"🛣️ The Block", text:"Brandino's whole world in a few blocks — Mill Creek Park woods all around and the creek running right past Mom's crib. Both jobs, the bar, the Bowl (open!), Hunan plates and Circle K scratchers."}
+    steel:{name:"🏭 Abandoned Steel Factory", text:"The plant that built Youngstown, quiet for decades. Rust, pigeons, and Stevie — the last man on shift."},
+    schwebels:{name:"🍞 Schwebel's (Abandoned)", text:"Baked fresh daily for sixty years, then one day just… didn't. The racks are still full of bread built to outlive us all."},
+    town:{name:"🛣️ The Block", text:"One Main Street, everything on it — both jobs, Mom's, Shotz, the Bowl, Hunan, Circle K — and the ghosts in between: dead steel, Schwebel's, McDonald's, La Terrazza. Mill Creek runs cold down the west woods."}
   };
   let S;
   function fresh(){
@@ -238,6 +240,9 @@
         if(!spend(4)){ addLog('Not even $4 for a Circle K snack. Dark times.'); break; }
         S.energy=clamp(S.energy+8); S.mood=clamp(S.mood+3); S.health=clamp(S.health+1);
         addLog('Brandino grabbed a Circle K snack and ate it in the parking lot like a king.'); break;
+      case 'staleBread':
+        S.energy=clamp(S.energy+4); S.health=clamp(S.health-2); S.mood=clamp(S.mood+3);
+        addLog('Brandino ate a Schwebel\u2019s bread fossil off the old rack. Crunchy. Structural. Zero regrets so far.'); break;
       case 'buyScratcher': {
         if(!spend(5)){ addLog('No $5 for a scratcher. The dream stays unscratched.'); break; }
         const sr=Math.random();
@@ -264,7 +269,7 @@
     shotzBeer:['🍺 Buy a Beer at Shotz','$7 · drank on the spot · mood +',0], shotzShot:['🥃 Buy a Shot at Shotz','$9 · drank on the spot · mood ++',0],
     bowlGame:['🎳 Bowl a Game','$6 · 1 hr · mood ++ · score posted to the log',1],
     buyPlate:['🍜 Buy a Plate','$11 · 1 hr · energy ++ · mood +',0], buyEggRoll:['🥟 Buy an Egg Roll','$4 · quick bite · energy +',0],
-    buySnack:['🍫 Grab a Snack','$4 · eaten on the spot · energy +',0], buyScratcher:['🎟️ Buy a Scratcher','$5 · might hit, probably won’t',0],
+    staleBread:['🍞 Eat the Ancient Bread','free · a 1997 original · energy +, health −',0], buySnack:['🍫 Grab a Snack','$4 · eaten on the spot · energy +',0], buyScratcher:['🎟️ Buy a Scratcher','$5 · might hit, probably won’t',0],
     bowlDoor:['🎳 Try the Door','West Side Bowl is not enterable yet',0]
   };
 
@@ -300,6 +305,8 @@
   const PAL_J={H:'#101216',S:'#f6ecd9',T:'#3b2d4f',G:'#3b2d4f',P:'#2e2440',R:'#14161c',short:true,stringy:true,joker:true};
   // the Circle K cop — navy uniform, cap, donut in hand
   const PAL_COP={H:'#1d2f52',S:'#e8b48c',T:'#24406e',G:'#f5c542',P:'#1a2440',R:'#111111',cap:true,donut:true};
+  // Stevie — chillin in the dead steel plant, beanie + hoodie
+  const PAL_STEVE={H:'#263238',S:'#d9a06b',T:'#37474f',G:'#37474f',P:'#22242c',R:'#e8e8e8'};
   function drawPeep(x,y,pal,frame,faceLeft){
     let rows=pal.spr||(frame===1?LEGS_B:SPR);
     if(pal.short&&frame!==1) rows=['............'].concat(rows.slice(0,12),rows.slice(13)); // one leg-row shorter
@@ -343,35 +350,37 @@
   // ================= scenes =================
   // spot: {p:[x,y], r, acts:[ids], place, label} — door: {'i,j':{to, at:[x,y]}}
   const SCENES={
-    town:{ w:12,h:10,oy:30,walls:false,zoom:1.25,
+    town:{ w:14,h:12,oy:26,walls:false,zoom:1.12,
       floor(i,j){
-        if(j===3||j===6) return (i+j)%2?'#c9c2ae':'#beb69f';
-        if(j===4||j===5) return (i+j)%2?'#5d6066':'#565a60';
-        if((i===9&&j<=2)||(i===4&&j===0)) return (i+j)%2?'#3f7fbf':'#3a76b2'; // Mill Creek
-        if((i*7+j*13)%5===0) return '#3f8a35'; // mossy forest floor
+        if(i===0) return (i+j)%2?'#3f7fbf':'#3a76b2'; // Mill Creek down the west woods
+        if(i===6||i===7) return (i+j)%2?'#5d6066':'#565a60'; // Main Street asphalt
+        if(i===5||i===8) return (i+j)%2?'#9aa0a3':'#939a9e'; // sidewalks
+        if((i*7+j*13)%5===0) return '#3f8a35';
         return (i+j)%2?'#4f9e42':'#47913b';
       },
       boxes:[
-        {i0:1,j0:1,i1:3,j1:3,h:34,wall:'#8a9099',roof:'#5b3a2e',label:'🔪 KNIFE FACTORY',labelC:'#ffe9a8'},
-        {i0:6,j0:1,i1:9,j1:3,h:26,wall:'#e07856',roof:'#8a4a3a',label:"🏠 MOM'S CRIB",labelC:'#ffe9a8'},
-        {i0:0,j0:7,i1:2,j1:9,h:30,wall:'#7a3b8f',roof:'#4a2358',label:'🍾 LIQUOR',labelC:'#ffe9a8'},
-        {i0:3,j0:7,i1:5,j1:9,h:24,wall:'#31517a',roof:'#1d3350',label:'🍸 SHOTZ',labelC:'#ffe9a8'},
-        {i0:7,j0:7,i1:10,j1:9,h:28,wall:'#6e6e6e',roof:'#4a4a4a',label:'🎳 WEST SIDE BOWL',labelC:'#ffe9a8'},
-        {i0:5,j0:7,i1:7,j1:9,h:22,wall:'#c9403d',roof:'#8f2a28',label:'🥡 HUNAN EXPRESS',labelC:'#ffe9a8'},
-        {i0:10,j0:7,i1:12,j1:9,h:24,wall:'#e8e8e8',roof:'#d43a2f',label:'⛽ CIRCLE K',labelC:'#7a1610'}
+        {i0:2,j0:0,i1:5,j1:3,h:34,wall:'#8a9099',roof:'#5b3a2e',label:'🔪 KNIFE FACTORY',labelC:'#ffe9a8'},
+        {i0:9,j0:0,i1:13,j1:2,h:26,wall:'#e07856',roof:'#8a4a3a',label:"🏠 MOM'S CRIB",labelC:'#ffe9a8'},
+        {i0:2,j0:3,i1:5,j1:6,h:38,wall:'#5c6066',roof:'#43464c',label:'🏭 STEEL — ABANDONED',labelC:'#9aa3ad'},
+        {i0:9,j0:2,i1:13,j1:4,h:24,wall:'#7d7468',roof:'#5d564d',label:"🍞 SCHWEBEL'S — ABANDONED",labelC:'#cbbc9e'},
+        {i0:9,j0:4,i1:13,j1:6,h:22,wall:'#71685c',roof:'#575046',label:'🌮 LA TERRAZZA — ABANDONED',labelC:'#b8ab94'},
+        {i0:2,j0:6,i1:5,j1:8,h:20,wall:'#6e625a',roof:'#59504a',label:"🍔 McDONALD'S — ABANDONED",labelC:'#b0a696'},
+        {i0:9,j0:6,i1:13,j1:8,h:24,wall:'#31517a',roof:'#1d3350',label:'🍸 SHOTZ',labelC:'#ffe9a8'},
+        {i0:2,j0:8,i1:5,j1:10,h:30,wall:'#7a3b8f',roof:'#4a2358',label:'🍾 LIQUOR',labelC:'#ffe9a8'},
+        {i0:9,j0:8,i1:13,j1:10,h:28,wall:'#6e6e6e',roof:'#4a4a4a',label:'🎳 WEST SIDE BOWL',labelC:'#ffe9a8'},
+        {i0:2,j0:10,i1:5,j1:12,h:24,wall:'#e8e8e8',roof:'#d43a2f',label:'⛽ CIRCLE K',labelC:'#7a1610'},
+        {i0:9,j0:10,i1:13,j1:12,h:22,wall:'#c9403d',roof:'#8f2a28',label:'🥡 HUNAN EXPRESS',labelC:'#ffe9a8'}
       ],
-      blockExtra:[[9,0],[9,1],[9,2],[4,0]],
-      water:[[4,0],[9,0],[9,1],[9,2]],
-      props:[[0,0,'tree'],[1,0,'tree'],[2,0,'tree'],[3,0,'tree'],[5,0,'tree'],[6,0,'tree'],[7,0,'tree'],[8,0,'tree'],
-             [3,1,'tree'],[5,1,'tree'],[4,2,'tree'],[0,2,'tree'],[9,3,'tree'],
-             [0,9,'tree'],[3,9,'tree'],[5,9,'tree'],[9,9,'tree'],[11,9,'tree'],[6,9,'car'],
-             [10,0,'tree'],[11,0,'tree']],
+      blockExtra:[[0,0],[0,1],[0,2],[0,3],[0,4],[0,5],[0,6],[0,7],[0,8],[0,9],[0,10],[0,11]],
+      water:[[0,0],[0,1],[0,2],[0,3],[0,4],[0,5],[0,6],[0,7],[0,8],[0,9],[0,10],[0,11]],
+      props:[[1,1,'tree'],[1,4,'tree'],[1,7,'tree'],[1,10,'tree'],[1,11,'tree'],[13,2,'tree'],[13,5,'tree'],[13,8,'tree'],[13,11,'tree'],[13,6,'car']],
       spots:[
-        {p:[4,3],r:1.15,acts:['buyWeed'],place:'factory',label:'Eduardo'}
+        {p:[5.4,1.6],r:1.15,acts:['buyWeed'],place:'factory',label:'Eduardo'}
       ],
-      doors:{ '2,3':{to:'factory',at:[5,5]}, '7,3':{to:'home',at:[4,6]}, '1,6':{to:'liquor',at:[2,5]}, '4,6':{to:'shotz',at:[6,4]},
-              '8,6':{to:'bowl',at:[2,4]}, '6,6':{to:'hunan',at:[4,3]}, '10,6':{to:'circlek',at:[2,3.5]} },
-      eduardo:[4,3]
+      doors:{ '5,1':{to:'factory',at:[5,5]}, '5,4':{to:'steel',at:[4,4.5]}, '5,8':{to:'liquor',at:[2,5]}, '5,10':{to:'circlek',at:[2,3.5]},
+              '8,1':{to:'home',at:[4,6]}, '8,2':{to:'schwebels',at:[4,4.5]}, '8,6':{to:'shotz',at:[6,4]},
+              '8,8':{to:'bowl',at:[2,4]}, '8,10':{to:'hunan',at:[4,3]} },
+      eduardo:[5.4,1.6]
     },
     home:{ w:9,h:8,oy:64,walls:true,zoom:1.55,
       floor(i,j){ if(i>=1&&i<=6&&j>=3&&j<=6) return (i+j)%2?'#a33f3f':'#9c3a3a'; return (i+j)%2?'#b08954':'#a37c48'; },
@@ -389,7 +398,7 @@
         {p:[6,1.7],r:1.25,acts:['help'],place:'home',label:'Kitchen sink'},
         {p:[3.5,6.3],r:1.5,acts:['tv','smokeWeed','drinkBeer','drinkBottle','smokeCig'],place:'home',label:'Couch'}
       ],
-      doors:{ '4,7':{to:'town',at:[7.5,4.2]} },
+      doors:{ '4,7':{to:'town',at:[6.6,1.3]} },
       mom:{path:[[6.5,2.2],[3.2,4.2]],speed:0.55,pause:2.6}
     },
     factory:{ w:10,h:7,oy:64,walls:true,zoom:1.55,
@@ -403,7 +412,7 @@
         {i0:1,j0:5,i1:2,j1:6,h:9,wall:'#7a4a26',roof:'#a5713d',emoji:'🕐'}
       ],
       spots:[ {p:[1.5,4.5],r:1.35,acts:['factoryShift'],place:'factory',label:'Time clock'} ],
-      doors:{ '5,6':{to:'town',at:[2,4.2]} }
+      doors:{ '5,6':{to:'town',at:[6.4,1.5]} }
     },
     liquor:{ w:8,h:7,oy:70,walls:true,zoom:1.65,
       floor(i,j){ return (i+j)%2?'#9aa3ad':'#8b939c'; },
@@ -414,7 +423,7 @@
         {i0:7,j0:3,i1:8,j1:4,h:15,wall:'#b9c4cc',roof:'#d3dde3',emoji:'🧊'}
       ],
       spots:[ {p:[5.5,4.3],r:1.5,acts:['liquorShift','buyBeer','buyBottle','buyCigs'],place:'liquor',label:'Register'} ],
-      doors:{ '1,6':{to:'town',at:[1.5,5.3]} }
+      doors:{ '1,6':{to:'town',at:[6.5,8.6]} }
     },
     shotz:{ w:8,h:6,oy:80,walls:true,zoom:1.75,sign:{text:'✦ SHOTZ ✦',at:[3,0],c:'#ff5da2'},
       floor(i,j){ return (i+j)%2?'#6e4f30':'#644628'; },
@@ -424,10 +433,10 @@
         {i0:2,j0:4,i1:3,j1:5,h:8,wall:'#4a3220',roof:'#5d4028',emoji:'🥃'}
       ],
       spots:[ {p:[3.5,2.4],r:1.6,acts:['shotzBeer','shotzShot'],place:'shotz',label:'Bar'} ],
-      doors:{ '6,5':{to:'town',at:[4.5,5.3]} },
+      doors:{ '6,5':{to:'town',at:[6.5,6.6]} },
       npcs:[
         {p:[5.5,2.7],pal:PAL_K,off:0,lines:["Sleeves are just sleeves that gave up.","I peaked in 2011 and I stand by it.","Bald ain't a flaw, it's a solar panel.","Hold my beer. Metaphorically. It's mine.","Tell Brandino his tab's a group project now.","I don't chase waterfalls. Or cardio."]},
-        {p:[1.8,2.7],pal:PAL_J,off:3.5,lines:["Why so thirsty? It's a bar. Order up.","The smile? It came with the face.","I laugh at the creek sometimes. It gets me.","Names are just noises we answer to.","Ask me about my origin story. I dare you.","Hee. Sorry. The jukebox knows things."]}
+        {p:[1.8,2.7],pal:PAL_J,off:7.5,lines:["Why so thirsty? It's a bar. Order up.","The smile? It came with the face.","I laugh at the creek sometimes. It gets me.","Names are just noises we answer to.","Ask me about my origin story. I dare you.","Hee. Sorry. The jukebox knows things."]}
       ]
     },
     bowl:{ w:10,h:7,oy:64,walls:true,zoom:1.55,sign:{text:'🎳 WEST SIDE BOWL 🎳',at:[5,0],c:'#7ec8ff'},
@@ -450,7 +459,7 @@
         {p:[2,1.7],r:1.35,acts:['bowlGame'],place:'bowl',label:'Shoe counter'},
         {p:[7,2.5],r:1.8,acts:['bowlGame'],place:'bowl',label:'Lane 3'}
       ],
-      doors:{ '1,6':{to:'town',at:[8.5,5.3]} }
+      doors:{ '1,6':{to:'town',at:[6.5,8.5]} }
     },
     hunan:{ w:8,h:6,oy:80,walls:true,zoom:1.75,sign:{text:'🥡 HUNAN EXPRESS',at:[4,0],c:'#ffb03a'},
       floor(i,j){ return (i+j)%2?'#a34a3a':'#964233'; },
@@ -460,7 +469,31 @@
         {i0:6,j0:3,i1:7,j1:4,h:7,wall:'#7a4a26',roof:'#a5713d',emoji:'🍵'}
       ],
       spots:[ {p:[4,1.7],r:1.45,acts:['buyPlate','buyEggRoll'],place:'hunan',label:'Counter'} ],
-      doors:{ '7,5':{to:'town',at:[5.5,5.3]} }
+      doors:{ '7,5':{to:'town',at:[6.6,10.4]} }
+    },
+    steel:{ w:9,h:6,oy:72,walls:true,zoom:1.5,sign:{text:'🏭 STEEL FACTORY — SHUT DOWN',at:[4,0],c:'#9aa3ad'},
+      floor(i,j){ if(j===2) return (i+j)%2?'#6e4a38':'#654331'; return (i+j)%2?'#5a5c60':'#515357'; },
+      boxes:[
+        {i0:1,j0:1,i1:3,j1:3,h:20,wall:'#4c4f55',roof:'#3a3d42',emoji:'🏭'},
+        {i0:4,j0:1,i1:7,j1:2,h:9,wall:'#5d4632',roof:'#6e5638'},
+        {i0:7,j0:3,i1:8,j1:4,h:10,wall:'#6b5a3e',roof:'#8a744e',emoji:'📦'},
+        {i0:1,j0:4,i1:2,j1:5,h:11,wall:'#71563a',roof:'#8a6a48',emoji:'🛢️'}
+      ],
+      spots:[],
+      doors:{ '4,5':{to:'town',at:[6.5,4.6]} },
+      npcs:[
+        {p:[6.3,3.4],pal:PAL_STEVE,off:9,lines:["Rent's free. Heat's also free. There is no heat.","I pay zero rent and the roof only leaks on one side.","You want the tour? That's the furnace. Tour complete.","Steel built this town. I just hold down what's left.","It's quiet in here. That's the whole point.","Mind the pigeons. They run this place now."]}
+      ]
+    },
+    schwebels:{ w:8,h:6,oy:80,walls:true,zoom:1.65,sign:{text:"🍞 SCHWEBEL'S BREAD FACTORY",at:[4,0],c:'#ffb03a'},
+      floor(i,j){ return (i+j)%2?'#d8cbb2':'#cbbc9e'; },
+      boxes:[
+        {i0:1,j0:0,i1:7,j1:1,h:13,wall:'#8a8f96',roof:'#c8ccd2',emoji:'🍞'},
+        {i0:2,j0:3,i1:3,j1:4,h:7,wall:'#7a4a26',roof:'#a5713d',emoji:'🥐'},
+        {i0:5,j0:3,i1:6,j1:4,h:7,wall:'#7a4a26',roof:'#a5713d',emoji:'🧁'}
+      ],
+      spots:[ {p:[4,1.7],r:1.45,acts:['staleBread'],place:'schwebels',label:'Old bread rack'} ],
+      doors:{ '4,5':{to:'town',at:[6.5,2.6]} }
     },
     circlek:{ w:8,h:6,oy:80,walls:true,zoom:1.75,sign:{text:'⛽ CIRCLE K',at:[4,0],c:'#ff6b5e'},
       floor(i,j){ return (i+j)%2?'#cfd6da':'#bfc8cd'; },
@@ -471,9 +504,9 @@
         {i0:3,j0:4,i1:6,j1:5,h:11,wall:'#4a3b2a',roof:'#6e5638',emoji:'🧾'}
       ],
       spots:[ {p:[4.5,3.5],r:1.45,acts:['buySnack','buyScratcher','buyBeer','buyCigs'],place:'circlek',label:'Register'} ],
-      doors:{ '1,5':{to:'town',at:[10.5,5.3]} },
+      doors:{ '1,5':{to:'town',at:[6.4,10.5]} },
       npcs:[
-        {p:[3.8,2.6],pal:PAL_COP,off:1.5,lines:["This donut is evidence. Of great taste.","Crime's down on this block. You're welcome.","Ten-four, dispatch: sprinkles secured.","I'm undercover. The uniform's the disguise.","Ran a plate today. Paper plate. Donut box.","Backup's coming. He's bringing coffee."]}
+        {p:[3.8,2.6],pal:PAL_COP,off:4.5,lines:["This donut is evidence. Of great taste.","Crime's down on this block. You're welcome.","Ten-four, dispatch: sprinkles secured.","I'm undercover. The uniform's the disguise.","Ran a plate today. Paper plate. Donut box.","Backup's coming. He's bringing coffee."]}
       ]
     }
   };
@@ -605,13 +638,13 @@
       else if(it.k==='mom'){ const s=iso(mom.i,mom.j,sc.oy); drawPeep(s[0],s[1],PAL_M,0,mom.face<0); }
       else if(it.k==='npc'){ const s=iso(it.n.p[0],it.n.p[1],sc.oy); drawPeep(s[0],s[1],it.n.pal,0,false); }
     }
-    if(scene==='town'&&Math.hypot(P.i-4,P.j-3)<1.6){ const e=iso(4,3,sc.oy); bubble(e[0],e[1]-46,'psst… $25. you know the deal.'); }
+    if(scene==='town'&&Math.hypot(P.i-sc.eduardo[0],P.j-sc.eduardo[1])<1.6){ const e=iso(sc.eduardo[0],sc.eduardo[1],sc.oy); bubble(e[0],e[1]-46,'psst… $25. you know the deal.'); }
     ctx.restore();
     if(sc.npcs){ const tSec=performance.now()/1000; // posted-up locals talk, on a stagger
-      for(const n of sc.npcs){ const ph=(tSec+n.off)%7;
-        if(ph<3.4){ const s=iso(n.p[0],n.p[1],sc.oy);
+      for(const n of sc.npcs){ const ph=(tSec+n.off)%15;
+        if(ph<5.5){ const s=iso(n.p[0],n.p[1],sc.oy);
           const sx=240+(s[0]-mc[0])*Z, sy=160+(s[1]-mc[1])*Z;
-          bubble(sx, sy-32*Z-8, nz(n.lines[Math.floor((tSec+n.off)/7)%n.lines.length])); } }
+          bubble(sx, sy-32*Z-8, nz(n.lines[Math.floor((tSec+n.off)/15)%n.lines.length])); } }
     }
     if(toastT>0){ ctx.font='bold 13px ui-monospace,monospace'; const w=ctx.measureText(toast).width+18;
       ctx.fillStyle='rgba(14,26,22,.88)'; ctx.beginPath(); ctx.roundRect(240-w/2,8,w,24,8); ctx.fill();
