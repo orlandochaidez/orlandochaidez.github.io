@@ -134,8 +134,29 @@
       ctx.fillText('GOAL! 🥅',SW/2,SH/2);
     }
   }
-  function step(){
-    if(running && !paused){
+  // Frame-rate independence: the simulation advances in fixed 1/60s ticks,
+  // however often the screen actually refreshes. A 120Hz display gets a
+  // tick every other refresh; a choppy 30Hz one gets two ticks per refresh.
+  // Either way the game clock is real time, so the speed feels identical
+  // on every phone and monitor. tick() below is one 1/60s simulation step.
+  let lastTs=null, acc=0;
+  const STEP_MS=1000/60;
+  function step(ts){
+    requestAnimationFrame(step);
+    if(ts===undefined) ts=performance.now();
+    if(lastTs===null){ lastTs=ts; draw(); return; }
+    let dt=ts-lastTs; lastTs=ts;
+    if(dt>250) dt=250; // tab hidden etc: never fast-forward more than 1/4s
+    if(!running || paused){ acc=0; draw(); return; }
+    acc+=dt;
+    let n=0;
+    // The 0.001ms tolerance absorbs float dust in the timestamps, so a tick
+    // that is a hair short still fires on time instead of one refresh late.
+    while(acc>=STEP_MS-0.001 && n<5 && running && !paused){ tick(); acc-=STEP_MS; n++; }
+    if(n===5) acc=0; // still behind after 5 ticks: drop the debt, stay real-time
+    draw();
+  }
+  function tick(){
       if(goalFlash>0) goalFlash--;
       if(twoP){
         // 2P keyboard: P2 (top) = W/S, P1 (bottom) = arrow keys
@@ -172,8 +193,6 @@
       // past an end scores for the player at the OTHER end.
       if(ball.x<-20){ if(twoP) pScore++; else cScore++; update(); if((twoP?pScore:cScore)>=WIN) running=false; else { if(hockey) goalFlash=55; resetBall(1); } }
       if(ball.x>W+20){ if(twoP) cScore++; else pScore++; update(); if((twoP?cScore:pScore)>=WIN) running=false; else { if(hockey) goalFlash=55; resetBall(-1); } }
-    }
-    draw(); requestAnimationFrame(step);
   }
   function update(){ document.getElementById('pScore').textContent=pScore; document.getElementById('cScore').textContent=cScore; }
   function courtPoint(clientX,clientY){
