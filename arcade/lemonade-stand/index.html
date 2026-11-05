@@ -54,6 +54,8 @@
   .fbtn{flex:1;border-radius:10px;padding:10px 6px;font-weight:900;cursor:pointer;font-family:inherit;border:2px solid #26230f;background:#26230f;color:#fde68a;font-variant-numeric:tabular-nums}
   .fbtn.sell{background:#fff;color:#b91c1c;border-color:#b91c1c}
   .fbtn:disabled{opacity:.4;cursor:default}
+  .fcard{border-top:2px dashed #e7d489;padding-top:10px;margin-top:12px}
+  .fcard:first-child{border-top:0;padding-top:0;margin-top:0}
   .pos{color:#047857;font-weight:800}.neg{color:#b91c1c;font-weight:800}
   .foot{display:flex;margin-top:16px}
   .foot button{flex:1;border:1px solid #b8ab72;border-radius:10px;padding:11px;font-weight:800;cursor:pointer;background:#fffdf0;color:#713f12;font-family:inherit}
@@ -79,7 +81,7 @@
   <div id="toast"></div>
 
   <div class="ticker">
-    <span>🍋 LEMONS <span class="px" id="lemonPx">42.0¢/lb</span> <span id="lemonDir" class="up">▲</span></span>
+    <span id="tickRow"></span>
     <span class="news" id="news">Markets quiet. Squeeze on.</span>
   </div>
 
@@ -94,17 +96,9 @@
   <h2>🌱 LEMON SOURCING — QUALITY CONTRACTS</h2>
   <div class="qrow" id="qrow"></div>
 
-  <h2>📈 LEMON FUTURES — CHICAGO SQUEEZE EXCHANGE</h2>
+  <h2>📈 FUTURES — CHICAGO SQUEEZE EXCHANGE</h2>
   <div class="panel">
-    <div class="row"><span>Contract price (1,000 lbs)</span><b id="futPx">$420</b></div>
-    <div class="row"><span>Contracts held</span><b id="futHeld">0</b></div>
-    <div class="row"><span>Your average cost</span><b id="futAvg">—</b></div>
-    <div class="row"><span>Unrealized P&amp;L</span><b id="futPL">$0</b></div>
-    <div class="btns">
-      <button class="fbtn" id="futBuy1">BUY 1</button>
-      <button class="fbtn" id="futBuy10">BUY 10</button>
-      <button class="fbtn sell" id="futSell">SELL ALL</button>
-    </div>
+    <div id="futCards"></div>
   </div>
 
   <div class="foot"><button id="resetBtn">Liquidate everything (start over)</button></div>
@@ -134,11 +128,24 @@
   ];
   const NEWS_UP=['Frost warning in Florida — lemon prices squeeze higher!','Heatwave out West — America is THIRSTY. Lemon demand surges!','Viral video of a lemonade fountain — demand is unhinged.','Sugar prices dip — lemonade margins (and prices) fatten up.','A rival citrus empire just folded. Their loss, lemon’s gain.'];
   const NEWS_DN=['Bumper crop in California — lemons everywhere, prices slide.','Rain across the citrus belt. Picnics cancelled, demand dips.','Import ships docked early — extra lemons flood the market.','A celebrity claims water is “the new lemonade.” Markets overreact.','Warehouse overstock sale — wholesale lemons get cheap.'];
+  const COMMODS=[
+    {id:'lemon', icon:'🍋', name:'Lemons', unit:'lb', qtyUnit:'lbs', per:'1,000 lbs', perQty:1000, start:42, mean:45, lo:8, hi:220, mult:10, vol:3.2, newsUp:NEWS_UP, newsDn:NEWS_DN},
+    {id:'ice', icon:'🧊', name:'Ice', unit:'lb', qtyUnit:'lbs', per:'1,000 lbs', perQty:1000, start:16, mean:18, lo:3, hi:120, mult:10, vol:4.6,
+      newsUp:['Heat wave roasts the valley — ice demand EXPLODES','Big ice plant breakdown — frozen supply crunch','Ballpark homestand this weekend — ice flying off the shelves','Every pool party in America just got scheduled for Saturday'],
+      newsDn:['Freak cold snap — nobody is thirsty','Ice factory overproduces — cubes basically free','Rainy week ahead — cooler sales crater']},
+    {id:'sugar', icon:'🍬', name:'Sugar', unit:'lb', qtyUnit:'lbs', per:'1,000 lbs', perQty:1000, start:24, mean:26, lo:6, hi:150, mult:10, vol:2.6,
+      newsUp:['Candy giant stockpiles sugar for the Halloween run','New sugar tariff announced — sweet prices jump','Soda tax repealed — the sweet tooth strikes back'],
+      newsDn:['Perfect cane harvest — sugar glut floods the market','Dentists declare victory — sugar demand dips','Warehouse sugar sale — everything must go']},
+    {id:'cups', icon:'🥤', name:'Cups', unit:'cup', qtyUnit:'cups', per:'10,000 cups', perQty:10000, start:5, mean:5.5, lo:1.5, hi:40, mult:80, vol:2.2,
+      newsUp:['Straw ban passes — paper cup panic buying','Cup factory strike enters week two','Fair season is HERE — cup demand goes vertical'],
+      newsDn:['Compostable cup breakthrough — old stock dumped cheap','Reusable cup craze — disposables take the hit','Cup warehouse overstock — pennies a cup']},
+  ];
+  function fmtC(px){ return px<10? px.toFixed(1) : String(Math.round(px)); }
 
   // ================= state =================
   let S;
   function fresh(){ return { cash:40, tiers:TIERS.map((t,i)=>({n:i===0?1:0, mgr:false, prog:0, running:false})),
-    quality:0, fut:{held:0,totalCost:0}, lemon:42, lastSeen:Date.now(), lifetime:0 }; }
+    quality:0, mkt:Object.fromEntries(COMMODS.map(c=>[c.id,{px:c.start,held:0,totalCost:0,dir:1}])), lastSeen:Date.now(), lifetime:0 }; }
   function save(){ try{ S.lastSeen=Date.now(); localStorage.setItem('lemonade-enterprise-v1',JSON.stringify(S)); }catch(e){} }
   function load(){ try{ const s=JSON.parse(localStorage.getItem('lemonade-enterprise-v1')); return s && typeof s.cash==='number' && Array.isArray(s.tiers) ? s : null; }catch(e){ return null; } }
   function fmt(n){ const neg=n<0; n=Math.abs(n); let out;
@@ -179,11 +186,29 @@
       '<button class="qbtn" id="qbtn'+i+'"><b>'+q.name+' — ×'+q.mult+'</b><span class="qds"></span></button>').join('');
     for(let i=0;i<QUALITY.length;i++) $('qbtn'+i).onclick=()=>buyQuality(i);
   }
+  function buildMarket(){
+    $('tickRow').innerHTML=COMMODS.map(c=>'<span>'+c.icon+' '+c.name.toUpperCase()+' <span class="px" id="tkp-'+c.id+'"></span> <span id="tkd-'+c.id+'"></span></span>').join(' &nbsp;·&nbsp; ');
+    $('futCards').innerHTML=COMMODS.map(c=>
+      '<div class="fcard">'+
+        '<div class="row"><span>'+c.icon+' '+c.name.toUpperCase()+' — contract ('+c.per+')</span><b id="fp-'+c.id+'"></b></div>'+
+        '<div class="row"><span>Contracts held</span><b id="fh-'+c.id+'"></b></div>'+
+        '<div class="row"><span>Your average cost</span><b id="fa-'+c.id+'"></b></div>'+
+        '<div class="row"><span>Unrealized P&amp;L</span><b id="fpl-'+c.id+'"></b></div>'+
+        '<div class="btns"><button class="fbtn" id="fb1-'+c.id+'">BUY 1</button><button class="fbtn" id="fb10-'+c.id+'">BUY 10</button><button class="fbtn sell" id="fs-'+c.id+'">SELL ALL</button></div>'+
+      '</div>').join('');
+    for(const c of COMMODS){
+      $('fb1-'+c.id).onclick=()=>futBuy(c.id,1);
+      $('fb10-'+c.id).onclick=()=>futBuy(c.id,10);
+      $('fs-'+c.id).onclick=()=>futSell(c.id);
+    }
+  }
   function render(){
     $('cash').textContent=fmt(S.cash);
     $('perSec').textContent=fmt(perSec())+' / sec'+(S.tiers.some(t=>t.n>0&&!t.mgr)?' (managed divisions)':'');
-    $('lemonPx').textContent=S.lemon.toFixed(1)+'¢/lb';
-    const dir=$('lemonDir'); dir.textContent=lastDir>=0?'▲':'▼'; dir.className=lastDir>=0?'up':'down';
+    for(const c of COMMODS){ const m=S.mkt[c.id];
+      const tp=$('tkp-'+c.id); if(tp) tp.textContent=fmtC(m.px)+'¢/'+c.unit;
+      const td=$('tkd-'+c.id); if(td){ td.textContent=m.dir>=0?'▲':'▼'; td.className=m.dir>=0?'up':'down'; }
+    }
     for(let i=0;i<TIERS.length;i++){
       const t=S.tiers[i], e=tierEls[i]; if(!e) continue;
       e.cnt.textContent='×'+fmtNum(t.n);
@@ -204,13 +229,14 @@
       b.querySelector('.qds').textContent=owned?(S.quality===i?'✓ ACTIVE CONTRACT':'Owned — tap to activate'):(q.ds+' Contract: '+fmt(q.cost));
       b.disabled=owned&&S.quality===i;
     }
-    const px=S.lemon*10;
-    $('futPx').textContent=fmt(px);
-    $('futHeld').textContent=fmtNum(S.fut.held)+' ('+fmtNum(S.fut.held*1000)+' lbs)';
-    $('futAvg').textContent=S.fut.held?fmt(S.fut.totalCost/S.fut.held):'—';
-    const upl=S.fut.held*px-S.fut.totalCost;
-    const pl=$('futPL'); pl.textContent=(upl>=0?'+':'')+fmt(upl); pl.className=upl>=0?'pos':'neg';
-    $('futBuy1').disabled=S.cash<px; $('futBuy10').disabled=S.cash<px*10; $('futSell').disabled=S.fut.held<=0;
+    for(const c of COMMODS){ const m=S.mkt[c.id], px=m.px*c.mult;
+      $('fp-'+c.id).textContent=fmt(px);
+      $('fh-'+c.id).textContent=fmtNum(m.held)+' ('+fmtNum(m.held*c.perQty)+' '+c.qtyUnit+')';
+      $('fa-'+c.id).textContent=m.held?fmt(m.totalCost/m.held):'—';
+      const upl=m.held*px-m.totalCost;
+      const pl=$('fpl-'+c.id); pl.textContent=(upl>=0?'+':'')+fmt(upl); pl.className=upl>=0?'pos':'neg';
+      $('fb1-'+c.id).disabled=S.cash<px; $('fb10-'+c.id).disabled=S.cash<px*10; $('fs-'+c.id).disabled=m.held<=0;
+    }
   }
 
   // ================= actions =================
@@ -222,21 +248,23 @@
   function buyQuality(i){ if(S.qOwned[i]){ S.quality=i; save(); render(); return true; }
     if(S.cash<QUALITY[i].cost) return false;
     S.cash-=QUALITY[i].cost; S.qOwned[i]=true; S.quality=i; save(); render(); return true; }
-  function futBuy(k){ const px=S.lemon*10, c=px*k; if(S.cash<c) return false;
-    S.cash-=c; S.fut.held+=k; S.fut.totalCost+=c; save(); render(); return true; }
-  function futSell(){ if(S.fut.held<=0) return 0; const px=S.lemon*10, proceeds=S.fut.held*px;
-    S.cash+=proceeds; S.fut.held=0; S.fut.totalCost=0; save(); render(); return proceeds; }
+  function cPx(id){ const c=COMMODS.find(x=>x.id===id); return S.mkt[id].px*c.mult; }
+  function futBuy(id,k){ const px=cPx(id), cost=px*k; if(S.cash<cost) return false;
+    S.cash-=cost; S.mkt[id].held+=k; S.mkt[id].totalCost+=cost; save(); render(); return true; }
+  function futSell(id){ const m=S.mkt[id]; if(!m||m.held<=0) return 0; const proceeds=m.held*cPx(id);
+    S.cash+=proceeds; m.held=0; m.totalCost=0; save(); render(); return proceeds; }
 
   // ================= market + engine =================
-  let lastDir=1, priceTimer=0, saveTimer=0;
+  let priceTimer=0, saveTimer=0;
   function marketStep(){
-    const r=Math.random();
-    if(r<0.07){ const up=Math.random()<0.5, jump=0.08+Math.random()*0.16;
-      S.lemon=clampN(S.lemon*(up?1+jump:1-jump),8,220); lastDir=up?1:-1;
-      $('news').textContent=up?NEWS_UP[Math.floor(Math.random()*NEWS_UP.length)]:NEWS_DN[Math.floor(Math.random()*NEWS_DN.length)];
-    } else {
-      const ch=(Math.random()-0.485)*3.2+(45-S.lemon)*0.012;
-      S.lemon=clampN(S.lemon+ch,8,220); lastDir=ch>=0?1:-1;
+    for(const c of COMMODS){ const m=S.mkt[c.id], r=Math.random();
+      if(r<0.06){ const up=Math.random()<0.5, jump=0.08+Math.random()*0.16, pool=up?c.newsUp:c.newsDn;
+        m.px=clampN(m.px*(up?1+jump:1-jump),c.lo,c.hi); m.dir=up?1:-1;
+        $('news').textContent=c.icon+' '+pool[Math.floor(Math.random()*pool.length)];
+      } else {
+        const ch=(Math.random()-0.485)*c.vol+(c.mean-m.px)*0.012;
+        m.px=clampN(m.px+ch,c.lo,c.hi); m.dir=ch>=0?1:-1;
+      }
     }
   }
   function tick(dt){
@@ -261,14 +289,17 @@
   // ================= wire up =================
   document.querySelectorAll('[data-qty]').forEach(b=>{ b.onclick=()=>{ buyQty=Number(b.dataset.qty);
     document.querySelectorAll('[data-qty]').forEach(x=>x.classList.toggle('on',x===b)); render(); }; });
-  $('futBuy1').onclick=()=>futBuy(1);
-  $('futBuy10').onclick=()=>futBuy(10);
-  $('futSell').onclick=()=>futSell();
   $('resetBtn').onclick=()=>{ if(confirm('Liquidate the whole lemonade empire and start over from one stand?')){ try{localStorage.removeItem('lemonade-enterprise-v1');}catch(e){} S=fresh(); if(!S.qOwned) S.qOwned=[true,false,false,false]; render(); } };
 
   S=load()||fresh();
+  if(!S.mkt){ // migrate a pre-multi-market save: the old lemon book becomes the lemon position
+    S.mkt={}; for(const c of COMMODS) S.mkt[c.id]={px:c.start,held:0,totalCost:0,dir:1};
+    if(typeof S.lemon==='number') S.mkt.lemon.px=S.lemon;
+    if(S.fut){ S.mkt.lemon.held=S.fut.held||0; S.mkt.lemon.totalCost=S.fut.totalCost||0; }
+    delete S.lemon; delete S.fut;
+  }
   if(!S.qOwned) S.qOwned=[true,false,false,false];
-  buildTiers(); buildQuality();
+  buildTiers(); buildQuality(); buildMarket();
   // offline earnings: managed divisions keep working at 50% while away (cap 4 hrs)
   const awaySec=Math.max(0,(Date.now()-(S.lastSeen||Date.now()))/1000);
   const offGain=Math.min(perSec()*awaySec*0.5, perSec()*4*3600*0.5);
@@ -283,7 +314,7 @@
     if(dt>0.25) dt=Math.min(dt,4*3600); // tab froze / phone slept: catch up in one jump (capped at 4 hrs)
     tick(dt); },100);
   window.__lem={ get S(){return S;}, buyTier, runTier, hireMgr, buyQuality, futBuy, futSell, tick, perSec, bulkCost,
-    setQty:q=>{ buyQty=q; }, contractPx:()=>S.lemon*10, fmt, TIERS, QUALITY };
+    setQty:q=>{ buyQty=q; }, contractPx:(id)=>cPx(id||'lemon'), fmt, TIERS, QUALITY, COMMODS };
 })();
 </script>
 </body>
