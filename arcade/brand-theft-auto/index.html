@@ -283,13 +283,63 @@
   function shade(hex,f){ const n=parseInt(hex.slice(1),16); let r=(n>>16)&255,g=(n>>8)&255,b=n&255;
     r=Math.max(0,Math.min(255,Math.round(r*f))); g=Math.max(0,Math.min(255,Math.round(g*f))); b=Math.max(0,Math.min(255,Math.round(b*f)));
     return 'rgb('+r+','+g+','+b+')'; }
+  function drawPrism(i0,j0,i1,j1,oy,hBot,hTop,wall,roof){
+    const T=iso(i0,j0,oy),R=iso(i1,j0,oy),B=iso(i1,j1,oy),L=iso(i0,j1,oy);
+    const up=(p,hh)=>[p[0],p[1]-hh];
+    poly([up(L,hBot),up(B,hBot),up(B,hTop),up(L,hTop)], shade(wall,0.78));
+    poly([up(R,hBot),up(B,hBot),up(B,hTop),up(R,hTop)], shade(wall,0.6));
+    poly([up(T,hTop),up(R,hTop),up(B,hTop),up(L,hTop)], roof);
+  }
+  function facePt(BL,BR,TL,TR,u,v){
+    const bx=BL[0]+(BR[0]-BL[0])*u, by=BL[1]+(BR[1]-BL[1])*u;
+    const tx=TL[0]+(TR[0]-TL[0])*u, ty=TL[1]+(TR[1]-TL[1])*u;
+    return [bx+(tx-bx)*v, by+(ty-by)*v];
+  }
+  function faceQuad(BL,BR,TL,TR,u0,u1,v0,v1,col){
+    poly([facePt(BL,BR,TL,TR,u0,v0),facePt(BL,BR,TL,TR,u1,v0),facePt(BL,BR,TL,TR,u1,v1),facePt(BL,BR,TL,TR,u0,v1)], col);
+  }
+  function whash(a,b,c){ const n=(a*73856093)^(b*19349663)^(c*83492791); return ((n%100)+100)%100; }
   function drawBox(b,oy){
-    const [x0,y0]=iso(b.i0,b.j0,oy),[xR,yR]=iso(b.i1,b.j0,oy),[xB,yB]=iso(b.i1,b.j1,oy),[xL,yL]=iso(b.i0,b.j1,oy), h=b.h;
-    poly([[xL,yL],[xB,yB],[xB,yB-h],[xL,yL-h]], shade(b.wall,0.78));
-    poly([[xR,yR],[xB,yB],[xB,yB-h],[xR,yR-h]], shade(b.wall,0.6));
-    poly([[x0,y0-h],[xR,yR-h],[xB,yB-h],[xL,yL-h]], b.roof);
-    if(b.emoji){ const [cx,cy]=iso((b.i0+b.i1)/2,(b.j0+b.j1)/2,oy); ctx.font='11px serif'; ctx.textAlign='center'; ctx.fillText(b.emoji,cx,cy-h-3); }
-    if(b.label){ const [cx,cy]=iso((b.i0+b.i1)/2,(b.j0+b.j1)/2,oy); ctx.font='bold 8px ui-monospace,monospace'; ctx.textAlign='center'; ctx.fillStyle=b.labelC||'#fff'; ctx.fillText(b.label,cx,cy-h-13); }
+    const T=iso(b.i0,b.j0,oy),R=iso(b.i1,b.j0,oy),B=iso(b.i1,b.j1,oy),L=iso(b.i0,b.j1,oy), h=b.h;
+    const up=(p,hh)=>[p[0],p[1]-hh];
+    poly([L,B,up(B,h),up(L,h)], shade(b.wall,0.78));
+    poly([R,B,up(B,h),up(R,h)], shade(b.wall,0.6));
+    const F1=[L,B,up(L,h),up(B,h)], F2=[R,B,up(R,h),up(B,h)]; // [BL,BR,TL,TR] per face
+    let topH=h;
+    if(b.gable){ // pitched roof: ridge along the long axis, gable triangle on the visible end, chimney
+      const gh=b.gableH||9; topH=h+gh;
+      const rL=[(up(T,h)[0]+up(L,h)[0])/2,(up(T,h)[1]+up(L,h)[1])/2-gh];
+      const rR=[(up(R,h)[0]+up(B,h)[0])/2,(up(R,h)[1]+up(B,h)[1])/2-gh];
+      poly([up(R,h),up(B,h),rR], shade(b.wall,0.92));
+      poly([up(T,h),up(R,h),rR,rL], shade(b.roof,0.78));
+      poly([up(L,h),up(B,h),rR,rL], b.roof);
+      if(b.chimney) drawPrism(b.i0+0.9,b.j1-1.1,b.i0+1.7,b.j1-0.3,oy,h+2,h+gh+5,'#8a4a3a','#5d3226');
+    } else {
+      poly([up(T,h),up(R,h),up(B,h),up(L,h)], b.roof);
+      if(b.detail){ const c=[(T[0]+B[0])/2,(T[1]+B[1])/2-h]; // inset roof panel = parapet lip
+        const inset=p=>[c[0]+(p[0]-c[0])*0.88, c[1]+(p[1]-c[1])*0.88];
+        poly([inset(up(T,h)),inset(up(R,h)),inset(up(B,h)),inset(up(L,h))], shade(b.roof,0.85)); }
+    }
+    if(b.detail){
+      faceQuad(...F1,0,1,0.94,1.0,shade(b.wall,1.28)); // cornice trim
+      faceQuad(...F2,0,1,0.94,1.0,shade(b.wall,1.28));
+      if(b.windows!==false){
+        for(const [F,span,fi] of [[F1,b.i1-b.i0,0],[F2,b.j1-b.j0,1]]){
+          const cols=Math.max(1,Math.round(span*1.1)), rowsN=Math.max(1,Math.round(h/17));
+          for(let ci=0;ci<cols;ci++) for(let ri=0;ri<rowsN;ri++){
+            const u=(ci+0.5)/cols, v= rowsN===1? 0.52 : 0.25+(ri+0.5)*(0.55/rowsN);
+            const du=0.30/cols, dv= rowsN===1? 0.22 : 0.15;
+            if(b.boarded){ faceQuad(...F,u-du/2,u+du/2,v-dv/2,v+dv/2,'#6e5638'); faceQuad(...F,u-du/2,u+du/2,v-0.012,v+0.012,'#4a3b2a'); }
+            else { const lit=whash(b.i0*3+fi,b.j0*5+ci,ri)<(b.litPct??55); faceQuad(...F,u-du/2,u+du/2,v-dv/2,v+dv/2, lit? (b.winLit||'#ffca6a') : '#232a33'); }
+          }
+        }
+      }
+      if(b.awning){ for(const F of [F1,F2]) for(let si=0;si<8;si++) faceQuad(...F, si/8,(si+1)/8, 0.36,0.5, si%2? shade(b.awning,0.72): b.awning); }
+      faceQuad(...F2, 0.42,0.58, 0.0,0.34, '#20242c'); // entrance
+      faceQuad(...F2, 0.485,0.515, 0.14,0.2, '#ffca6a');
+    }
+    if(b.emoji){ const [cx,cy]=iso((b.i0+b.i1)/2,(b.j0+b.j1)/2,oy); ctx.font='11px serif'; ctx.textAlign='center'; ctx.fillText(b.emoji,cx,cy-topH-3); }
+    if(b.label){ const [cx,cy]=iso((b.i0+b.i1)/2,(b.j0+b.j1)/2,oy); ctx.font='bold 8px ui-monospace,monospace'; ctx.textAlign='center'; ctx.fillStyle=b.labelC||'#fff'; ctx.fillText(b.label,cx,cy-topH-13); }
   }
 
   // ---- pixel peep sprites (12 wide x 16 tall) ----
@@ -374,20 +424,24 @@
         return (i+j)%2?'#4f9e42':'#47913b';
       },
       boxes:[
-        {i0:3,j0:0,i1:8,j1:4,h:34,wall:'#8a9099',roof:'#5b3a2e',label:'🔪 KNIFE FACTORY',labelC:'#ffe9a8'},
-        {i0:12,j0:0,i1:17,j1:3,h:26,wall:'#e07856',roof:'#8a4a3a',label:"🏠 MOM'S CRIB",labelC:'#ffe9a8'},
-        {i0:3,j0:4,i1:8,j1:8,h:40,wall:'#5c6066',roof:'#43464c',label:'🏭 STEEL — ABANDONED',labelC:'#9aa3ad'},
-        {i0:12,j0:3,i1:17,j1:6,h:24,wall:'#7d7468',roof:'#5d564d',label:"🍞 SCHWEBEL'S — ABANDONED",labelC:'#cbbc9e'},
-        {i0:12,j0:6,i1:17,j1:8,h:22,wall:'#71685c',roof:'#575046',label:'🌮 LA TERRAZZA — ABANDONED',labelC:'#b8ab94'},
-        {i0:3,j0:8,i1:8,j1:10,h:20,wall:'#6e625a',roof:'#59504a',label:"🍔 McDONALD'S — ABANDONED",labelC:'#b0a696'},
-        {i0:12,j0:8,i1:17,j1:11,h:24,wall:'#31517a',roof:'#1d3350',label:'🍸 SHOTZ',labelC:'#ffe9a8'},
-        {i0:3,j0:10,i1:8,j1:13,h:30,wall:'#7a3b8f',roof:'#4a2358',label:'🍾 LIQUOR',labelC:'#ffe9a8'},
-        {i0:12,j0:11,i1:17,j1:14,h:28,wall:'#6e6e6e',roof:'#4a4a4a',label:'🎳 WEST SIDE BOWL',labelC:'#ffe9a8'},
-        {i0:3,j0:13,i1:8,j1:16,h:24,wall:'#e8e8e8',roof:'#d43a2f',label:'⛽ CIRCLE K',labelC:'#7a1610'},
-        {i0:12,j0:14,i1:17,j1:16,h:22,wall:'#c9403d',roof:'#8f2a28',label:'🥡 HUNAN EXPRESS',labelC:'#ffe9a8'},
-        {i0:5,j0:17,i1:14,j1:20,h:30,wall:'#a33f3f',roof:'#7c2d2d',label:'🎓 YSU — YOUNGSTOWN STATE',labelC:'#ffe9a8'},
-        {i0:14,j0:16,i1:15,j1:17,h:54,wall:'#8a8f96',roof:'#c8ccd2',label:'🕐',labelC:'#fff'},
-        {i0:15,j0:17,i1:17,j1:19,h:22,wall:'#7a6a55',roof:'#5d5040',label:'🏫 DORMS',labelC:'#ffe9a8'}
+        {i0:3,j0:0,i1:8,j1:4,h:34,wall:'#8a9099',roof:'#5b3a2e',label:'🔪 KNIFE FACTORY',labelC:'#ffe9a8',detail:true,winLit:'#bcd6ff',litPct:30},
+        {i0:12,j0:0,i1:17,j1:3,h:26,wall:'#e07856',roof:'#7c3f30',label:"🏠 MOM'S CRIB",labelC:'#ffe9a8',detail:true,gable:true,gableH:10,chimney:true},
+        {i0:6,j0:1,i1:7,j1:2,h:47,wall:'#6a6f76',roof:'#494e55',windows:false},
+        {i0:3,j0:4,i1:8,j1:8,h:40,wall:'#5c6066',roof:'#43464c',label:'🏭 STEEL — ABANDONED',labelC:'#9aa3ad',detail:true,boarded:true},
+        {i0:4,j0:4,i1:5,j1:5,h:56,wall:'#4a4d52',roof:'#33363b',windows:false},
+        {i0:6,j0:5,i1:7,j1:6,h:50,wall:'#51545a',roof:'#3a3d42',windows:false},
+        {i0:12,j0:3,i1:17,j1:6,h:24,wall:'#7d7468',roof:'#5d564d',label:"🍞 SCHWEBEL'S — ABANDONED",labelC:'#cbbc9e',detail:true,boarded:true},
+        {i0:12,j0:6,i1:17,j1:8,h:22,wall:'#71685c',roof:'#575046',label:'🌮 LA TERRAZZA — ABANDONED',labelC:'#b8ab94',detail:true,boarded:true},
+        {i0:3,j0:8,i1:8,j1:10,h:20,wall:'#6e625a',roof:'#59504a',label:"🍔 McDONALD'S — ABANDONED",labelC:'#b0a696',detail:true,boarded:true},
+        {i0:12,j0:8,i1:17,j1:11,h:24,wall:'#31517a',roof:'#1d3350',label:'🍸 SHOTZ',labelC:'#ffe9a8',detail:true,awning:'#ff5da2'},
+        {i0:3,j0:10,i1:8,j1:13,h:30,wall:'#7a3b8f',roof:'#4a2358',label:'🍾 LIQUOR',labelC:'#ffe9a8',detail:true,awning:'#7a3b8f'},
+        {i0:12,j0:11,i1:17,j1:14,h:28,wall:'#6e6e6e',roof:'#4a4a4a',label:'🎳 WEST SIDE BOWL',labelC:'#ffe9a8',detail:true,awning:'#31517a'},
+        {i0:3,j0:13,i1:8,j1:16,h:24,wall:'#e8e8e8',roof:'#d43a2f',label:'⛽ CIRCLE K',labelC:'#7a1610',detail:true},
+        {i0:3,j0:14,i1:8,j1:16,h:9,wall:'#d43a2f',roof:'#f2f2f2',windows:false},
+        {i0:12,j0:14,i1:17,j1:16,h:22,wall:'#c9403d',roof:'#8f2a28',label:'🥡 HUNAN EXPRESS',labelC:'#ffe9a8',detail:true,awning:'#c9403d'},
+        {i0:5,j0:17,i1:14,j1:20,h:30,wall:'#a33f3f',roof:'#7c2d2d',label:'🎓 YSU — YOUNGSTOWN STATE',labelC:'#ffe9a8',detail:true},
+        {i0:14,j0:16,i1:15,j1:17,h:54,wall:'#8a8f96',roof:'#c8ccd2',label:'🕐',labelC:'#fff',detail:true,windows:false},
+        {i0:15,j0:17,i1:17,j1:19,h:22,wall:'#7a6a55',roof:'#5d5040',label:'🏫 DORMS',labelC:'#ffe9a8',detail:true}
       ],
       blockExtra:[[0,0],[0,1],[0,2],[0,3],[0,4],[0,5],[0,6],[0,7],[0,8],[0,9],[0,10],[0,11],[0,12],[0,13],[0,14],[0,15],[0,16],[0,17],[0,18],[0,19]],
       water:[[0,0],[0,1],[0,2],[0,3],[0,4],[0,5],[0,6],[0,7],[0,8],[0,9],[0,10],[0,11],[0,12],[0,13],[0,14],[0,15],[0,16],[0,17],[0,18],[0,19]],
