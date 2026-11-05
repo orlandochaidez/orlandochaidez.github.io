@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Hoist Life — Run the Cage, Stack the Tips</title>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;touch-action:manipulation}
+  body{margin:0;font-family:ui-monospace,Menlo,Consolas,monospace;background:#171310;color:#f5efe4;display:flex;justify-content:center;user-select:none;-webkit-user-select:none}
+  .wrap{width:min(520px,100%);padding:14px 12px 22px}
+  .back{display:inline-block;color:#ffcf5e;text-decoration:none;font-weight:800;font-size:14px;margin-bottom:4px}
+  h1{font-size:26px;margin:2px 0 0;letter-spacing:.5px}
+  .sub{color:#bfae8d;font-size:12.5px;margin:2px 0 10px}
+  .hud{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+  .hud .box{flex:1;min-width:70px;background:#241d16;border:2px solid #4a3a26;border-radius:10px;padding:6px 8px;text-align:center}
+  .hud small{display:block;font-size:10px;letter-spacing:1px;color:#bfae8d}
+  .hud b{font-size:17px;color:#ffcf5e}
+  .pages{background:#241d16;border:2px solid #4a3a26;border-radius:10px;padding:7px 10px;margin-bottom:8px;font-size:13.5px;font-weight:800;color:#ffcf5e;text-align:center;min-height:34px}
+  canvas{width:100%;display:block;background:#87b5d9;border:3px solid #4a3a26;border-radius:12px;touch-action:none;image-rendering:pixelated}
+  .controls{display:flex;gap:10px;margin-top:10px;align-items:stretch}
+  .dirbtns{display:flex;gap:10px;flex:1}
+  .dbtn{flex:1;border:0;border-radius:14px;padding:16px 0;font-size:30px;font-weight:900;cursor:pointer;background:#ffcc00;color:#221a00;font-family:inherit;box-shadow:0 4px 0 #a8860a}
+  .dbtn:active{transform:translateY(3px);box-shadow:0 1px 0 #a8860a;background:#ffd83d}
+  .sidebtns{display:flex;flex-direction:column;gap:10px}
+  .sbtn{border:2px solid #4a3a26;border-radius:12px;padding:0 14px;font-weight:800;font-size:14px;cursor:pointer;background:#241d16;color:#f5efe4;font-family:inherit;flex:1}
+  .hint{color:#9c8d72;font-size:12.5px;line-height:1.55;text-align:center;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../index.html">← All games</a>
+  <h1>🛗 HOIST LIFE</h1>
+  <p class="sub">Downtown San Diego, right by Petco Park. You run the cage. They page, you fly.</p>
+  <div class="hud">
+    <div class="box"><small>DAY</small><b id="day">1</b></div>
+    <div class="box"><small>CLOCK</small><b id="clock">6:00 AM</b></div>
+    <div class="box"><small>CASH</small><b id="cash">$0</b></div>
+    <div class="box"><small>SERVED</small><b id="served">0</b></div>
+    <div class="box"><small>QUOTA</small><b id="quota">$250</b></div>
+  </div>
+  <div class="pages" id="pages">📟 NO PAGES — all quiet on site</div>
+  <canvas id="game" width="480" height="640"></canvas>
+  <div class="controls">
+    <div class="dirbtns">
+      <button class="dbtn" id="upBtn">▲</button>
+      <button class="dbtn" id="dnBtn">▼</button>
+    </div>
+    <div class="sidebtns">
+      <button class="sbtn" id="soundBtn">🔊</button>
+      <button class="sbtn" id="nextDayBtn" style="display:none">Next Day ▶</button>
+    </div>
+  </div>
+  <p class="hint">Hold <b>▲ / ▼</b> (or ↑ / ↓ keys) to run the hoist — or tap a floor to send the cage there. The view rides with you, Tiny Tower style. Folks page you with the floor they want in a big bubble: grab 'em fast for fat tips, leave 'em hanging and they'll take the stairs talking smack. Watch for carne asada o'clock, falling wrenches 😬, and the 3:30 quitting-time rush. New floor gets built every day. 🏗️</p>
+</div>
+<script>
+(() => {
+  'use strict';
+  const cv=document.getElementById('game'), ctx=cv.getContext('2d');
+  const W=cv.width, H=cv.height;
+  const $=id=>document.getElementById(id);
+  document.addEventListener('gesturestart',e=>e.preventDefault());
+  document.addEventListener('dblclick',e=>e.preventDefault(),{passive:false});
+
+  // ---------- view / camera ----------
+  const VIS=4, STREET_H=54, PPF=(H-STREET_H)/VIS;      // ~4 floors on screen, like the reference
+  const BLDG_X=46, BLDG_W=284, SHAFT_X=340, CAR_W=92;
+  const CAP=4, CAR_SPEED=3.4, DOOR_T=0.8, DAY_LEN=105, MAX_FLOORS=16, START_FLOORS=6;
+  const yBase=f=> (H-STREET_H) - (f - S.camB)*PPF;      // standing line (px) of floor f
+  const yTop=f=> yBase(f)-PPF;
+
+  // ---------- people of the site ----------
+  const TYPES={
+    iron:    {name:'Ironworker', shirt:'#ff7b1c', pants:'#2c3e50', hat:'#d92b2b', skin:'#c68863', vest:true, lines:[
+      "Take me up — I can see Petco from the top!","Wind's pickin' up. Hold onto your hat, cuzzo.",
+      "I left my harness up there. KIDDING. ...mostly.","Best office view in San Diego and it ain't close."]},
+    electric:{name:'Electrician', shirt:'#2266cc', pants:'#333a45', hat:'#ffd21f', skin:'#8a5a3b', vest:true, lines:[
+      "Panel's hot. Not the ladies — the WIRES.","Somebody labeled the breakers wrong. AGAIN.",
+      "If the lights flicker, that was me. You're welcome."]},
+    plumber: {name:'Plumber', shirt:'#2e9e5b', pants:'#4a3220', hat:'#17573a', skin:'#e0ac82', vest:true, lines:[
+      "Don't drink the water on 4. Trust me on this.","Gravity does half my job, I do the rest.",
+      "That ain't a leak, that's a FEATURE. ...it's a leak."]},
+    drywall: {name:'Drywaller', shirt:'#e8e8e8', pants:'#777777', hat:'#f2f2f2', skin:'#a06a42', lines:[
+      "I'm covered in dust. I'm ALWAYS covered in dust.","One more sheet and I'm a ghost, watch.",
+      "My truck's white. My clothes white. My SOUL white."]},
+    foreman: {name:'Foreman', shirt:'#ffcc00', pants:'#2c3e50', hat:'#ffffff', skin:'#c68863', clip:true, lines:[
+      "We're behind schedule and somehow it's EVERYBODY's fault.","Safety meeting at lunch. Somebody slept standing up last time.",
+      "You see something wrong, it was already like that."]},
+    bigwig:  {name:'Big Wig', shirt:'#22252d', pants:'#22252d', hat:null, hair:'#555555', tie:'#c0272d', skin:'#e8b48c', case:true, lines:[
+      "Love what you've done with the... concrete.","Is this thing OSHA approved? ...Don't answer that.",
+      "Synergy. Verticality. Luxury condos. That's the pitch.","My other elevator is a private jet. Kidding. It's a Tesla."]},
+    inspector:{name:'Inspector', shirt:'#b8ff29', pants:'#333a45', hat:'#ffffff', skin:'#8a5a3b', clip:true, lines:[
+      "I'm just here to ruin somebody's Friday.","That railing is off by an eighth of an inch. AN EIGHTH.",
+      "Smile. This is the fun part. For me."]},
+    homie:   {name:'The Homie', shirt:'#3a3f4a', pants:'#20242c', hat:null, hair:'#111111', shades:true, skin:'#a06a42', lines:[
+      "Down to G, compa. Lunch o'clock.","Roof. No questions asked.",
+      "Tell the foreman I'm in the bathroom. Since Tuesday.","You ain't see me, I ain't see you. 🤝",
+      "Somebody's grilling carne asada down there — I can SMELL it."]},
+    crane:   {name:'Crane Operator', shirt:'#ff9f1c', pants:'#2c3e50', hat:'#2456c8', shades:true, skin:'#8a5a3b', lines:[
+      "I see EVERYTHING from the cab. Everything.","Wind picks up, I park the crane. Simple as that.",
+      "I can smell the carne asada from 200 feet up.","Y'all look like ants from up there. Busy little ants."]},
+  };
+  const THANKS=["'Preciate you, boss.","Fastest cage downtown.","Five stars. Tell your boss.","Smooth ride, operator."];
+  const STORM=["Forget it, I'm taking the STAIRS 😤","Y'all too slow, I'm hoofin' it.","Stairs it is. My knees hate you."];
+  const FLOOR_TAGS=['SITE','STEEL','FRAMING','ROUGH-IN','PLUMBING','ELECTRICAL','DRYWALL','PAINT','FINISHES','PUNCH LIST'];
+  const WALLS=['#c9b18c','#aebfc9','#d3b8a6','#b9c8a9','#c3b2d9','#e0cf9f','#b7a6c9','#a9c4bb'];
+
+  // ---------- state ----------
+  const KEY='hoist-life-v1';
+  let save={bestDay:0,days:0}; try{ save=Object.assign(save,JSON.parse(localStorage.getItem(KEY)||'{}')); }catch(e){}
+  let S=null;
+  let held={up:false,down:false}, auto=null, soundOn=true;
+  function quotaFor(floors){ return 100+floors*25; }
+  function newDay(day,floors){
+    S={ day, floors, t:0, cash:0, served:0, missed:0, people:[], pid:1, camB:0,
+        car:{pos:0,doors:0,riders:[]}, spawnT:1.2, rushDone:false, lunchDone:false, lunchT:0, hazards:[], over:false,
+        bubbles:[], floaters:[], ambient:[], newFloor: floors>START_FLOORS };
+    for(let f=0; f<=floors && S.ambient.length<6; f++)
+      if(Math.random()<0.5) S.ambient.push({f, x:rnd(BLDG_X+56,SHAFT_X-80), dir:Math.random()<0.5?1:-1, type:pickType(), mode:'walk', t:rnd(1.5,4), wob:rnd(0,6)});
+    $('nextDayBtn').style.display='none';
+    hud();
+  }
+  function persist(){ try{ localStorage.setItem(KEY,JSON.stringify(save)); }catch(e){} }
+
+  // ---------- audio ----------
+  let AC=null;
+  function beep(f,d,type,g){ if(!soundOn) return; try{
+    AC=AC||new (window.AudioContext||window.webkitAudioContext)();
+    const o=AC.createOscillator(), gn=AC.createGain();
+    o.type=type||'square'; o.frequency.value=f; gn.gain.value=g||0.04;
+    o.connect(gn); gn.connect(AC.destination); o.start(); o.stop(AC.currentTime+(d||0.07));
+  }catch(e){} }
+  const ding=()=>beep(880,0.07,'square',0.035);
+  const ching=()=>{ beep(1180,0.06,'square',0.04); setTimeout(()=>beep(1560,0.09,'square',0.04),60); };
+  const buzz=()=>beep(140,0.18,'sawtooth',0.05);
+
+  // ---------- game logic ----------
+  function rnd(a,b){ return a+Math.random()*(b-a); }
+  function pickType(){
+    const pool=['iron','electric','plumber','drywall','foreman','iron','electric','plumber','homie','homie'];
+    if(S.floors>=5) pool.push('inspector'); if(S.floors>=6) pool.push('bigwig','bigwig');
+    return pool[Math.floor(Math.random()*pool.length)];
+  }
+  function spawnPerson(at,dest,type,pat){
+    const p={ id:S.pid++, at, dest, type:type||pickType(), patience:pat||rnd(26,40), maxPat:40,
+              state:'waiting', wob:Math.random()*6.28 };
+    p.maxPat=p.patience;
+    S.people.push(p); return p;
+  }
+  function maybeSpawn(){
+    const waiting=S.people.filter(p=>p.state==='waiting').length;
+    const cap=10+Math.floor(S.floors/2);
+    if(waiting>=7 || S.people.length>=cap) return;
+    if(Math.random()<0.08){
+      if(Math.random()<0.5) spawnPerson(S.floors,0,'crane'); else spawnPerson(0,S.floors,'crane');
+      return;
+    }
+    const upBias = S.t<0.3 ? 0.72 : (S.t>0.78 ? 0.18 : 0.45);
+    let at,dest;
+    if(Math.random()<upBias){ at=0; dest=1+Math.floor(Math.random()*S.floors); }
+    else { at=1+Math.floor(Math.random()*S.floors); dest=Math.random()<0.78 ? 0 : Math.floor(Math.random()*(S.floors+1)); if(dest===at) dest=0; }
+    if(at===dest) return;
+    spawnPerson(at,dest);
+  }
+  function payFor(p){
+    const floorsTrip=Math.abs(p.dest-p.at);
+    const frac=p.patience/p.maxPat;
+    const tip= frac>=0.7 ? 10 : frac>=0.4 ? 5 : 1;
+    return { total: 6+3*floorsTrip+tip, tip };
+  }
+  function serviceNeeded(f){
+    if(S.car.riders.some(r=>r.dest===f)) return true;
+    return S.car.riders.length<CAP && S.people.some(p=>p.state==='waiting'&&p.at===f);
+  }
+  function wrapLines(text,maxW){
+    ctx.font='700 12px monospace';
+    const words=text.split(' '); const lines=[]; let cur='';
+    for(const w of words){
+      const test=cur? cur+' '+w : w;
+      if(ctx.measureText(test).width>maxW && cur){ lines.push(cur); cur=w; } else cur=test;
+    }
+    if(cur) lines.push(cur);
+    return lines;
+  }
+  function speak(p,x,fy,arr){ if(S.bubbles.length<2 && Math.random()<0.6){
+    const text=TYPES[p.type].name+': '+arr[Math.floor(Math.random()*arr.length)];
+    const lines=wrapLines(text,232);
+    const w=Math.min(252, Math.max(...lines.map(l=>ctx.measureText(l).width))+16);
+    S.bubbles.push({x,fy,lines,w,t:2.6});
+  } }
+  function announce(text,fy){
+    const lines=wrapLines(text,232);
+    const w=Math.min(252, Math.max(...lines.map(l=>ctx.measureText(l).width))+16);
+    S.bubbles.push({x:BLDG_X+BLDG_W/2,fy,lines,w,t:2.8});
+  }
+  function openDoors(f){
+    S.car.doors=DOOR_T;
+    const out=S.car.riders.filter(r=>r.dest===f);
+    for(const r of out){
+      const {total,tip}=payFor(r); S.cash+=total; S.served++;
+      S.floaters.push({x:SHAFT_X+CAR_W/2,fy:f+0.82,text:'+$'+total+(tip>=10?' 💰':''),t:1.4});
+      r.state='done';
+      if(Math.random()<0.35) speak(r,SHAFT_X+16,f+0.68,THANKS);
+    }
+    S.car.riders=S.car.riders.filter(r=>r.dest!==f);
+    S.people=S.people.filter(p=>p.state!=='done');
+    const boarding=S.people.filter(p=>p.state==='waiting'&&p.at===f);
+    for(const p of boarding){
+      if(S.car.riders.length>=CAP) break;
+      p.state='riding'; S.car.riders.push(p);
+      speak(p,SHAFT_X-6,f+0.68,TYPES[p.type].lines);
+    }
+    if(out.length||boarding.length) ding();
+    if(out.length) ching();
+    if(auto===f) auto=null;
+  }
+  function spawnHazard(){ S.hazards.push({x:BLDG_X+24+Math.random()*(BLDG_W-48), y:S.floors+0.85, vy:0}); }
+  function tick(dt){
+    if(!S || S.over) return;
+    S.t+=dt/DAY_LEN;
+    S.spawnT-=dt; if(S.spawnT<=0){ S.spawnT=rnd(3.2,5.8); maybeSpawn(); }
+    if(!S.rushDone && S.t>=0.85){
+      S.rushDone=true;
+      const n=Math.min(6,S.floors);
+      for(let i=0;i<n;i++){ const f=1+Math.floor(Math.random()*S.floors); spawnPerson(f,0,Math.random()<0.4?'homie':pickType(),rnd(34,46)); }
+      announce('⏰ QUITTING TIME — everybody down!', S.floors+0.75);
+      buzz();
+    }
+    if(!S.lunchDone && S.t>=0.47){
+      S.lunchDone=true; S.lunchT=24;
+      for(let i=0;i<3;i++){ const f=1+Math.floor(Math.random()*S.floors); spawnPerson(f,0,Math.random()<0.4?'homie':pickType(),rnd(38,48)); }
+      announce('🌮 CARNE ASADA O\'CLOCK — lunch rush to G!', 1.32);
+      ding();
+    }
+    if(S.lunchT>0) S.lunchT-=dt;
+    if(S.floors>=3 && Math.random()<dt/16) spawnHazard();
+    for(const hz of [...S.hazards]){
+      hz.vy+=30*dt; hz.y-=hz.vy*dt;
+      if(hz.y<=0.03){
+        S.hazards.splice(S.hazards.indexOf(hz),1);
+        S.floaters.push({x:hz.x,fy:0.52,text:'⚠️ TOOL DOWN — CLOSE CALL 😬',t:1.8,red:true});
+        beep(170,0.12,'square',0.05);
+        for(const p of [...S.people]){
+          if(p.state==='waiting'&&p.at===0&&Math.abs((SHAFT_X-16)-hz.x)<70&&Math.random()<0.45){
+            p.state='gone'; S.missed++;
+            S.floaters.push({x:hz.x,fy:0.92,text:'NOPE. Stairs. FOREVER. 🏃',t:1.8,red:true});
+          }
+        }
+        S.people=S.people.filter(p=>p.state!=='gone');
+      }
+    }
+    for(const p of [...S.people]){
+      if(p.state!=='waiting') continue;
+      p.patience-=dt;
+      if(p.patience<=0){
+        p.state='gone'; S.missed++;
+        S.floaters.push({x:SHAFT_X-40,fy:p.at+1.04,text:STORM[Math.floor(Math.random()*STORM.length)],t:1.8,red:true});
+        buzz();
+      }
+    }
+    S.people=S.people.filter(p=>p.state!=='gone');
+    for(const b of S.bubbles) b.t-=dt; S.bubbles=S.bubbles.filter(b=>b.t>0);
+    for(const f of S.floaters){ f.t-=dt; f.fy+=0.16*dt; } S.floaters=S.floaters.filter(f=>f.t>0);
+    // car
+    const car=S.car;
+    if(car.doors>0){ car.doors=Math.max(0,car.doors-dt); }
+    else{
+      let want=0;
+      if(held.up) want=1; else if(held.down) want=-1;
+      else if(auto!=null){ if(car.pos<auto-0.001) want=1; else if(car.pos>auto+0.001) want=-1; else auto=null; }
+      if(want!==0){
+        const prev=car.pos;
+        car.pos+=want*CAR_SPEED*dt;
+        car.pos=Math.max(0,Math.min(S.floors,car.pos));
+        const crossedF= want>0 ? Math.floor(car.pos) : Math.ceil(car.pos);
+        const prevF= want>0 ? Math.floor(prev+1e-9) : Math.ceil(prev-1e-9);
+        if(crossedF!==prevF){
+          if(serviceNeeded(crossedF)){ car.pos=crossedF; openDoors(crossedF); }
+          else if(auto===crossedF){ car.pos=crossedF; auto=null; }
+        }
+      } else {
+        const f=Math.round(car.pos);
+        if(Math.abs(car.pos-f)<0.01 && serviceNeeded(f)) openDoors(f);
+      }
+    }
+    // ambient crew: just living their shift — walking, working, vibing
+    for(const a of S.ambient){
+      a.t-=dt;
+      if(a.mode==='walk'){
+        a.x+=a.dir*26*dt;
+        if(a.x<BLDG_X+46){ a.x=BLDG_X+46; a.dir=1; }
+        if(a.x>SHAFT_X-54){ a.x=SHAFT_X-54; a.dir=-1; }
+        if(a.t<=0){ a.mode='work'; a.t=rnd(1.2,2.8); }
+      } else if(a.t<=0){ a.mode='walk'; a.t=rnd(2,5); if(Math.random()<0.3) a.dir*=-1; }
+    }
+    // camera rides with the cage
+    const maxCam=Math.max(0,S.floors+1-VIS+0.55);
+    const target=Math.max(0,Math.min(maxCam,car.pos-1.15));
+    S.camB += (target-S.camB)*Math.min(1,dt*4.5);
+    if(Math.abs(target-S.camB)<0.002) S.camB=target;
+    if(S.t>=1) endDay();
+    hud();
+  }
+  function endDay(){
+    for(const r of [...S.car.riders]){ const {total}=payFor(r); S.cash+=total; S.served++; r.state='done'; }
+    S.car.riders=[];
+    S.people=[];
+    S.over=true;
+    const q=quotaFor(S.floors); let bonus=0;
+    if(S.cash>=q){ bonus=50; S.cash+=50; }
+    if(S.cash>save.bestDay) save.bestDay=S.cash;
+    save.days+=1; persist();
+    S.bonus=bonus; S.quota=q;
+    $('nextDayBtn').style.display='block';
+    $('nextDayBtn').textContent = S.floors>=MAX_FLOORS ? 'Day '+(S.day+1)+' ▶ (topped out!)' : 'Day '+(S.day+1)+' ▶ (+1 floor 🏗️)';
+  }
+  function clockStr(){
+    const mins=360+S.t*(15.5*60-360); const h=Math.floor(mins/60), m=Math.floor(mins%60);
+    const ap=h>=12?'PM':'AM'; const hh=h>12?h-12:h;
+    return hh+':'+String(m).padStart(2,'0')+' '+ap;
+  }
+  function hud(){
+    $('day').textContent=S.day; $('clock').textContent=clockStr();
+    $('cash').textContent='$'+S.cash; $('served').textContent=S.served;
+    $('quota').textContent='$'+quotaFor(S.floors);
+    const ws=S.people.filter(p=>p.state==='waiting');
+    const fmt=f=> f===0?'G':String(f);
+    $('pages').textContent = ws.length
+      ? '📟 PAGES  '+ws.map(p=>fmt(p.at)+'→'+fmt(p.dest)).join('  •  ')
+      : '📟 NO PAGES — all quiet on site';
+  }
+
+  // ---------- drawing ----------
+  function lerpC(a,b,t){ return [0,1,2].map(i=>Math.round(a[i]+(b[i]-a[i])*t)); }
+  function drawPerson(x,yBasePx,p,u){
+    const T=TYPES[p.type];
+    const bob=(p.state==='waiting') ? Math.sin(Date.now()/280+p.wob)*u*0.5 : 0;
+    const y=yBasePx+bob;
+    ctx.fillStyle=T.pants; ctx.fillRect(x-4*u,y-8*u,3.4*u,8*u); ctx.fillRect(x+0.6*u,y-8*u,3.4*u,8*u); // legs
+    ctx.fillStyle=T.shirt; ctx.fillRect(x-5*u,y-16*u,10*u,8.6*u); // torso
+    if(T.vest){ ctx.fillStyle='#d7e03a'; ctx.fillRect(x-5*u,y-15*u,10*u,3*u); ctx.fillStyle='#c0c8cc'; ctx.fillRect(x-5*u,y-11*u,10*u,1.2*u); }
+    if(T.tie){ ctx.fillStyle=T.tie; ctx.fillRect(x-0.8*u,y-16*u,1.6*u,6*u); }
+    ctx.fillStyle=T.skin; ctx.fillRect(x-6.4*u,y-13.4*u,1.6*u,5*u); ctx.fillRect(x+4.8*u,y-13.4*u,1.6*u,5*u); // arms
+    if(T.clip){ ctx.fillStyle='#8a5a2a'; ctx.fillRect(x+4.6*u,y-9*u,3*u,4.4*u); }
+    if(T.case){ ctx.fillStyle='#14161c'; ctx.fillRect(x-9.6*u,y-9*u,3.6*u,4.6*u); }
+    if(p.type==='homie' && p.id%3===0){ ctx.fillStyle='#c0c8cc'; ctx.fillRect(x+4.9*u,y-10*u,1.5*u,2.6*u); ctx.fillStyle='#2e9e5b'; ctx.fillRect(x+4.9*u,y-10*u,1.5*u,1*u); } // the homie's little beverage
+    ctx.fillStyle=T.skin; ctx.fillRect(x-3.6*u,y-22.5*u,7.2*u,6.4*u); // head
+    ctx.fillStyle='#14100c'; ctx.fillRect(x-2.2*u,y-19.6*u,1.1*u,1.1*u); ctx.fillRect(x+1.2*u,y-19.6*u,1.1*u,1.1*u); // eyes
+    if(T.hat){ ctx.fillStyle=T.hat; ctx.fillRect(x-4.4*u,y-24.6*u,8.8*u,2.6*u); ctx.fillRect(x-5.4*u,y-22.6*u,10.8*u,1.4*u); }
+    else if(T.hair){ ctx.fillStyle=T.hair; ctx.fillRect(x-3.6*u,y-23.4*u,7.2*u,2.2*u); }
+    if(T.shades){ ctx.fillStyle='#0a0a0a'; ctx.fillRect(x-3.4*u,y-20.4*u,6.8*u,1.7*u); }
+  }
+  function drawProp(kind,x,base){
+    const u=PPF/36;
+    if(kind===0){ // lumber stack
+      ctx.fillStyle='#a4713a'; for(let i=0;i<3;i++) ctx.fillRect(x,base-4-i*4.4,52,3.6);
+      ctx.fillStyle='#8a5a2a'; ctx.fillRect(x+4,base-17,44,3.4);
+    } else if(kind===1){ // toolbox + cone
+      ctx.fillStyle='#c0272d'; ctx.fillRect(x,base-9,20,9); ctx.fillStyle='#7d1a1f'; ctx.fillRect(x+6,base-12,8,3);
+      ctx.fillStyle='#ff7b1c'; ctx.fillRect(x+30,base-12,9,12); ctx.fillStyle='#fff'; ctx.fillRect(x+31.5,base-8,6,2.6);
+    } else if(kind===2){ // pipes
+      ctx.fillStyle='#9aa3ab'; ctx.fillRect(x,base-6,56,5); ctx.fillRect(x,base-12,56,5);
+      ctx.fillStyle='#6d757c'; ctx.fillRect(x,base-6,4,5); ctx.fillRect(x+52,base-12,4,5);
+    } else if(kind===3){ // scaffold frame
+      ctx.strokeStyle='#7a6742'; ctx.lineWidth=3;
+      ctx.strokeRect(x,base-30,44,30); ctx.beginPath(); ctx.moveTo(x,base-30); ctx.lineTo(x+44,base); ctx.moveTo(x+44,base-30); ctx.lineTo(x,base); ctx.stroke();
+    } else if(kind===4){ // water cooler + bucket
+      ctx.fillStyle='#cfe8f5'; ctx.fillRect(x+2,base-16,10,12); ctx.fillStyle='#fff'; ctx.fillRect(x+3,base-19,8,3);
+      ctx.fillStyle='#2456c8'; ctx.fillRect(x+22,base-8,12,8);
+    } else { // blueprint table
+      ctx.fillStyle='#6b5836'; ctx.fillRect(x,base-13,46,3); ctx.fillRect(x+3,base-10,4,10); ctx.fillRect(x+39,base-10,4,10);
+      ctx.fillStyle='#e8ecf2'; ctx.fillRect(x+5,base-16,36,3.4); ctx.fillStyle='#7fa6c9'; ctx.fillRect(x+8,base-15.2,20,1.6);
+    }
+  }
+  function draw(){
+    const stops=[[255,205,140],[150,200,240],[255,150,90]];
+    const tt=S.t<0.5? S.t*2 : (S.t-0.5)*2;
+    const c=S.t<0.5? lerpC(stops[0],stops[1],tt) : lerpC(stops[1],stops[2],tt);
+    ctx.fillStyle=`rgb(${c[0]},${c[1]},${c[2]})`; ctx.fillRect(0,0,W,H);
+    const sunX=52+S.t*(W-104), sunY=46+Math.sin(S.t*Math.PI)*-18+18;
+    ctx.fillStyle='#fff3a0'; ctx.fillRect(sunX-10,sunY-10,20,20);
+    ctx.fillStyle='rgba(255,255,255,.8)';
+    const cl=(Date.now()/90)%(W+160)-80;
+    ctx.fillRect(cl,36,52,10); ctx.fillRect(cl+12,28,30,10); ctx.fillRect(cl+70,74,44,9); // lazy clouds
+    // world: street level anchor
+    const streetY=yBase(0);
+    // distant skyline + Petco vibes
+    ctx.fillStyle='rgba(90,90,110,.45)';
+    ctx.fillRect(0,streetY-58,26,58); ctx.fillRect(416,streetY-74,34,74); ctx.fillRect(452,streetY-50,28,50);
+    ctx.fillStyle='#9a4a2e'; ctx.fillRect(392,streetY-40,56,40);
+    ctx.fillStyle='#3f7a3a'; ctx.fillRect(386,streetY-6,94,6);
+    ctx.fillStyle='#e8e8e8'; ctx.fillRect(400,streetY-64,3,26); ctx.fillRect(466,streetY-64,3,26);
+    // floors in view
+    const fFrom=Math.max(0,Math.floor(S.camB)-1), fTo=Math.min(S.floors,Math.ceil(S.camB+VIS)+1);
+    for(let f=fFrom;f<=fTo;f++){
+      const top=yTop(f), base=yBase(f), isTop=S.newFloor && f===S.floors;
+      ctx.fillStyle= f===0 ? '#8a7a63' : (isTop ? '#b09a76' : WALLS[f%WALLS.length]);
+      ctx.fillRect(BLDG_X,top,BLDG_W,PPF);
+      ctx.fillStyle='#6b5836'; ctx.fillRect(BLDG_X,base-4,BLDG_W,4); // slab
+      if(f===0){
+        ctx.fillStyle='#33414f'; ctx.fillRect(BLDG_X+18,top+PPF*0.3,74,PPF*0.42);
+        ctx.fillStyle='rgba(255,255,255,.25)'; ctx.fillRect(BLDG_X+24,top+PPF*0.34,30,PPF*0.1);
+        ctx.fillStyle='#fff'; ctx.font='700 11px monospace'; ctx.textAlign='left'; ctx.fillText('SITE OFFICE',BLDG_X+18,base-10);
+        ctx.fillStyle='#2456c8'; ctx.fillRect(BLDG_X+BLDG_W-44,base-30,26,30); // porta-potty, obviously
+        ctx.fillStyle='#1a3f96'; ctx.fillRect(BLDG_X+BLDG_W-44,base-30,26,4);
+      } else if(isTop){
+        ctx.strokeStyle='#7a6742'; ctx.lineWidth=4;
+        for(let x=BLDG_X+22;x<BLDG_X+BLDG_W-10;x+=58){ ctx.beginPath(); ctx.moveTo(x,top+8); ctx.lineTo(x,base-4); ctx.stroke(); }
+        ctx.beginPath(); ctx.moveTo(BLDG_X+8,top+14); ctx.lineTo(BLDG_X+BLDG_W-8,base-10); ctx.stroke();
+        ctx.fillStyle='#ff7b1c'; ctx.fillRect(BLDG_X+120,base-16,24,12);
+        ctx.fillStyle='#a4713a'; ctx.fillRect(BLDG_X+180,base-10,40,6);
+      } else {
+        ctx.fillStyle='#33414f'; ctx.fillRect(BLDG_X+18,top+PPF*0.26,40,PPF*0.46); // window opening
+        ctx.fillStyle='rgba(255,255,255,.22)'; ctx.fillRect(BLDG_X+24,top+PPF*0.3,16,PPF*0.12);
+        drawProp(f%6,BLDG_X+86,base-4);
+        ctx.fillStyle='rgba(40,30,16,.55)'; ctx.font='800 12px monospace'; ctx.textAlign='left';
+        ctx.fillText(FLOOR_TAGS[f%FLOOR_TAGS.length],BLDG_X+170,top+22);
+      }
+      // waiting people + BIG destination bubble
+      const waiters=S.people.filter(p=>p.state==='waiting'&&p.at===f);
+      waiters.forEach((p,i)=>{
+        const x=SHAFT_X-18-i*26;
+        drawPerson(x,base-4,p,PPF/64);
+        const bubY=top+8;
+        ctx.fillStyle='#fff'; ctx.beginPath(); ctx.roundRect(x-22,bubY,44,25,6); ctx.fill();
+        ctx.fillStyle='#221a10'; ctx.beginPath(); ctx.moveTo(x-4,bubY+25); ctx.lineTo(x+4,bubY+25); ctx.lineTo(x,bubY+31); ctx.fill();
+        ctx.fillStyle= p.dest>p.at ? '#1a7a2e' : '#c0272d'; ctx.font='900 16px monospace'; ctx.textAlign='center';
+        ctx.fillText((p.dest>p.at?'▲':'▼')+(p.dest===0?'G':p.dest),x,bubY+18.5);
+        const frac=Math.max(0,p.patience/p.maxPat);
+        ctx.fillStyle= frac>0.5?'#37c978':frac>0.25?'#ffb020':'#ff4040';
+        ctx.fillRect(x-15,bubY-6,30*frac,4);
+      });
+      // ambient crew on this floor
+      for(const a of S.ambient.filter(a=>a.f===f)){
+        drawPerson(a.x,base-4,{type:a.type,state:a.mode,id:7,wob:a.x*0.08},PPF/64);
+        if(a.mode==='work'){ const u=PPF/64; ctx.fillStyle='#8f979e';
+          ctx.fillRect(a.x+5.2*u, base-4-14.6*u+Math.sin(Date.now()/90)*1.7*u, 4.6*u, 1.7*u); }
+      }
+    }
+    // street
+    if(streetY<H+4){
+      ctx.fillStyle='#5a5148'; ctx.fillRect(0,streetY,W,H-streetY);
+      ctx.fillStyle='#6d6257'; ctx.fillRect(0,streetY,W,5);
+      ctx.fillStyle='#ffd21f'; for(let x=8;x<W;x+=34) ctx.fillRect(x,streetY+32,18,4);
+      if(S.lunchT>0){
+        const gx=BLDG_X+108, gy=streetY;
+        ctx.fillStyle='#191919'; ctx.fillRect(gx,gy-13,42,8);
+        ctx.fillRect(gx+4,gy-5,4,5); ctx.fillRect(gx+34,gy-5,4,5);
+        ctx.fillStyle='#7a3b14'; ctx.fillRect(gx+4,gy-15.5,10,3.4); ctx.fillRect(gx+17,gy-15.5,10,3.4); ctx.fillRect(gx+29,gy-15.5,9,3.4);
+        ctx.fillStyle= (Math.floor(Date.now()/160)%2)? '#ff7b1c':'#ffb020';
+        ctx.fillRect(gx+8,gy-19,4,3.4); ctx.fillRect(gx+22,gy-19,4,3.4); ctx.fillRect(gx+33,gy-19,4,3.4);
+        ctx.fillStyle='rgba(230,230,230,.75)';
+        for(let k=0;k<3;k++){ const ph=((Date.now()/46)+k*15)%44; ctx.fillRect(gx+10+k*10-ph*0.14, gy-24-ph, 6-ph*0.05, 5); }
+      }
+    }
+    // crane over the fresh floor
+    if(S.newFloor){
+      const ty=yTop(S.floors);
+      ctx.strokeStyle='#e0a916'; ctx.lineWidth=5;
+      ctx.beginPath(); ctx.moveTo(BLDG_X+46,ty); ctx.lineTo(BLDG_X+46,ty-PPF*0.42); ctx.lineTo(BLDG_X+BLDG_W+64,ty-PPF*0.42); ctx.stroke();
+      ctx.lineWidth=2.4; ctx.beginPath(); ctx.moveTo(BLDG_X+BLDG_W+30,ty-PPF*0.42); ctx.lineTo(BLDG_X+BLDG_W+30,ty-PPF*0.16); ctx.stroke();
+      ctx.fillStyle='#ff7b1c'; ctx.fillRect(BLDG_X+BLDG_W+20,ty-PPF*0.16,20,13);
+    }
+    // shaft rails + cage
+    ctx.fillStyle='#3c3630';
+    ctx.fillRect(SHAFT_X-5,yTop(S.floors),5,yBase(0)-yTop(S.floors));
+    ctx.fillRect(SHAFT_X+CAR_W,yTop(S.floors),5,yBase(0)-yTop(S.floors));
+    const carH=PPF*0.78, carY=yBase(S.car.pos)-carH-3;
+    ctx.fillStyle='#e0a916'; ctx.fillRect(SHAFT_X,carY,CAR_W,carH);
+    ctx.fillStyle='#2c2620'; ctx.fillRect(SHAFT_X+3,carY+3,CAR_W-6,carH-6);
+    S.car.riders.forEach((p,i)=>{ drawPerson(SHAFT_X+15+i*21, carY+carH-5, p, PPF/72); });
+    ctx.strokeStyle='#e0a916'; ctx.lineWidth=2.4;
+    for(let gx=SHAFT_X+11;gx<SHAFT_X+CAR_W-4;gx+=11){ ctx.beginPath(); ctx.moveTo(gx,carY+3); ctx.lineTo(gx,carY+carH-3); ctx.stroke(); }
+    ctx.strokeStyle='#8a6d10'; ctx.beginPath(); ctx.moveTo(SHAFT_X,carY+carH*0.4); ctx.lineTo(SHAFT_X+CAR_W,carY+carH*0.4); ctx.stroke();
+    if(S.car.doors>0){ ctx.fillStyle='#ffd83d'; ctx.fillRect(SHAFT_X,carY-6,CAR_W,4); }
+    ctx.fillStyle='#0e0c0a'; ctx.font='900 12px monospace'; ctx.textAlign='center';
+    ctx.fillText('🛗 '+S.car.riders.length+'/'+CAP,SHAFT_X+CAR_W/2,carY-10);
+    // falling tools
+    for(const hz of S.hazards){
+      ctx.save(); ctx.translate(hz.x,yBase(hz.y)); ctx.rotate(Date.now()/60);
+      ctx.fillStyle='#8f979e'; ctx.fillRect(-3,-9,6,18); ctx.fillStyle='#5d6468'; ctx.fillRect(-5,-12,10,6);
+      ctx.restore();
+    }
+    // floaters
+    for(const fl of S.floaters){
+      ctx.fillStyle= fl.red ? '#ff5a4a' : '#1ee07f'; ctx.font='900 15px monospace'; ctx.textAlign='center';
+      ctx.fillText(fl.text,fl.x,yBase(fl.fy));
+    }
+    // speech bubbles — wrapped to fit, always fully on screen
+    for(const b of S.bubbles){
+      ctx.font='700 12px monospace';
+      const bh=b.lines.length*14.5+9;
+      const bx=Math.max(6,Math.min(W-b.w-6,b.x-b.w/2));
+      const by=Math.max(4,Math.min(H-bh-4,yBase(b.fy)-bh-14));
+      ctx.fillStyle='rgba(255,255,255,.97)'; ctx.beginPath(); ctx.roundRect(bx,by,b.w,bh,7); ctx.fill();
+      ctx.fillStyle='#221a10'; ctx.textAlign='left';
+      b.lines.forEach((ln,i)=>{ ctx.fillText(ln,bx+8,by+16+i*14.5); });
+    }
+    // left rail: floor numbers + call arrows (Tiny Tower style)
+    ctx.fillStyle='#2c2f36'; ctx.fillRect(0,0,34,H);
+    ctx.fillStyle='#454a54'; ctx.fillRect(32,0,2,H);
+    for(let f=fFrom;f<=fTo;f++){
+      const mid=(yTop(f)+yBase(f))/2;
+      if(mid<-10||mid>H+10) continue;
+      ctx.fillStyle= Math.round(S.car.pos)===f ? '#ffcc00' : '#aeb6c2';
+      ctx.font='900 13px monospace'; ctx.textAlign='center';
+      ctx.fillText(f===0?'G':String(f),16,mid-2);
+      const ws=S.people.filter(p=>p.state==='waiting'&&p.at===f);
+      if(ws.length){
+        const up=ws.some(p=>p.dest>p.at);
+        ctx.fillStyle= up ? '#37c978' : '#ff7b6b'; ctx.font='900 11px monospace';
+        ctx.fillText(up?'▲':'▼',16,mid+13);
+      }
+    }
+    // off-screen call indicators on the rail
+    const pulse=Math.floor(Date.now()/300)%2===0;
+    // off-screen call indicators: chunky pills WITH the floor number
+    const aboveW=S.people.filter(p=>p.state==='waiting'&&p.at>=S.camB+VIS-0.25);
+    if(aboveW.length){
+      const topF=Math.max(...aboveW.map(p=>p.at));
+      ctx.fillStyle='#c0272d'; ctx.beginPath(); ctx.roundRect(W/2-72,8,144,26,13); ctx.fill();
+      ctx.fillStyle='#fff'; ctx.font='900 14px monospace'; ctx.textAlign='center';
+      ctx.fillText('▲ FLOOR '+topF+(aboveW.length>1?'  (+'+(aboveW.length-1)+' more)':''),W/2,26);
+    }
+    const belowW=S.people.filter(p=>p.state==='waiting'&&p.at<=S.camB-0.75);
+    if(belowW.length){
+      const lowF=Math.min(...belowW.map(p=>p.at));
+      ctx.fillStyle='#c0272d'; ctx.beginPath(); ctx.roundRect(W/2-72,H-36,144,26,13); ctx.fill();
+      ctx.fillStyle='#fff'; ctx.font='900 14px monospace'; ctx.textAlign='center';
+      ctx.fillText('▼ FLOOR '+(lowF===0?'G':lowF)+(belowW.length>1?'  (+'+(belowW.length-1)+' more)':''),W/2,H-18);
+    }
+    if(pulse && S.people.some(p=>p.state==='waiting'&&p.at>S.camB+VIS)) { ctx.fillStyle='#ff4040'; ctx.font='900 17px monospace'; ctx.textAlign='center'; ctx.fillText('▲',16,22); }
+    if(pulse && S.people.some(p=>p.state==='waiting'&&p.at<S.camB)) { ctx.fillStyle='#ff4040'; ctx.font='900 17px monospace'; ctx.textAlign='center'; ctx.fillText('▼',16,H-10); }
+    // day-over panel
+    if(S.over){
+      ctx.fillStyle='rgba(10,8,6,.78)'; ctx.fillRect(0,0,W,H);
+      ctx.fillStyle='#ffcf5e'; ctx.font='900 30px monospace'; ctx.textAlign='center';
+      ctx.fillText('DAY '+S.day+' IN THE BOOKS',W/2,H/2-64);
+      ctx.fillStyle='#fff'; ctx.font='700 16px monospace';
+      ctx.fillText('Earned: $'+(S.cash-(S.bonus||0))+'  •  Served: '+S.served+'  •  Stair-cursed: '+S.missed,W/2,H/2-30);
+      ctx.fillText(S.bonus? 'Quota $'+S.quota+' CRUSHED → +$50 boss bonus 💰' : 'Quota was $'+S.quota+' — boss is side-eyeing you 👀',W/2,H/2-2);
+      ctx.fillText('Best day ever: $'+save.bestDay,W/2,H/2+26);
+      ctx.font='700 14px monospace'; ctx.fillStyle='#ffcf5e';
+      ctx.fillText('Tap NEXT DAY to keep building 🏗️',W/2,H/2+58);
+    }
+  }
+
+  // ---------- loop ----------
+  let lastMs=Date.now();
+  function frame(){
+    const now=Date.now(); let dt=(now-lastMs)/1000; lastMs=now;
+    if(dt>0.25) dt=0.25;
+    tick(dt); draw();
+    requestAnimationFrame(frame);
+  }
+
+  // ---------- input ----------
+  function bindHold(el,prop){
+    const on=e=>{ e.preventDefault(); held[prop]=true; auto=null; };
+    const off=()=>{ held[prop]=false; };
+    el.addEventListener('pointerdown',on); el.addEventListener('pointerup',off);
+    el.addEventListener('pointerleave',off); el.addEventListener('pointercancel',off);
+    el.addEventListener('touchstart',on,{passive:false}); el.addEventListener('touchend',off);
+  }
+  bindHold($('upBtn'),'up'); bindHold($('dnBtn'),'down');
+  addEventListener('keydown',e=>{
+    if(e.key==='ArrowUp'||e.key==='w'){ held.up=true; auto=null; e.preventDefault(); }
+    if(e.key==='ArrowDown'||e.key==='s'){ held.down=true; auto=null; e.preventDefault(); }
+  });
+  addEventListener('keyup',e=>{
+    if(e.key==='ArrowUp'||e.key==='w') held.up=false;
+    if(e.key==='ArrowDown'||e.key==='s') held.down=false;
+  });
+  cv.addEventListener('pointerdown',e=>{
+    const r=cv.getBoundingClientRect();
+    const y=(e.clientY-r.top)*(H/r.height);
+    const fFloat=S.camB + ((H-STREET_H)-y)/PPF;
+    auto=Math.max(0,Math.min(S.floors,Math.floor(fFloat)));
+  });
+  $('soundBtn').onclick=()=>{ soundOn=!soundOn; $('soundBtn').textContent=soundOn?'🔊':'🔇'; };
+  $('nextDayBtn').onclick=()=>{ newDay(S.day+1, Math.min(MAX_FLOORS,S.floors+1)); };
+
+  // ---------- test hooks ----------
+  window.__hoist={ get S(){return S;}, tick, spawnPerson, maybeSpawn, openDoors, serviceNeeded, payFor, spawnHazard,
+    quotaFor, newDay, endDay, setAuto:f=>{auto=f;}, TYPES, CAP, PPF, VIS, wrapLines,
+    els:{pages:()=>$('pages')},
+    saveGame:()=>save };
+
+  newDay(1,START_FLOORS);
+  frame();
+})();
+</script>
+</body>
+</html>
