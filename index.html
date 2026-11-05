@@ -19,6 +19,10 @@
   .float{position:relative;display:block;animation:hover 7s ease-in-out infinite}
   img.monkey{width:min(165px,35vw,23vh);height:auto;display:block;filter:drop-shadow(0 22px 44px rgba(0,0,0,.6))}
   .buds{position:absolute;left:36%;top:50%;width:105%;z-index:1;pointer-events:none}
+  .budlink{position:absolute;left:36%;top:50%;width:105%;aspect-ratio:900/922;z-index:3;pointer-events:none}
+  .budlink svg{display:block;width:100%;height:100%}
+  .budlink polygon{pointer-events:visiblePainted;cursor:pointer}
+  body.map .budlink polygon{pointer-events:none}
   .float{z-index:2}
   @keyframes hover{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
   @media (prefers-reduced-motion:reduce){.float{animation:none}}
@@ -36,6 +40,7 @@
 <body>
   <span class="enter">
     <img class="buds" id="budsImg" alt="" aria-hidden="true">
+    <a class="budlink" href="https://www.youtube.com/watch?v=C7hNcp2n318" target="_blank" rel="noopener" title="Mac DeMarco — Some Other Ones (full album)" aria-label="Play Mac DeMarco, Some Other Ones, full album on YouTube"><svg viewBox="0 0 900 922" aria-hidden="true"><polygon points="618,55 668,6 806,2 868,34 890,150 884,318 838,392 726,400 656,372 610,268 606,120" fill="rgba(0,0,0,0)"/></svg></a>
     <span class="float">
     <img class="monkey" id="monkeyImg" alt="Space monkey">
     <a class="screenclick" href="directory/" aria-label="Enter site"></a>
@@ -80,5 +85,5 @@
    ["Vulcan",1,"home of Spock — all logic, pointy ears, and one very suppressed emotion.","https://memory-alpha.fandom.com/wiki/Vulcan","Visit Memory Alpha →","FICTIONAL · CLAIMED FOR STAR TREK"],
    ["Pandora",1,"glowing jungles, floating mountains, and banshees you bond with by the braid.","https://jamescameronsavatar.fandom.com/wiki/Pandora","Visit the Avatar wiki →","FICTIONAL · CLAIMED FOR AVATAR"],
    ["Arrakis",1,"nothing but sand, spice, and worms the size of trains. Walk without rhythm.","https://dune.fandom.com/wiki/Arrakis","Visit the Dune wiki →","FICTIONAL · CLAIMED FOR DUNE"],
-   ["Krypton",1,"Superman's home planet. It, uh, exploded — but the star is still here.","https://en.wikipedia.org/wiki/Krypton_(comics)","More on Krypton →","FICTIONAL · CLAIMED FOR SUPERMAN"]];const card=document.getElementById('card'), ct=document.getElementById('ct'), cb=document.getElementById('cb'),     cl=document.getElementById('cl'), tag=document.getElementById('ctag');document.querySelectorAll('.mk').forEach((mk,i)=>mk.addEventListener('click',e=>{ e.stopPropagation(); const s=S[i]; ct.textContent=s[0]; cb.textContent=s[1]?('A foreground star in our own Milky Way, claimed for '+s[0]+' — '+s[2]):s[2]; cl.href=s[3]; cl.textContent=s[4]; tag.textContent=s[5]; tag.className=s[1]?'fun':''; card.classList.add('on');}));document.addEventListener('click',e=>{ if(e.target.closest('#card,.mk,.screenclick')) return; document.body.classList.toggle('map'); card.classList.remove('on');});document.getElementById('cx').addEventListener('click',()=>card.classList.remove('on'));addEventListener('keydown',e=>{ if(e.key==='Escape'){ card.classList.remove('on'); document.body.classList.remove('map'); }});})();</script></body>
+   ["Krypton",1,"Superman's home planet. It, uh, exploded — but the star is still here.","https://en.wikipedia.org/wiki/Krypton_(comics)","More on Krypton →","FICTIONAL · CLAIMED FOR SUPERMAN"]];const card=document.getElementById('card'), ct=document.getElementById('ct'), cb=document.getElementById('cb'),     cl=document.getElementById('cl'), tag=document.getElementById('ctag');document.querySelectorAll('.mk').forEach((mk,i)=>mk.addEventListener('click',e=>{ e.stopPropagation(); const s=S[i]; ct.textContent=s[0]; cb.textContent=s[1]?('A foreground star in our own Milky Way, claimed for '+s[0]+' — '+s[2]):s[2]; cl.href=s[3]; cl.textContent=s[4]; tag.textContent=s[5]; tag.className=s[1]?'fun':''; card.classList.add('on');}));document.addEventListener('click',e=>{ if(e.target.closest('#card,.mk,.screenclick,.budlink')) return; document.body.classList.toggle('map'); card.classList.remove('on');});document.getElementById('cx').addEventListener('click',()=>card.classList.remove('on'));addEventListener('keydown',e=>{ if(e.key==='Escape'){ card.classList.remove('on'); document.body.classList.remove('map'); }});})();</script></body>
 </html> 
