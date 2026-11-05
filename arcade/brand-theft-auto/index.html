@@ -293,8 +293,17 @@
   const PAL_B={H:'#e8641c',S:'#f7d3ac',T:'#f2f2f2',G:'#f5c542',P:'#2b4d9b',R:'#e8e8e8',tail:true,glasses:true};
   const PAL_E={H:'#14100c',S:'#8a5a34',T:'#7a3b8f',G:'#7a3b8f',P:'#26221f',R:'#111111'};
   const PAL_M={H:'#8a8a92',S:'#d9a06b',T:'#b03060',G:'#b03060',P:'#7a2547',R:'#2a2a2a'};
+  // K — bald, light beard, cut-off shirt (custom sprite: bare arms, beard row)
+  const SPR_K=['............','...SSSSSS...','..SSSSSSSS..','..HSSSSSSH..','..SSSSSSSS..','...BBBBBB...','.SSTTTTTTSS.','.SSTTTTTTSS.','.SSTTTTTTSS.','..TTTTTTTT..','...PPPPPP...','...PP..PP...','...PP..PP...','...PP..PP...','..RRR..RRR..','..RRR..RRR..'];
+  const PAL_K={H:'#cfc8bb',S:'#eec39a',B:'#a9825f',T:'#d9d9d9',G:'#d9d9d9',P:'#33383f',R:'#191919',spr:SPR_K};
+  // J — shorter, pale, black stringy hair, Joker grin
+  const PAL_J={H:'#101216',S:'#f6ecd9',T:'#3b2d4f',G:'#3b2d4f',P:'#2e2440',R:'#14161c',short:true,stringy:true,joker:true};
+  // the Circle K cop — navy uniform, cap, donut in hand
+  const PAL_COP={H:'#1d2f52',S:'#e8b48c',T:'#24406e',G:'#f5c542',P:'#1a2440',R:'#111111',cap:true,donut:true};
   function drawPeep(x,y,pal,frame,faceLeft){
-    const rows=frame===1?LEGS_B:SPR, w=12,h=16,px=2;
+    let rows=pal.spr||(frame===1?LEGS_B:SPR);
+    if(pal.short&&frame!==1) rows=['............'].concat(rows.slice(0,12),rows.slice(13)); // one leg-row shorter
+    const w=12,h=16,px=2;
     const x0=Math.round(x-w*px/2), y0=Math.round(y-h*px);
     const cell=(c,r,col)=>{ const sc=faceLeft?(w-1-c):c; ctx.fillStyle=col; ctx.fillRect(x0+sc*px,y0+r*px,px,px); };
     if(pal.tail){ // ginger ponytail, swinging off the back of the head
@@ -312,6 +321,14 @@
       for(const c of [2,4,7,9]) cell(c,5,ink);
       cell(5,4,ink); cell(6,4,ink); cell(1,4,ink); cell(10,4,ink);
     }
+    if(pal.stringy){ for(const [c,r] of [[2,4],[2,5],[2,6],[9,4],[9,5],[9,6]]) cell(c,r,pal.H); } // long strands down both sides of the face
+    if(pal.joker){ // smeared eye shadow + the grin
+      for(const c of [3,4,7,8]) cell(c,4,'#14161c');
+      for(const c of [3,4,5,6,7,8]) cell(c,5,'#b03030');
+      cell(2,4,'#b03030'); cell(9,4,'#b03030');
+    }
+    if(pal.cap){ for(let c=1;c<=10;c++) cell(c,3,'#16233d'); } // cap brim over the forehead
+    if(pal.donut){ cell(10,8,'#e0aa6e'); cell(11,7,'#e0aa6e'); cell(11,8,'#e77fa2'); cell(11,9,'#e0aa6e'); } // donut in hand, pink frosting
   }
   function drawEduardo(p,t){ const [sx,sy]=iso(p[0],p[1],SCENES.town.oy); drawPeep(sx,sy-2,PAL_E,0,false); }
   function bubble(x,y,text){
@@ -407,7 +424,11 @@
         {i0:2,j0:4,i1:3,j1:5,h:8,wall:'#4a3220',roof:'#5d4028',emoji:'🥃'}
       ],
       spots:[ {p:[3.5,2.4],r:1.6,acts:['shotzBeer','shotzShot'],place:'shotz',label:'Bar'} ],
-      doors:{ '6,5':{to:'town',at:[4.5,5.3]} }
+      doors:{ '6,5':{to:'town',at:[4.5,5.3]} },
+      npcs:[
+        {p:[5.5,2.7],pal:PAL_K,off:0,lines:["Sleeves are just sleeves that gave up.","I peaked in 2011 and I stand by it.","Bald ain't a flaw, it's a solar panel.","Hold my beer. Metaphorically. It's mine.","Tell Brandino his tab's a group project now.","I don't chase waterfalls. Or cardio."]},
+        {p:[1.8,2.7],pal:PAL_J,off:3.5,lines:["Why so thirsty? It's a bar. Order up.","The smile? It came with the face.","I laugh at the creek sometimes. It gets me.","Names are just noises we answer to.","Ask me about my origin story. I dare you.","Hee. Sorry. The jukebox knows things."]}
+      ]
     },
     bowl:{ w:10,h:7,oy:64,walls:true,zoom:1.55,sign:{text:'🎳 WEST SIDE BOWL 🎳',at:[5,0],c:'#7ec8ff'},
       floor(i,j){
@@ -450,7 +471,10 @@
         {i0:3,j0:4,i1:6,j1:5,h:11,wall:'#4a3b2a',roof:'#6e5638',emoji:'🧾'}
       ],
       spots:[ {p:[4.5,3.5],r:1.45,acts:['buySnack','buyScratcher','buyBeer','buyCigs'],place:'circlek',label:'Register'} ],
-      doors:{ '1,5':{to:'town',at:[10.5,5.3]} }
+      doors:{ '1,5':{to:'town',at:[10.5,5.3]} },
+      npcs:[
+        {p:[3.8,2.6],pal:PAL_COP,off:1.5,lines:["This donut is evidence. Of great taste.","Crime's down on this block. You're welcome.","Ten-four, dispatch: sprinkles secured.","I'm undercover. The uniform's the disguise.","Ran a plate today. Paper plate. Donut box.","Backup's coming. He's bringing coffee."]}
+      ]
     }
   };
   // build blocked-tile sets per scene
@@ -571,6 +595,7 @@
     items.push({d:P.i+P.j+0.5,k:'brand'});
     if(scene==='town'&&sc.eduardo) items.push({d:sc.eduardo[0]+sc.eduardo[1]+0.4,k:'eduardo'});
     if(scene==='home') items.push({d:mom.i+mom.j+0.4,k:'mom'});
+    for(const n of (sc.npcs||[])) items.push({d:n.p[0]+n.p[1]+0.4,k:'npc',n});
     items.sort((a,b)=>a.d-b.d);
     for(const it of items){
       if(it.k==='box') drawBox(it.b,sc.oy);
@@ -578,9 +603,16 @@
       else if(it.k==='brand'){ const s=iso(P.i,P.j,sc.oy); drawPeep(s[0],s[1],PAL_B,P.moving&&P.frame?1:0,P.face<0); }
       else if(it.k==='eduardo') drawEduardo(sc.eduardo,0);
       else if(it.k==='mom'){ const s=iso(mom.i,mom.j,sc.oy); drawPeep(s[0],s[1],PAL_M,0,mom.face<0); }
+      else if(it.k==='npc'){ const s=iso(it.n.p[0],it.n.p[1],sc.oy); drawPeep(s[0],s[1],it.n.pal,0,false); }
     }
     if(scene==='town'&&Math.hypot(P.i-4,P.j-3)<1.6){ const e=iso(4,3,sc.oy); bubble(e[0],e[1]-46,'psst… $25. you know the deal.'); }
     ctx.restore();
+    if(sc.npcs){ const tSec=performance.now()/1000; // posted-up locals talk, on a stagger
+      for(const n of sc.npcs){ const ph=(tSec+n.off)%7;
+        if(ph<3.4){ const s=iso(n.p[0],n.p[1],sc.oy);
+          const sx=240+(s[0]-mc[0])*Z, sy=160+(s[1]-mc[1])*Z;
+          bubble(sx, sy-32*Z-8, nz(n.lines[Math.floor((tSec+n.off)/7)%n.lines.length])); } }
+    }
     if(toastT>0){ ctx.font='bold 13px ui-monospace,monospace'; const w=ctx.measureText(toast).width+18;
       ctx.fillStyle='rgba(14,26,22,.88)'; ctx.beginPath(); ctx.roundRect(240-w/2,8,w,24,8); ctx.fill();
       ctx.fillStyle='#ffe9a8'; ctx.textAlign='center'; ctx.fillText(toast,240,24); }
