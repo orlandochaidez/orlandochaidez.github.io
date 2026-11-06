@@ -30,13 +30,16 @@
   .mission{
     display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;cursor:pointer;
     background:linear-gradient(180deg,#1d1d20,#17171a);border:1px solid #333338;border-left:5px solid #ff9d00;
-    border-radius:12px;padding:14px 14px 13px;margin:0 0 11px;color:#f3f3f3;
-    box-shadow:0 3px 12px rgba(0,0,0,.4);-webkit-tap-highlight-color:transparent;
+    border-radius:12px;padding:14px 14px 13px;margin:0;color:#f3f3f3;
+    -webkit-tap-highlight-color:transparent;position:relative;z-index:1;transition:transform .18s ease;
     font-family:inherit;
   }
   .mission:active{transform:scale(.99)}
   .mission{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:pan-y}
-  .mission.dragging{position:relative;z-index:6;border-color:#ff9d00;box-shadow:0 16px 34px rgba(0,0,0,.6);opacity:.98}
+  .swipe{position:relative;overflow:hidden;border-radius:12px;margin:0 0 11px;box-shadow:0 3px 12px rgba(0,0,0,.4)}
+  .delbtn{position:absolute;top:0;right:0;bottom:0;width:86px;border:0;background:#e0362c;color:#fff;font-family:inherit;font-weight:800;font-size:15px;letter-spacing:.6px;cursor:pointer}
+  .swipe.dragging{position:relative;z-index:6;box-shadow:0 16px 34px rgba(0,0,0,.6)}
+  .swipe.dragging .mission{border-color:#ff9d00;opacity:.98}
   .box{
     flex:none;width:27px;height:27px;border:3px solid #ff9d00;border-radius:7px;margin-top:2px;
     display:flex;align-items:center;justify-content:center;font-size:19px;color:#0c0c0e;background:transparent;
@@ -107,7 +110,7 @@
     <button type="submit">Add mission</button>
   </form>
 
-  <p class="foot">Progress saves on this device.<br>Tap the stars to set importance — hold a mission to drag it up or down.<br>Tell Future Overlord to add official missions.</p>
+  <p class="foot">Progress saves on this device.<br>Tap stars for importance · hold to drag · swipe left to delete.<br>Tell Future Overlord to add official missions.</p>
 </div>
 
 <div id="passed"><div class="big">Mission<br>Passed</div><div class="sub">RESPECT +</div></div>
@@ -121,12 +124,13 @@
     {id:"m-groceries", title:"Grocery Run", brief:"Grocery shop. The basics ain't gonna buy themselves.", heat:1},
     {id:"m-pickup", title:"Pickup Run", brief:"Pickup Walmart or Alb's order.", heat:1}
   ];
-  var DONE_KEY="missions-done-v1", CUSTOM_KEY="missions-custom-v1", HEAT_KEY="missions-heat-v1", ORDER_KEY="missions-order-v1";
-  var done = {}, custom = [], heatMap = {}, orderIds = [];
+  var DONE_KEY="missions-done-v1", CUSTOM_KEY="missions-custom-v1", HEAT_KEY="missions-heat-v1", ORDER_KEY="missions-order-v1", DELETED_KEY="missions-deleted-v1";
+  var done = {}, custom = [], heatMap = {}, orderIds = [], deletedIds = [];
   try { done = JSON.parse(localStorage.getItem(DONE_KEY)||"{}"); } catch(e){ done = {}; }
   try { custom = JSON.parse(localStorage.getItem(CUSTOM_KEY)||"[]"); } catch(e){ custom = []; }
   try { heatMap = JSON.parse(localStorage.getItem(HEAT_KEY)||"{}"); } catch(e){ heatMap = {}; }
   try { orderIds = JSON.parse(localStorage.getItem(ORDER_KEY)||"[]"); } catch(e){ orderIds = []; }
+  try { deletedIds = JSON.parse(localStorage.getItem(DELETED_KEY)||"[]"); } catch(e){ deletedIds = []; }
 
   var list = document.getElementById("list"),
       count = document.getElementById("count"),
@@ -139,6 +143,7 @@
       localStorage.setItem(CUSTOM_KEY, JSON.stringify(custom));
       localStorage.setItem(HEAT_KEY, JSON.stringify(heatMap));
       localStorage.setItem(ORDER_KEY, JSON.stringify(orderIds));
+      localStorage.setItem(DELETED_KEY, JSON.stringify(deletedIds));
     } catch(e){}
   }
   function all(){
@@ -146,7 +151,7 @@
     src.forEach(function(m){ map[m.id] = m; });
     orderIds.forEach(function(id){ if (map[id]) { out.push(map[id]); delete map[id]; } });
     src.forEach(function(m){ if (map[m.id]) out.push(m); });
-    return out;
+    return out.filter(function(m){ return deletedIds.indexOf(m.id) < 0; });
   }
   function heatOf(m){ return heatMap[m.id] != null ? heatMap[m.id] : (m.heat||1); }
   function stars(m){
@@ -155,30 +160,47 @@
     return s;
   }
   function setHeat(id, n){ heatMap[id] = n; save(); render(); }
+  var openId = null, openCard = null;
+  function closeOpen(){
+    if (openCard) openCard.style.transform = "";
+    openId = null; openCard = null;
+  }
+  function deleteMission(id){
+    var wasCustom = false;
+    custom = custom.filter(function(c){ if (c.id === id) wasCustom = true; return c.id !== id; });
+    if (!wasCustom && deletedIds.indexOf(id) < 0) deletedIds.push(id);
+    delete done[id]; delete heatMap[id];
+    orderIds = orderIds.filter(function(x){ return x !== id; });
+    if (openId === id) { openId = null; openCard = null; }
+    save(); render();
+  }
   function render(){
+    openId = null; openCard = null;
     list.innerHTML = "";
     var items = all(), passedCount = 0;
     items.forEach(function(m){
       var isDone = !!done[m.id];
       if (isDone) passedCount++;
+      var wrap = document.createElement("div");
+      wrap.className = "swipe";
+      wrap.setAttribute("data-id", m.id);
       var b = document.createElement("button");
       b.type = "button";
       b.className = "mission" + (isDone ? " done" : "");
-      b.setAttribute("data-id", m.id);
       b.setAttribute("aria-pressed", isDone ? "true" : "false");
       b.innerHTML =
         '<span class="box">' + (isDone ? "✓" : "") + '</span>' +
         '<span class="mbody"><span class="mtitle">' + m.title + '</span>' +
         (m.brief ? '<div class="mbrief">' + m.brief + '</div>' : '') +
         '<span class="mmeta"><span class="heat">' + stars(m) + '</span>' +
-        '<span class="stamp">PASSED</span></span></span>' +
-        (m.custom ? '<span class="del" aria-label="Delete mission">×</span>' : '');
+        '<span class="stamp">PASSED</span></span></span>';
       b.addEventListener("click", function(e){
         if (Date.now() < suppressClickUntil) return;
-        if (e.target.classList.contains("del")) return;
+        if (openId === m.id) { closeOpen(); return; }
+        if (openId) closeOpen();
         toggle(m.id);
       });
-      b.addEventListener("pointerdown", function(e){ startPress(e, b); });
+      b.addEventListener("pointerdown", function(e){ startPress(e, b, wrap); });
       b.addEventListener("contextmenu", function(e){ e.preventDefault(); });
       b.querySelectorAll(".st").forEach(function(st){
         st.addEventListener("click", function(e){
@@ -186,14 +208,14 @@
           setHeat(m.id, parseInt(st.getAttribute("data-star"), 10));
         });
       });
-      var del = b.querySelector(".del");
-      if (del) del.addEventListener("click", function(e){
-        e.stopPropagation();
-        custom = custom.filter(function(c){ return c.id !== m.id; });
-        delete done[m.id]; delete heatMap[m.id];
-        save(); render();
-      });
-      list.appendChild(b);
+      var delBtn = document.createElement("button");
+      delBtn.type = "button";
+      delBtn.className = "delbtn";
+      delBtn.textContent = "DELETE";
+      delBtn.addEventListener("click", function(e){ e.stopPropagation(); deleteMission(m.id); });
+      wrap.appendChild(delBtn);
+      wrap.appendChild(b);
+      list.appendChild(wrap);
     });
     count.textContent = "PASSED " + passedCount + "/" + items.length;
     fill.style.width = items.length ? Math.round(passedCount/items.length*100) + "%" : "0%";
@@ -203,25 +225,47 @@
   var suppressClickUntil = 0;
   var drag = null;
   function blockScroll(e){ if (drag) e.preventDefault(); }
-  function startPress(e, b){
-    if (e.target.classList.contains("st") || e.target.classList.contains("del")) return;
-    var startY = e.clientY, startX = e.clientX;
-    var timer = setTimeout(function(){ cleanup(); beginDrag(b, startY); }, 380);
+  function startPress(e, b, wrap){
+    if (e.target.classList.contains("st")) return;
+    if (openId && openCard !== b) closeOpen();
+    var startY = e.clientY, startX = e.clientX, mode = "";
+    var baseX = (openCard === b) ? -86 : 0;
+    var timer = setTimeout(function(){ if (!mode) { cleanup(); beginDrag(wrap, startY); } }, 380);
     function onMove(ev){
-      if (Math.abs(ev.clientY - startY) > 10 || Math.abs(ev.clientX - startX) > 10){ clearTimeout(timer); cleanup(); }
+      var dx = ev.clientX - startX, dy = ev.clientY - startY;
+      if (!mode) {
+        if (Math.abs(dy) > 10 && Math.abs(dy) >= Math.abs(dx)) { clearTimeout(timer); cleanup(); return; }
+        if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy)) { mode = "swipe"; clearTimeout(timer); b.style.transition = "none"; }
+        else return;
+      }
+      if (mode === "swipe") {
+        var x = baseX + dx; if (x > 0) x = 0; if (x < -94) x = -94;
+        b.style.transform = "translateX(" + x + "px)";
+      }
     }
-    function onUp(){ clearTimeout(timer); cleanup(); }
+    function onUp(ev){
+      clearTimeout(timer); cleanup();
+      if (mode === "swipe") {
+        var dx = ev.clientX - startX;
+        b.style.transition = "";
+        if (baseX + dx < -40) { b.style.transform = "translateX(-86px)"; openId = wrap.getAttribute("data-id"); openCard = b; }
+        else { b.style.transform = ""; if (openCard === b) { openId = null; openCard = null; } }
+        suppressClickUntil = Date.now() + 350;
+      }
+    }
+    function onCancel(){ clearTimeout(timer); cleanup(); if (mode === "swipe") { b.style.transition = ""; b.style.transform = baseX ? "translateX(-86px)" : ""; } }
     function cleanup(){
       b.removeEventListener("pointermove", onMove);
       b.removeEventListener("pointerup", onUp);
-      b.removeEventListener("pointercancel", onUp);
+      b.removeEventListener("pointercancel", onCancel);
     }
     b.addEventListener("pointermove", onMove);
     b.addEventListener("pointerup", onUp);
-    b.addEventListener("pointercancel", onUp);
+    b.addEventListener("pointercancel", onCancel);
     try { b.setPointerCapture(e.pointerId); } catch(err){}
   }
   function beginDrag(b, startY){
+    closeOpen();
     drag = { el: b, startY: startY, dy: 0, shift: 0, baseTop: b.offsetTop, h: b.offsetHeight };
     b.classList.add("dragging");
     b.style.transform = "scale(1.02)";
