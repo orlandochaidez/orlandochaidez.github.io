@@ -35,6 +35,8 @@
     font-family:inherit;
   }
   .mission:active{transform:scale(.99)}
+  .mission{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:pan-y}
+  .mission.dragging{position:relative;z-index:6;border-color:#ff9d00;box-shadow:0 16px 34px rgba(0,0,0,.6);opacity:.98}
   .box{
     flex:none;width:27px;height:27px;border:3px solid #ff9d00;border-radius:7px;margin-top:2px;
     display:flex;align-items:center;justify-content:center;font-size:19px;color:#0c0c0e;background:transparent;
@@ -105,7 +107,7 @@
     <button type="submit">Add mission</button>
   </form>
 
-  <p class="foot">Progress saves on this device. Tap the stars to set importance.<br>Tell Future Overlord to add official missions.</p>
+  <p class="foot">Progress saves on this device.<br>Tap the stars to set importance — hold a mission to drag it up or down.<br>Tell Future Overlord to add official missions.</p>
 </div>
 
 <div id="passed"><div class="big">Mission<br>Passed</div><div class="sub">RESPECT +</div></div>
@@ -119,11 +121,12 @@
     {id:"m-groceries", title:"Grocery Run", brief:"Grocery shop. The basics ain't gonna buy themselves.", heat:1},
     {id:"m-pickup", title:"Pickup Run", brief:"Pickup Walmart or Alb's order.", heat:1}
   ];
-  var DONE_KEY="missions-done-v1", CUSTOM_KEY="missions-custom-v1", HEAT_KEY="missions-heat-v1";
-  var done = {}, custom = [], heatMap = {};
+  var DONE_KEY="missions-done-v1", CUSTOM_KEY="missions-custom-v1", HEAT_KEY="missions-heat-v1", ORDER_KEY="missions-order-v1";
+  var done = {}, custom = [], heatMap = {}, orderIds = [];
   try { done = JSON.parse(localStorage.getItem(DONE_KEY)||"{}"); } catch(e){ done = {}; }
   try { custom = JSON.parse(localStorage.getItem(CUSTOM_KEY)||"[]"); } catch(e){ custom = []; }
   try { heatMap = JSON.parse(localStorage.getItem(HEAT_KEY)||"{}"); } catch(e){ heatMap = {}; }
+  try { orderIds = JSON.parse(localStorage.getItem(ORDER_KEY)||"[]"); } catch(e){ orderIds = []; }
 
   var list = document.getElementById("list"),
       count = document.getElementById("count"),
@@ -135,9 +138,16 @@
       localStorage.setItem(DONE_KEY, JSON.stringify(done));
       localStorage.setItem(CUSTOM_KEY, JSON.stringify(custom));
       localStorage.setItem(HEAT_KEY, JSON.stringify(heatMap));
+      localStorage.setItem(ORDER_KEY, JSON.stringify(orderIds));
     } catch(e){}
   }
-  function all(){ return BAKED.concat(custom); }
+  function all(){
+    var map = {}, out = [], src = BAKED.concat(custom);
+    src.forEach(function(m){ map[m.id] = m; });
+    orderIds.forEach(function(id){ if (map[id]) { out.push(map[id]); delete map[id]; } });
+    src.forEach(function(m){ if (map[m.id]) out.push(m); });
+    return out;
+  }
   function heatOf(m){ return heatMap[m.id] != null ? heatMap[m.id] : (m.heat||1); }
   function stars(m){
     var n = heatOf(m), s = "";
@@ -154,6 +164,7 @@
       var b = document.createElement("button");
       b.type = "button";
       b.className = "mission" + (isDone ? " done" : "");
+      b.setAttribute("data-id", m.id);
       b.setAttribute("aria-pressed", isDone ? "true" : "false");
       b.innerHTML =
         '<span class="box">' + (isDone ? "✓" : "") + '</span>' +
@@ -163,9 +174,12 @@
         '<span class="stamp">PASSED</span></span></span>' +
         (m.custom ? '<span class="del" aria-label="Delete mission">×</span>' : '');
       b.addEventListener("click", function(e){
+        if (Date.now() < suppressClickUntil) return;
         if (e.target.classList.contains("del")) return;
         toggle(m.id);
       });
+      b.addEventListener("pointerdown", function(e){ startPress(e, b); });
+      b.addEventListener("contextmenu", function(e){ e.preventDefault(); });
       b.querySelectorAll(".st").forEach(function(st){
         st.addEventListener("click", function(e){
           e.stopPropagation();
@@ -183,6 +197,83 @@
     });
     count.textContent = "PASSED " + passedCount + "/" + items.length;
     fill.style.width = items.length ? Math.round(passedCount/items.length*100) + "%" : "0%";
+  }
+
+
+  var suppressClickUntil = 0;
+  var drag = null;
+  function blockScroll(e){ if (drag) e.preventDefault(); }
+  function startPress(e, b){
+    if (e.target.classList.contains("st") || e.target.classList.contains("del")) return;
+    var startY = e.clientY, startX = e.clientX;
+    var timer = setTimeout(function(){ cleanup(); beginDrag(b, startY); }, 380);
+    function onMove(ev){
+      if (Math.abs(ev.clientY - startY) > 10 || Math.abs(ev.clientX - startX) > 10){ clearTimeout(timer); cleanup(); }
+    }
+    function onUp(){ clearTimeout(timer); cleanup(); }
+    function cleanup(){
+      b.removeEventListener("pointermove", onMove);
+      b.removeEventListener("pointerup", onUp);
+      b.removeEventListener("pointercancel", onUp);
+    }
+    b.addEventListener("pointermove", onMove);
+    b.addEventListener("pointerup", onUp);
+    b.addEventListener("pointercancel", onUp);
+    try { b.setPointerCapture(e.pointerId); } catch(err){}
+  }
+  function beginDrag(b, startY){
+    drag = { el: b, startY: startY, dy: 0, shift: 0, baseTop: b.offsetTop, h: b.offsetHeight };
+    b.classList.add("dragging");
+    b.style.transform = "scale(1.02)";
+    if (navigator.vibrate) { try { navigator.vibrate(15); } catch(err){} }
+    document.addEventListener("touchmove", blockScroll, { passive: false });
+    document.addEventListener("pointermove", onDragMove);
+    document.addEventListener("pointerup", endDrag);
+    document.addEventListener("pointercancel", endDrag);
+  }
+  function onDragMove(e){
+    if (!drag) return;
+    e.preventDefault();
+    drag.dy = e.clientY - drag.startY;
+    drag.el.style.transform = "translateY(" + (drag.dy - drag.shift) + "px) scale(1.02)";
+    for (var i = 0; i < 5; i++) { if (!swapCheck()) break; }
+  }
+  function swapCheck(){
+    var el = drag.el;
+    var center = drag.baseTop + drag.dy + drag.h / 2;
+    var next = el.nextElementSibling;
+    if (next && center > next.offsetTop + next.offsetHeight / 2) { flipSwap(next, false); return true; }
+    var prev = el.previousElementSibling;
+    if (prev && center < prev.offsetTop + prev.offsetHeight / 2) { flipSwap(prev, true); return true; }
+    return false;
+  }
+  function flipSwap(sib, sibBefore){
+    var before = sib.offsetTop;
+    if (sibBefore) list.insertBefore(drag.el, sib);
+    else list.insertBefore(sib, drag.el);
+    var d = before - sib.offsetTop;
+    if (d) {
+      sib.style.transition = "none";
+      sib.style.transform = "translateY(" + d + "px)";
+      requestAnimationFrame(function(){
+        sib.style.transition = "transform .18s ease";
+        sib.style.transform = "";
+        setTimeout(function(){ sib.style.transition = ""; }, 220);
+      });
+    }
+    drag.shift = drag.el.offsetTop - drag.baseTop;
+    drag.el.style.transform = "translateY(" + (drag.dy - drag.shift) + "px) scale(1.02)";
+  }
+  function endDrag(){
+    if (!drag) return;
+    document.removeEventListener("touchmove", blockScroll);
+    document.removeEventListener("pointermove", onDragMove);
+    document.removeEventListener("pointerup", endDrag);
+    document.removeEventListener("pointercancel", endDrag);
+    orderIds = Array.prototype.map.call(list.children, function(c){ return c.getAttribute("data-id"); }).filter(Boolean);
+    drag = null;
+    suppressClickUntil = Date.now() + 450;
+    save(); render();
   }
 
   var AC = null;
