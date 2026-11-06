@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Missions</title>
+<style>
+  html,body{margin:0;padding:0;background:#0c0c0e}
+  body{
+    font-family:"Arial Black","Archivo Black",system-ui,-apple-system,sans-serif;
+    color:#f3f3f3;min-height:100vh;
+    background:radial-gradient(120% 90% at 50% 0%, #23201c 0%, #131315 55%, #0c0c0e 100%);
+    -webkit-text-size-adjust:100%;
+  }
+  .wrap{max-width:640px;margin:0 auto;padding:26px 16px 46px}
+  .kicker{text-align:center;color:#ff9d00;letter-spacing:4px;font-size:13px;margin:0}
+  h1{
+    text-align:center;margin:2px 0 0;font-size:clamp(52px,15vw,84px);line-height:.95;
+    color:#ff9d00;text-transform:uppercase;font-style:italic;
+    text-shadow:3px 3px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 6px 22px rgba(0,0,0,.6);
+  }
+  .tagline{text-align:center;color:#c9c9c9;font-family:system-ui,sans-serif;font-weight:600;font-size:14px;margin:8px 0 22px}
+  .stats{
+    display:flex;justify-content:space-between;align-items:center;gap:12px;
+    background:rgba(0,0,0,.45);border:1px solid #3a3a3e;border-radius:10px;padding:10px 14px;margin-bottom:18px;
+    font-size:13px;letter-spacing:1px;
+  }
+  .bar{flex:1;height:10px;background:#2c2c30;border-radius:99px;overflow:hidden}
+  .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#ff9d00,#ffc95e);transition:width .5s ease}
+  .respect{color:#8ee06a;white-space:nowrap}
+  .mission{
+    display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;cursor:pointer;
+    background:linear-gradient(180deg,#1d1d20,#17171a);border:1px solid #333338;border-left:5px solid #ff9d00;
+    border-radius:12px;padding:14px 14px 13px;margin:0 0 11px;color:#f3f3f3;
+    box-shadow:0 3px 12px rgba(0,0,0,.4);-webkit-tap-highlight-color:transparent;
+    font-family:inherit;
+  }
+  .mission:active{transform:scale(.99)}
+  .box{
+    flex:none;width:27px;height:27px;border:3px solid #ff9d00;border-radius:7px;margin-top:2px;
+    display:flex;align-items:center;justify-content:center;font-size:19px;color:#0c0c0e;background:transparent;
+  }
+  .mission.done{opacity:.55;border-left-color:#8ee06a}
+  .mission.done .box{background:#8ee06a;border-color:#8ee06a}
+  .mission.done .mtitle{text-decoration:line-through}
+  .mbody{flex:1;min-width:0}
+  .mtitle{font-size:19px;line-height:1.15;text-transform:uppercase;letter-spacing:.4px}
+  .mbrief{font-family:system-ui,sans-serif;font-weight:500;font-size:14px;color:#bdbdbd;margin-top:3px;line-height:1.35}
+  .mmeta{display:flex;justify-content:space-between;align-items:center;margin-top:7px}
+  .heat{color:#ff9d00;font-size:13px;letter-spacing:2px}
+  .heat .off{color:#4a4a4f}
+  .stamp{font-size:12px;color:#8ee06a;letter-spacing:2px;display:none}
+  .mission.done .stamp{display:inline}
+  .del{
+    flex:none;background:none;border:none;color:#777;font-size:19px;cursor:pointer;padding:2px 4px;line-height:1;
+  }
+  .adder{
+    background:rgba(0,0,0,.45);border:1px dashed #4a4a4f;border-radius:12px;padding:14px;margin-top:20px;
+  }
+  .adder h2{margin:0 0 10px;font-size:15px;color:#ff9d00;letter-spacing:2px}
+  .adder input{
+    width:100%;box-sizing:border-box;background:#101012;border:1px solid #3a3a3e;border-radius:8px;
+    color:#fff;padding:11px 12px;font-size:16px;font-family:system-ui,sans-serif;margin-bottom:9px;
+  }
+  .adder button{
+    width:100%;background:#ff9d00;color:#141414;border:none;border-radius:8px;padding:12px;
+    font-family:inherit;font-size:15px;letter-spacing:1px;cursor:pointer;text-transform:uppercase;
+  }
+  .foot{text-align:center;color:#666;font-family:system-ui,sans-serif;font-size:12.5px;margin-top:26px;line-height:1.5}
+  #passed{
+    position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    pointer-events:none;opacity:0;z-index:50;padding:0 12px;text-align:center;
+  }
+  #passed.on{animation:pop 2s ease forwards}
+  #passed .big{
+    font-size:clamp(44px,13vw,76px);color:#ff9d00;text-transform:uppercase;font-style:italic;line-height:.95;
+    text-shadow:3px 3px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 8px 30px rgba(0,0,0,.75);
+  }
+  #passed .sub{color:#8ee06a;font-size:clamp(18px,5vw,26px);letter-spacing:3px;margin-top:10px;text-shadow:2px 2px 0 #000}
+  @keyframes pop{
+    0%{opacity:0;transform:scale(.85)}
+    12%{opacity:1;transform:scale(1.04)}
+    18%{transform:scale(1)}
+    78%{opacity:1}
+    100%{opacity:0;transform:scale(1.02)}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="kicker">ORLANDO PRESENTS</p>
+  <h1>Missions</h1>
+  <p class="tagline">Straight outta Bakersfield. Tap a mission to pass it.</p>
+
+  <div class="stats">
+    <span id="count">PASSED 0/0</span>
+    <div class="bar"><i id="fill"></i></div>
+    <span class="respect">RESPECT +</span>
+  </div>
+
+  <div id="list"></div>
+
+  <form class="adder" id="adder">
+    <h2>+ NEW MISSION</h2>
+    <input id="mtitle" type="text" placeholder="Mission name" autocomplete="off" maxlength="60">
+    <input id="mbrief" type="text" placeholder="Brief (optional)" autocomplete="off" maxlength="90">
+    <button type="submit">Add mission</button>
+  </form>
+
+  <p class="foot">Progress saves on this device.<br>Tell Future Overlord to add official missions.</p>
+</div>
+
+<div id="passed"><div class="big">Mission<br>Passed</div><div class="sub">RESPECT +</div></div>
+
+<script>
+(function(){
+  var BAKED = [
+    {id:"m-dashboard", title:"The Dashboard", brief:"Make the automations dashboard and that whole setup.", heat:3},
+    {id:"m-upholstery-bot", title:"Upholstery Call Bot", brief:"Improve the upholstery call bot.", heat:2},
+    {id:"m-pricing-notebook", title:"Pricing Notebook", brief:"Find pricing notebook to use for better price ranges.", heat:2},
+    {id:"m-groceries", title:"Grocery Run", brief:"Grocery shop. The basics ain't gonna buy themselves.", heat:1},
+    {id:"m-pickup", title:"Pickup Run", brief:"Pickup Walmart or Alb's order.", heat:1}
+  ];
+  var DONE_KEY="missions-done-v1", CUSTOM_KEY="missions-custom-v1";
+  var done = {}, custom = [];
+  try { done = JSON.parse(localStorage.getItem(DONE_KEY)||"{}"); } catch(e){ done = {}; }
+  try { custom = JSON.parse(localStorage.getItem(CUSTOM_KEY)||"[]"); } catch(e){ custom = []; }
+
+  var list = document.getElementById("list"),
+      count = document.getElementById("count"),
+      fill = document.getElementById("fill"),
+      overlay = document.getElementById("passed");
+
+  function save(){
+    try {
+      localStorage.setItem(DONE_KEY, JSON.stringify(done));
+      localStorage.setItem(CUSTOM_KEY, JSON.stringify(custom));
+    } catch(e){}
+  }
+  function all(){ return BAKED.concat(custom); }
+  function stars(n){
+    var s = "";
+    for (var i=1;i<=3;i++) s += i<=n ? "★" : '<span class="off">★</span>';
+    return s;
+  }
+  function render(){
+    list.innerHTML = "";
+    var items = all(), passedCount = 0;
+    items.forEach(function(m){
+      var isDone = !!done[m.id];
+      if (isDone) passedCount++;
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "mission" + (isDone ? " done" : "");
+      b.setAttribute("aria-pressed", isDone ? "true" : "false");
+      b.innerHTML =
+        '<span class="box">' + (isDone ? "✓" : "") + '</span>' +
+        '<span class="mbody"><span class="mtitle">' + m.title + '</span>' +
+        (m.brief ? '<div class="mbrief">' + m.brief + '</div>' : '') +
+        '<span class="mmeta"><span class="heat">' + stars(m.heat||1) + '</span>' +
+        '<span class="stamp">PASSED</span></span></span>' +
+        (m.custom ? '<span class="del" aria-label="Delete mission">×</span>' : '');
+      b.addEventListener("click", function(e){
+        if (e.target.classList.contains("del")) return;
+        toggle(m.id);
+      });
+      var del = b.querySelector(".del");
+      if (del) del.addEventListener("click", function(e){
+        e.stopPropagation();
+        custom = custom.filter(function(c){ return c.id !== m.id; });
+        delete done[m.id];
+        save(); render();
+      });
+      list.appendChild(b);
+    });
+    count.textContent = "PASSED " + passedCount + "/" + items.length;
+    fill.style.width = items.length ? Math.round(passedCount/items.length*100) + "%" : "0%";
+  }
+
+  var AC = null;
+  function jingle(){
+    try {
+      if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+      if (AC.state === "suspended") AC.resume();
+      var t = AC.currentTime;
+      function tone(freq, at, dur, type, vol){
+        var o = AC.createOscillator(), g = AC.createGain(), f = AC.createBiquadFilter();
+        o.type = type || "sawtooth"; o.frequency.value = freq;
+        f.type = "lowpass"; f.frequency.value = 2400;
+        g.gain.setValueAtTime(0, t + at);
+        g.gain.linearRampToValueAtTime(vol, t + at + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.001, t + at + dur);
+        o.connect(f); f.connect(g); g.connect(AC.destination);
+        o.start(t + at); o.stop(t + at + dur + 0.05);
+      }
+      // original triumphant sting, San Andreas energy
+      tone(261.6, 0.00, 0.35);
+      tone(329.6, 0.09, 0.35);
+      tone(392.0, 0.18, 0.40);
+      tone(523.3, 0.27, 0.95);
+      tone(659.3, 0.27, 0.95);
+      tone(784.0, 0.27, 0.95);
+      tone(130.8, 0.27, 0.95, "triangle", 0.22);
+    } catch(e){}
+  }
+
+  function toggle(id){
+    if (done[id]) { delete done[id]; }
+    else {
+      done[id] = 1;
+      jingle();
+      overlay.classList.remove("on");
+      void overlay.offsetWidth;
+      overlay.classList.add("on");
+    }
+    save(); render();
+  }
+
+  document.getElementById("adder").addEventListener("submit", function(e){
+    e.preventDefault();
+    var t = document.getElementById("mtitle"), b = document.getElementById("mbrief");
+    var title = t.value.trim();
+    if (!title) return;
+    custom.push({id:"c" + Date.now(), title:title.replace(/</g,""), brief:b.value.trim().replace(/</g,""), heat:1, custom:true});
+    t.value = ""; b.value = "";
+    save(); render();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
