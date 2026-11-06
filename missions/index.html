@@ -36,8 +36,9 @@
   }
   .mission:active{transform:scale(.99)}
   .mission{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:pan-y}
+  .empty{text-align:center;color:#8a8a8f;font-family:system-ui,sans-serif;font-size:15px;padding:34px 10px;line-height:1.5}
   .swipe{position:relative;overflow:hidden;border-radius:12px;margin:0 0 11px;box-shadow:0 3px 12px rgba(0,0,0,.4)}
-  .delbtn{position:absolute;top:0;right:0;bottom:0;width:86px;border:0;background:#e0362c;color:#fff;font-family:inherit;font-weight:800;font-size:15px;letter-spacing:.6px;cursor:pointer}
+  .delbtn{visibility:hidden;position:absolute;top:0;right:0;bottom:0;width:86px;border:0;background:#e0362c;color:#fff;font-family:inherit;font-weight:800;font-size:15px;letter-spacing:.6px;cursor:pointer}
   .swipe.dragging{position:relative;z-index:6;box-shadow:0 16px 34px rgba(0,0,0,.6)}
   .swipe.dragging .mission{border-color:#ff9d00;opacity:.98}
   .box{
@@ -117,13 +118,14 @@
 
 <script>
 (function(){
-  var BAKED = [
+  var LEGACY_SEED = [
     {id:"m-dashboard", title:"The Dashboard", brief:"Make the automations dashboard and that whole setup.", heat:3},
     {id:"m-upholstery-bot", title:"Upholstery Call Bot", brief:"Improve the upholstery call bot.", heat:2},
     {id:"m-pricing-notebook", title:"Pricing Notebook", brief:"Find pricing notebook to use for better price ranges.", heat:2},
     {id:"m-groceries", title:"Grocery Run", brief:"Grocery shop. The basics ain't gonna buy themselves.", heat:1},
     {id:"m-pickup", title:"Pickup Run", brief:"Pickup Walmart or Alb's order.", heat:1}
   ];
+  var BAKED = [];
   var DONE_KEY="missions-done-v1", CUSTOM_KEY="missions-custom-v1", HEAT_KEY="missions-heat-v1", ORDER_KEY="missions-order-v1", DELETED_KEY="missions-deleted-v1";
   var done = {}, custom = [], heatMap = {}, orderIds = [], deletedIds = [];
   try { done = JSON.parse(localStorage.getItem(DONE_KEY)||"{}"); } catch(e){ done = {}; }
@@ -132,6 +134,22 @@
   try { orderIds = JSON.parse(localStorage.getItem(ORDER_KEY)||"[]"); } catch(e){ orderIds = []; }
   try { deletedIds = JSON.parse(localStorage.getItem(DELETED_KEY)||"[]"); } catch(e){ deletedIds = []; }
 
+  var MIGRATED_KEY = "missions-migrated-v1";
+  try {
+    if (!localStorage.getItem(MIGRATED_KEY)) {
+      var hasLegacy = !!(localStorage.getItem(DONE_KEY) || localStorage.getItem(CUSTOM_KEY) || localStorage.getItem(HEAT_KEY) || localStorage.getItem(ORDER_KEY));
+      if (hasLegacy) {
+        var have = {};
+        custom.forEach(function(c){ have[c.id] = true; });
+        var seed = LEGACY_SEED.filter(function(mm){ return !have[mm.id]; }).map(function(mm){
+          return { id: mm.id, title: mm.title, brief: mm.brief, heat: mm.heat, custom: true };
+        });
+        custom = seed.concat(custom);
+        save();
+      }
+      localStorage.setItem(MIGRATED_KEY, "1");
+    }
+  } catch(e){}
   var list = document.getElementById("list"),
       count = document.getElementById("count"),
       fill = document.getElementById("fill"),
@@ -162,7 +180,7 @@
   function setHeat(id, n){ heatMap[id] = n; save(); render(); }
   var openId = null, openCard = null;
   function closeOpen(){
-    if (openCard) openCard.style.transform = "";
+    if (openCard) { openCard.style.transform = ""; var oc = openCard; setTimeout(function(){ var d = oc.parentElement ? oc.parentElement.querySelector(".delbtn") : null; if (d && openCard !== oc) d.style.visibility = "hidden"; }, 190); }
     openId = null; openCard = null;
   }
   function deleteMission(id){
@@ -217,6 +235,7 @@
       wrap.appendChild(b);
       list.appendChild(wrap);
     });
+    if (!items.length) list.innerHTML = '<div class="empty">No missions yet.<br>Add one below to get started.</div>';
     count.textContent = "PASSED " + passedCount + "/" + items.length;
     fill.style.width = items.length ? Math.round(passedCount/items.length*100) + "%" : "0%";
   }
@@ -235,7 +254,7 @@
       var dx = ev.clientX - startX, dy = ev.clientY - startY;
       if (!mode) {
         if (Math.abs(dy) > 10 && Math.abs(dy) >= Math.abs(dx)) { clearTimeout(timer); cleanup(); return; }
-        if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy)) { mode = "swipe"; clearTimeout(timer); b.style.transition = "none"; }
+        if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy)) { mode = "swipe"; clearTimeout(timer); b.style.transition = "none"; var db = wrap.querySelector(".delbtn"); if (db) db.style.visibility = "visible"; }
         else return;
       }
       if (mode === "swipe") {
@@ -249,7 +268,7 @@
         var dx = ev.clientX - startX;
         b.style.transition = "";
         if (baseX + dx < -40) { b.style.transform = "translateX(-86px)"; openId = wrap.getAttribute("data-id"); openCard = b; }
-        else { b.style.transform = ""; if (openCard === b) { openId = null; openCard = null; } }
+        else { b.style.transform = ""; if (openCard === b) { openId = null; openCard = null; } var db2 = wrap.querySelector(".delbtn"); if (db2) setTimeout(function(){ if (openCard !== b) db2.style.visibility = "hidden"; }, 190); }
         suppressClickUntil = Date.now() + 350;
       }
     }
