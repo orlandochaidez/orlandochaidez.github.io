@@ -24,6 +24,11 @@
     border-radius:10px; font-size:16px; padding:4px 10px; cursor:pointer;
     box-shadow:0 2px 0 #b9b9c4, inset 0 1px 0 rgba(255,255,255,.9); }
   #muteBtn:active{ transform:translateY(1px); box-shadow:0 1px 0 #b9b9c4; }
+  #shakeBtn{ background:linear-gradient(180deg,#ffffff,#dcdce3); color:#33343c; border:1px solid #c6c6d0;
+    border-radius:999px; font-size:11px; font-weight:800; letter-spacing:.4px; padding:6px 10px; cursor:pointer; font-family:inherit;
+    box-shadow:0 2px 0 #b9b9c4, inset 0 1px 0 rgba(255,255,255,.9); }
+  #shakeBtn:active{ transform:translateY(1px); box-shadow:0 1px 0 #b9b9c4; }
+  #shakeBtn.off{ background:linear-gradient(180deg,#ffe1e1,#ffb8b8); border-color:#e08a8a; color:#7a1010; box-shadow:0 2px 0 #c46a6a, inset 0 1px 0 rgba(255,255,255,.7); }
   /* ---------- logo ---------- */
   #logo{ font-size:44px; font-weight:900; letter-spacing:1px; line-height:1; margin-top:2px;
     color:#ffc400;
@@ -200,6 +205,7 @@
     <a href="../index.html">← All games</a>
     <div id="best">BEST 0</div>
     <div id="worldBest">🌍 …</div>
+    <button id="shakeBtn" aria-label="toggle no-shake mode">📳 SHAKE</button>
     <button id="muteBtn" aria-label="toggle sound">🔊</button>
   </div>
 
@@ -286,7 +292,7 @@
   <div id="hint">
     <b>How to play:</b> boop the pup's snoot to <b>BOOP</b> · drag the yellow knob in a circle to <b>TWIST</b> ·
     drag the blue handle down to <b>PULL</b> · swipe the green switch to <b>FLICK</b> ·
-    for <b>SHAKE</b>, shake your phone — or grab the toy's body and wiggle it.<br>
+    for <b>SHAKE</b>, shake your phone — or grab the toy's body and wiggle it. Don't want to shake? Tap <b>🚫 NO SHAKE</b> up top and shake commands won't come up — and bumping your phone won't count against you.<br>
     Desktop keys: <b>Space</b> boop · <b>←/→</b> twist · <b>↓</b> pull · <b>↑</b> flick · <b>S</b> shake
   </div>
 
@@ -297,7 +303,7 @@ const $=id=>document.getElementById(id);
 const toy=$('toy'), cmdEl=$('cmd'), fill=$('timerFill'), lcdScore=$('lcdScore'), lcdMsg=$('lcdMsg'),
       bestEl=$('best'), overlay=$('overlay'), ovTitle=$('ovTitle'), ovText=$('ovText'), startBtn=$('startBtn'),
       boopBtn=$('boopBtn'), twistEl=$('twist'), flickSlot=$('flickSlot'), flickSwitch=$('flickSwitch'),
-      pullHandle=$('pullHandle'), pullShaft=$('pullShaft'), muteBtn=$('muteBtn');
+      pullHandle=$('pullHandle'), pullShaft=$('pullShaft'), muteBtn=$('muteBtn'), shakeBtn=$('shakeBtn');
 
 const COMMANDS=[
   {id:'boop',  label:'BOOP IT!',  say:'Boop it!',  color:'#e8490f'},
@@ -308,10 +314,10 @@ const COMMANDS=[
 ];
 const LS_KEY='boop-it-v1';
 let saved={}; try{ saved=JSON.parse(localStorage.getItem(LS_KEY)||'{}'); }catch(e){ saved={}; }
-let best=saved.best|0, muted=!!saved.muted;
+let best=saved.best|0, muted=!!saved.muted, noShake=!!saved.noShake;
 
 const S={ playing:false, over:true, score:0, cmd:null, deadline:0, windowMs:2600, lastTick:0, startedAt:0 };
-function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify({best:best, muted:muted})); }catch(e){} }
+function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify({best:best, muted:muted, noShake:noShake})); }catch(e){} }
 function showBest(){ bestEl.textContent='BEST '+best; lcdMsg.textContent='HI '+best; }
 function showScore(){ lcdScore.textContent='SCORE '+S.score; }
 muteBtn.textContent = muted?'🔇':'🔊';
@@ -431,8 +437,9 @@ function speak(text){
 /* ---------------- game flow ---------------- */
 function windowFor(score){ return Math.max(850, 2600 - score*85); }
 function nextCommand(now){
+  const pool = noShake ? COMMANDS.filter(c=>c.id!=='shake') : COMMANDS;
   let c, guard=0;
-  do{ c=COMMANDS[(Math.random()*COMMANDS.length)|0]; guard++; }
+  do{ c=pool[(Math.random()*pool.length)|0]; guard++; }
   while(S.cmd && c.id===S.cmd.id && Math.random()<0.72 && guard<6);
   S.cmd=c; S.windowMs=windowFor(S.score); S.deadline=now+S.windowMs;
   resetGestures();
@@ -472,6 +479,7 @@ function gameOver(reason, now){
   try{ speechSynthesis.cancel(); }catch(e){}
 }
 function act(id, now){
+  if(id==='shake' && noShake) return; // no-shake mode: jostles are ignored completely, never a fail
   now = (typeof now==='number') ? now : performance.now();
   if(!S.playing) return false;
   if(S.cmd && id===S.cmd.id){
@@ -656,11 +664,20 @@ muteBtn.addEventListener('click', ()=>{
   muted=!muted; save(); muteBtn.textContent=muted?'🔇':'🔊';
   if(muted){ try{ speechSynthesis.cancel(); }catch(e){} }
 });
+function paintShakeBtn(){ shakeBtn.textContent = noShake?'🚫 NO SHAKE':'📳 SHAKE'; shakeBtn.classList.toggle('off', noShake); }
+paintShakeBtn();
+shakeBtn.addEventListener('click', ()=>{
+  noShake=!noShake; save(); paintShakeBtn();
+  if(noShake && S.playing && !S.over && S.cmd && S.cmd.id==='shake') nextCommand(performance.now()); // swap a live shake command for a fresh one
+});
 overlay.addEventListener('pointerdown', e=>{ if(e.target===overlay) e.preventDefault(); });
 
 /* test hooks */
 window.__boop={
   start, act, tick,
+  setNoShake:(v)=>{ noShake=!!v; save(); paintShakeBtn();
+    if(noShake && S.playing && !S.over && S.cmd && S.cmd.id==='shake') nextCommand(performance.now()); },
+  noShake:()=>noShake,
   state:()=>({ playing:S.playing, over:S.over, score:S.score, cmd:S.cmd?S.cmd.id:null,
                windowMs:S.windowMs, deadline:S.deadline, best:best }),
   setDeadline:(t)=>{ S.deadline=t; },
