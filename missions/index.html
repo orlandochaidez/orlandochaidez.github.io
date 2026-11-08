@@ -64,6 +64,12 @@
     background:rgba(0,0,0,.45);border:1px dashed #4a4a4f;border-radius:12px;padding:14px;margin-top:20px;
   }
   .adder h2{margin:0 0 10px;font-size:15px;color:#ff9d00;letter-spacing:2px}
+  .sectrow{display:flex;align-items:baseline;gap:10px;margin:26px 0 10px}
+  .sect{font-size:27px;font-style:italic;text-transform:uppercase;color:#ff9d00;margin:0;text-shadow:2px 2px 0 #000,0 4px 14px rgba(0,0,0,.5)}
+  .sectcount{color:#8ee06a;font-family:system-ui,sans-serif;font-weight:700;font-size:13px;letter-spacing:1px}
+  .catpick{display:flex;gap:8px;margin:0 0 10px}
+  .catbtn{flex:1;padding:9px 6px;border-radius:9px;border:2px solid #44444a;background:#17171a;color:#c9c9c9;font-family:inherit;font-size:14px;letter-spacing:.5px;cursor:pointer;text-transform:uppercase}
+  .catbtn.on{border-color:#ff9d00;color:#ff9d00;background:#241a08}
   .adder input{
     width:100%;box-sizing:border-box;background:#101012;border:1px solid #3a3a3e;border-radius:8px;
     color:#fff;padding:11px 12px;font-size:16px;font-family:system-ui,sans-serif;margin-bottom:9px;
@@ -102,13 +108,21 @@
     <span class="respect">RESPECT +</span>
   </div>
 
+  <div class="sectrow"><h2 class="sect">To-Dos</h2></div>
   <div id="list"></div>
 
+  <div class="sectrow"><h2 class="sect">Ideas</h2><span id="icount" class="sectcount"></span></div>
+  <div id="listIdeas"></div>
+
   <form class="adder" id="adder">
-    <h2>+ NEW MISSION</h2>
+    <h2 id="formTitle">+ NEW MISSION</h2>
+    <div class="catpick">
+      <button type="button" id="catTodo" class="catbtn on">Mission</button>
+      <button type="button" id="catIdea" class="catbtn">Idea</button>
+    </div>
     <input id="mtitle" type="text" placeholder="Mission name" autocomplete="off" maxlength="60">
     <input id="mbrief" type="text" placeholder="Brief (optional)" autocomplete="off" maxlength="90">
-    <button type="submit">Add mission</button>
+    <button type="submit" id="addBtn">Add mission</button>
   </form>
 
   <p class="foot">Progress saves on this device.<br>Tap stars for importance · hold to drag · swipe left to delete.<br>Tell Future Overlord to add official missions.</p>
@@ -151,6 +165,8 @@
     }
   } catch(e){}
   var list = document.getElementById("list"),
+      listIdeas = document.getElementById("listIdeas"),
+      icount = document.getElementById("icount"),
       count = document.getElementById("count"),
       fill = document.getElementById("fill"),
       overlay = document.getElementById("passed");
@@ -192,13 +208,24 @@
     if (openId === id) { openId = null; openCard = null; }
     save(); render();
   }
+  function catOf(m){ return m.cat === "idea" ? "idea" : "todo"; }
   function render(){
     openId = null; openCard = null;
-    list.innerHTML = "";
-    var items = all(), passedCount = 0;
-    items.forEach(function(m){
-      var isDone = !!done[m.id];
-      if (isDone) passedCount++;
+    list.innerHTML = ""; listIdeas.innerHTML = "";
+    var items = all();
+    var todos = items.filter(function(m){ return catOf(m) === "todo"; });
+    var ideas = items.filter(function(m){ return catOf(m) === "idea"; });
+    var passedCount = 0, ideasPassed = 0;
+    todos.forEach(function(m){ if (done[m.id]) passedCount++; list.appendChild(buildCard(m)); });
+    ideas.forEach(function(m){ if (done[m.id]) ideasPassed++; listIdeas.appendChild(buildCard(m)); });
+    if (!todos.length) list.innerHTML = '<div class="empty">No missions yet.<br>Add one below to get started.</div>';
+    if (!ideas.length) listIdeas.innerHTML = '<div class="empty">No ideas yet.<br>Flip the form to IDEA and drop one in.</div>';
+    count.textContent = "PASSED " + passedCount + "/" + todos.length;
+    fill.style.width = todos.length ? Math.round(passedCount/todos.length*100) + "%" : "0%";
+    icount.textContent = ideas.length ? ideasPassed + "/" + ideas.length + " DONE" : "";
+  }
+  function buildCard(m){
+    var isDone = !!done[m.id];
       var wrap = document.createElement("div");
       wrap.className = "swipe";
       wrap.setAttribute("data-id", m.id);
@@ -233,11 +260,7 @@
       delBtn.addEventListener("click", function(e){ e.stopPropagation(); deleteMission(m.id); });
       wrap.appendChild(delBtn);
       wrap.appendChild(b);
-      list.appendChild(wrap);
-    });
-    if (!items.length) list.innerHTML = '<div class="empty">No missions yet.<br>Add one below to get started.</div>';
-    count.textContent = "PASSED " + passedCount + "/" + items.length;
-    fill.style.width = items.length ? Math.round(passedCount/items.length*100) + "%" : "0%";
+    return wrap;
   }
 
 
@@ -312,8 +335,8 @@
   }
   function flipSwap(sib, sibBefore){
     var before = sib.offsetTop;
-    if (sibBefore) list.insertBefore(drag.el, sib);
-    else list.insertBefore(sib, drag.el);
+    if (sibBefore) drag.el.parentNode.insertBefore(drag.el, sib);
+    else drag.el.parentNode.insertBefore(sib, drag.el);
     var d = before - sib.offsetTop;
     if (d) {
       sib.style.transition = "none";
@@ -333,7 +356,8 @@
     document.removeEventListener("pointermove", onDragMove);
     document.removeEventListener("pointerup", endDrag);
     document.removeEventListener("pointercancel", endDrag);
-    orderIds = Array.prototype.map.call(list.children, function(c){ return c.getAttribute("data-id"); }).filter(Boolean);
+    var idsOf = function(coll){ return Array.prototype.map.call(coll, function(c){ return c.getAttribute("data-id"); }).filter(Boolean); };
+    orderIds = idsOf(list.children).concat(idsOf(listIdeas.children));
     drag = null;
     suppressClickUntil = Date.now() + 450;
     save(); render();
@@ -388,12 +412,25 @@
     save(); render();
   }
 
+  var formCat = "todo";
+  var catTodo = document.getElementById("catTodo"), catIdea = document.getElementById("catIdea");
+  function setFormCat(c){
+    formCat = c;
+    catTodo.classList.toggle("on", c === "todo");
+    catIdea.classList.toggle("on", c === "idea");
+    document.getElementById("formTitle").textContent = c === "idea" ? "+ NEW IDEA" : "+ NEW MISSION";
+    document.getElementById("mtitle").placeholder = c === "idea" ? "Idea name" : "Mission name";
+    document.getElementById("addBtn").textContent = c === "idea" ? "Add idea" : "Add mission";
+  }
+  catTodo.addEventListener("click", function(){ setFormCat("todo"); });
+  catIdea.addEventListener("click", function(){ setFormCat("idea"); });
+
   document.getElementById("adder").addEventListener("submit", function(e){
     e.preventDefault();
     var t = document.getElementById("mtitle"), b = document.getElementById("mbrief");
     var title = t.value.trim();
     if (!title) return;
-    custom.push({id:"c" + Date.now(), title:title.replace(/</g,""), brief:b.value.trim().replace(/</g,""), heat:1, custom:true});
+    custom.push({id:"c" + Date.now(), title:title.replace(/</g,""), brief:b.value.trim().replace(/</g,""), heat:1, custom:true, cat: formCat});
     t.value = ""; b.value = "";
     save(); render();
   });
