@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Boop It! — the boopable toy game</title>
+<style>
+  *{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ height:100%; }
+  body{
+    font-family:'Arial Rounded MT Bold','Helvetica Rounded','Trebuchet MS',Arial,sans-serif;
+    background:
+      radial-gradient(120% 90% at 50% 0%, #2c2f3a 0%, #17181f 55%, #0b0b10 100%);
+    color:#f2f2f5; overflow-x:hidden; min-height:100vh;
+    display:flex; flex-direction:column; align-items:center;
+    -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;
+  }
+  /* ---------- top bar ---------- */
+  #topbar{ width:100%; max-width:520px; display:flex; align-items:center; justify-content:space-between; padding:10px 14px 2px; }
+  #topbar a{ color:#9fd8ff; text-decoration:none; font-size:14px; letter-spacing:.4px; }
+  #best{ font-size:13px; color:#ffd76a; letter-spacing:1.2px; text-shadow:0 1px 0 #000; }
+  #muteBtn{ background:linear-gradient(180deg,#4a4e5c,#2c2e38); color:#fff; border:1px solid #12131a;
+    border-radius:10px; font-size:16px; padding:4px 10px; cursor:pointer;
+    box-shadow:0 2px 0 #101116, inset 0 1px 0 rgba(255,255,255,.25); }
+  #muteBtn:active{ transform:translateY(1px); box-shadow:0 1px 0 #101116; }
+  /* ---------- logo ---------- */
+  #logo{ font-size:44px; font-weight:900; letter-spacing:1px; line-height:1; margin-top:2px;
+    color:#ffd21f;
+    text-shadow:0 2px 0 #e07b00, 0 4px 0 #b35c00, 0 6px 2px rgba(0,0,0,.55), 0 10px 18px rgba(0,0,0,.6);
+    transform:rotate(-2deg);
+  }
+  #logo span{ color:#ff5347; text-shadow:0 2px 0 #c22e24, 0 4px 0 #8f1d15, 0 6px 2px rgba(0,0,0,.55), 0 10px 18px rgba(0,0,0,.6); }
+  /* ---------- command banner ---------- */
+  #cmdWrap{ height:86px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; margin-top:4px; }
+  #cmd{ font-size:40px; font-weight:900; letter-spacing:1.5px; color:#fff; text-align:center;
+    text-shadow:0 3px 0 rgba(0,0,0,.45), 0 8px 22px rgba(0,0,0,.6); }
+  #cmd.pop{ animation:pop .18s ease-out; }
+  @keyframes pop{ 0%{ transform:scale(1.45) rotate(-2deg); } 100%{ transform:scale(1) rotate(0); } }
+  #cmd small{ display:block; font-size:13px; letter-spacing:2.5px; color:#b9c2d0; font-weight:700; text-shadow:0 1px 0 #000; }
+  #timerTrack{ width:min(78vw,340px); height:12px; border-radius:7px; background:#101116;
+    box-shadow:inset 0 2px 5px rgba(0,0,0,.9), 0 1px 0 rgba(255,255,255,.12); overflow:hidden; }
+  #timerFill{ height:100%; width:100%; border-radius:7px;
+    background:linear-gradient(180deg,#b6ff7a,#57c918 55%,#3d9c0d);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.55); transition:none; }
+  #timerFill.low{ background:linear-gradient(180deg,#ffb03a,#f4760b 55%,#c75300); }
+  /* ---------- stage / toy shadow ---------- */
+  #stage{ flex:1; width:100%; display:flex; align-items:flex-start; justify-content:center; padding:6px 8px 0; }
+  #toyShadow{ width:min(88vw,352px); }
+  #toyShadow::after{ content:''; display:block; height:26px; margin:10px 18px 0; border-radius:50%;
+    background:radial-gradient(50% 50% at 50% 50%, rgba(0,0,0,.65), rgba(0,0,0,0) 70%); }
+  /* ---------- the toy body: molded plastic ---------- */
+  #toy{
+    position:relative; width:100%; padding:64px 18px 16px;
+    border-radius:64px 64px 78px 78px / 54px 54px 90px 90px;
+    background:
+      radial-gradient(130% 60% at 50% -8%, rgba(255,255,255,.28), rgba(255,255,255,0) 55%),
+      linear-gradient(165deg,#4b4258 0%, #372f47 34%, #282136 62%, #1c1729 100%);
+    box-shadow:
+      inset 0 2px 2px rgba(255,255,255,.35),
+      inset 0 -14px 24px rgba(0,0,0,.55),
+      inset 3px 0 8px rgba(255,255,255,.07),
+      inset -3px 0 10px rgba(0,0,0,.35),
+      0 18px 34px rgba(0,0,0,.6);
+    touch-action:none;
+  }
+  /* molded seam */
+  #toy::before{ content:''; position:absolute; inset:9px; border-radius:56px 56px 70px 70px / 48px 48px 82px 82px;
+    border:1.5px solid rgba(0,0,0,.28); box-shadow:inset 0 1px 0 rgba(255,255,255,.13), 0 1px 0 rgba(255,255,255,.06); pointer-events:none; }
+  /* gloss streak */
+  #toy::after{ content:''; position:absolute; left:26px; top:16px; width:64px; height:46%;
+    border-radius:50%; background:linear-gradient(100deg, rgba(255,255,255,.20), rgba(255,255,255,0) 70%);
+    transform:rotate(14deg); pointer-events:none; }
+  .screw{ position:absolute; width:15px; height:15px; border-radius:50%; z-index:3;
+    background:radial-gradient(circle at 35% 30%, #e8ecf4, #9aa1b1 45%, #565d6e 80%, #333947);
+    box-shadow:inset 0 -1px 2px rgba(0,0,0,.6), 0 1px 1px rgba(0,0,0,.5); }
+  .screw::after{ content:''; position:absolute; left:1.5px; right:1.5px; top:6.2px; height:2.4px; border-radius:2px;
+    background:linear-gradient(180deg,#22262f,#454c5e); transform:rotate(38deg); }
+  .screw.tl{ left:20px; top:20px; } .screw.tr{ right:20px; top:20px; }
+  .screw.bl{ left:20px; bottom:20px; } .screw.br{ right:20px; bottom:20px; }
+  .screw.tr::after{ transform:rotate(-64deg); } .screw.bl::after{ transform:rotate(101deg); } .screw.br::after{ transform:rotate(12deg); }
+  /* ---------- LCD ---------- */
+  #lcd{ position:relative; z-index:2; margin:0 auto 4px; width:196px; padding:5px 10px 6px; border-radius:9px;
+    background:linear-gradient(180deg,#20261c,#2e3826 30%,#39482c);
+    box-shadow:inset 0 2px 7px rgba(0,0,0,.85), inset 0 -1px 0 rgba(255,255,255,.14), 0 1px 0 rgba(255,255,255,.14);
+    color:#b7ff7e; font-family:'Courier New',monospace; font-weight:700; letter-spacing:1.5px;
+    display:flex; justify-content:space-between; font-size:14px; text-shadow:0 0 6px rgba(140,255,90,.65); }
+  #lcd::after{ content:''; position:absolute; inset:0; border-radius:9px;
+    background:linear-gradient(115deg, rgba(255,255,255,.15), rgba(255,255,255,0) 45%); pointer-events:none; }
+  /* ---------- control labels ---------- */
+  .ctlLabel{ text-align:center; font-size:12.5px; font-weight:900; letter-spacing:2.2px; color:#e9e4f5;
+    text-shadow:0 1px 0 #000, 0 0 1px #000; margin-top:5px; }
+  .ctlLabel em{ font-style:normal; color:#ffd21f; }
+  /* ---------- TWIST knob ---------- */
+  #twistWrap{ position:absolute; left:50%; top:-38px; transform:translateX(-50%); z-index:5; width:128px; }
+  #twist{ width:118px; height:118px; margin:0 auto; border-radius:50%; cursor:grab; touch-action:none;
+    background:
+      radial-gradient(circle at 34% 28%, #fff6bf, #ffd21f 42%, #f5a400 78%, #c47b00);
+    box-shadow:
+      inset 0 -10px 16px rgba(146,84,0,.55),
+      inset 0 6px 10px rgba(255,255,255,.65),
+      0 10px 18px rgba(0,0,0,.55), 0 3px 0 #7a4d00;
+  }
+  #twist:active{ cursor:grabbing; }
+  /* ridged edge */
+  #twistRidge{ position:absolute; inset:-7px; border-radius:50%; z-index:-1;
+    background:repeating-conic-gradient(from 0deg, #e89b00 0deg 7deg, #c47b00 7deg 14deg);
+    box-shadow:inset 0 -6px 12px rgba(90,50,0,.6), inset 0 5px 8px rgba(255,255,255,.35), 0 8px 16px rgba(0,0,0,.5); }
+  #twistFace{ position:absolute; inset:0; border-radius:50%; display:flex; align-items:center; justify-content:center; }
+  #twistFace .arrow{ font-size:37px; color:#8a5a00; text-shadow:0 1px 0 rgba(255,255,255,.6), 0 -1px 0 rgba(0,0,0,.3); }
+  #twistFace .dot{ position:absolute; top:9px; left:50%; width:11px; height:11px; margin-left:-5.5px; border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #ff8a7a, #d92c1c 70%); box-shadow:inset 0 -1px 2px rgba(0,0,0,.5), 0 1px 1px rgba(255,255,255,.4); }
+  #twistWrap .ctlLabel{ margin-top:9px; color:#ffe98a; }
+  /* ---------- middle row: flick / boop / grille ---------- */
+  #midRow{ position:relative; z-index:2; display:flex; align-items:center; justify-content:space-between; margin-top:26px; padding:0 2px; }
+  /* FLICK switch */
+  #flickWrap{ width:74px; display:flex; flex-direction:column; align-items:center; }
+  #flickSlot{ width:44px; height:92px; border-radius:23px; position:relative; touch-action:none;
+    background:linear-gradient(180deg,#14111d,#1f1a2e);
+    box-shadow:inset 0 3px 9px rgba(0,0,0,.95), inset 0 -1px 0 rgba(255,255,255,.16), 0 1px 0 rgba(255,255,255,.1); }
+  #flickSwitch{ position:absolute; left:4px; top:5px; width:36px; height:44px; border-radius:19px; cursor:pointer;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,.13) 0 3px, rgba(255,255,255,.05) 3px 6px),
+      radial-gradient(120% 90% at 50% 0%, #d8ffb0, #8fe33a 45%, #57b312 80%, #3f8a08);
+    box-shadow:inset 0 2px 3px rgba(255,255,255,.6), inset 0 -5px 8px rgba(20,70,0,.55), 0 4px 7px rgba(0,0,0,.6);
+    transition:top .07s ease-out; }
+  #flickSwitch.down{ top:43px; }
+  /* speaker grille */
+  #grille{ width:74px; height:92px; border-radius:14px; opacity:.9;
+    background-image:radial-gradient(circle, rgba(0,0,0,.75) 2.1px, rgba(255,255,255,.10) 2.6px, transparent 3.1px);
+    background-size:13px 13px; background-position:center; }
+  /* BOOP button */
+  #boopWrap{ display:flex; flex-direction:column; align-items:center; }
+  #boopBtn{ width:132px; height:132px; border-radius:50%; border:none; cursor:pointer; touch-action:none;
+    font-family:inherit; position:relative;
+    background:
+      radial-gradient(circle at 36% 26%, #ffb59d, #ff6a3d 38%, #f03a17 68%, #b81f08);
+    box-shadow:
+      inset 0 -14px 22px rgba(120,10,0,.55),
+      inset 0 8px 14px rgba(255,255,255,.5),
+      0 12px 0 #7e1304, 0 20px 26px rgba(0,0,0,.6);
+    color:#fff; }
+  #boopBtn span{ font-size:31px; font-weight:900; letter-spacing:1.5px;
+    text-shadow:0 2px 0 rgba(120,10,0,.8), 0 4px 8px rgba(0,0,0,.35); }
+  #boopBtn::after{ content:''; position:absolute; left:20px; top:12px; width:52px; height:30px; border-radius:50%;
+    background:linear-gradient(180deg, rgba(255,255,255,.75), rgba(255,255,255,0)); transform:rotate(-18deg); }
+  #boopBtn.pressed{ transform:translateY(9px);
+    box-shadow:inset 0 -6px 14px rgba(120,10,0,.55), inset 0 5px 10px rgba(255,255,255,.45), 0 3px 0 #7e1304, 0 8px 14px rgba(0,0,0,.55); }
+  /* ---------- PULL handle ---------- */
+  #pullWrap{ position:relative; z-index:2; margin:14px auto 2px; width:150px; display:flex; flex-direction:column; align-items:center; }
+  #pullTrack{ width:34px; height:96px; border-radius:17px; position:relative;
+    background:linear-gradient(180deg,#14111d,#211b31);
+    box-shadow:inset 0 3px 10px rgba(0,0,0,.95), inset 0 -1px 0 rgba(255,255,255,.15); }
+  #pullShaft{ position:absolute; left:50%; top:4px; width:13px; height:44px; margin-left:-6.5px; border-radius:7px;
+    background:linear-gradient(90deg,#6d7484,#d6dbe6 45%,#79808f); box-shadow:0 1px 3px rgba(0,0,0,.6); }
+  #pullHandle{ position:absolute; left:50%; top:34px; width:118px; height:42px; margin-left:-59px; border-radius:22px; cursor:grab; touch-action:none;
+    background:
+      radial-gradient(130% 100% at 50% 0%, rgba(255,255,255,.5), rgba(255,255,255,0) 55%),
+      linear-gradient(180deg,#59d6f2,#17a8cf 55%,#0d7ea6);
+    box-shadow:inset 0 -8px 13px rgba(0,60,90,.5), inset 0 3px 5px rgba(255,255,255,.5), 0 7px 12px rgba(0,0,0,.55), 0 2px 0 #084c66;
+    display:flex; align-items:center; justify-content:center; gap:7px; }
+  #pullHandle:active{ cursor:grabbing; }
+  #pullHandle i{ width:9px; height:24px; border-radius:5px; background:rgba(4,50,70,.4); box-shadow:inset 0 1px 3px rgba(0,0,0,.6), 0 1px 0 rgba(255,255,255,.35); }
+  /* ---------- overlay (start / game over) ---------- */
+  #overlay{ position:absolute; inset:0; z-index:9; border-radius:inherit;
+    background:rgba(14,11,24,.72); backdrop-filter:blur(2px);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; text-align:center; padding:20px; }
+  #overlay.hidden{ display:none; }
+  #ovTitle{ font-size:35px; font-weight:900; color:#ffd21f; letter-spacing:1px;
+    text-shadow:0 2px 0 #e07b00, 0 4px 0 #b35c00, 0 7px 14px rgba(0,0,0,.7); transform:rotate(-2deg); }
+  #ovText{ font-size:15.5px; line-height:1.45; color:#e8e6f2; max-width:270px; text-shadow:0 1px 2px #000; }
+  #ovText b{ color:#ffd76a; }
+  #startBtn{ margin-top:6px; font-family:inherit; font-size:20px; font-weight:900; letter-spacing:1.5px; color:#233;
+    padding:13px 34px; border:none; border-radius:30px; cursor:pointer;
+    background:radial-gradient(120% 100% at 50% 0%, #eaffb0, #8fe33a 55%, #57b312);
+    box-shadow:inset 0 2px 3px rgba(255,255,255,.7), inset 0 -6px 10px rgba(20,70,0,.4), 0 6px 0 #3f8a08, 0 12px 20px rgba(0,0,0,.55); }
+  #startBtn:active{ transform:translateY(4px); box-shadow:inset 0 2px 3px rgba(255,255,255,.7), 0 2px 0 #3f8a08, 0 6px 12px rgba(0,0,0,.5); }
+  /* ---------- feedback states ---------- */
+  #toy.good{ animation:good .22s ease-out; }
+  @keyframes good{ 0%{ filter:brightness(1.35); } 100%{ filter:brightness(1); } }
+  #toy.bad{ animation:bad .45s ease-in-out; }
+  @keyframes bad{ 0%,100%{ transform:translateX(0) rotate(0); } 15%{ transform:translateX(-11px) rotate(-1.6deg); } 35%{ transform:translateX(10px) rotate(1.4deg); } 55%{ transform:translateX(-8px) rotate(-1deg); } 75%{ transform:translateX(6px) rotate(.7deg); } }
+  #hint{ padding:12px 18px 26px; font-size:13px; line-height:1.55; color:#9aa3b5; text-align:center; max-width:480px; }
+  #hint b{ color:#cfd6e4; }
+  @media (max-height:700px){
+    #logo{ font-size:36px; } #cmdWrap{ height:72px; } #cmd{ font-size:33px; }
+    #boopBtn{ width:116px; height:116px; } #twist{ width:104px; height:104px; } #twistWrap{ top:-32px; }
+  }
+</style>
+</head>
+<body>
+  <div id="topbar">
+    <a href="../index.html">← All games</a>
+    <div id="best">BEST 0</div>
+    <button id="muteBtn" aria-label="toggle sound">🔊</button>
+  </div>
+
+  <div id="logo">BOOP <span>IT!</span></div>
+
+  <div id="cmdWrap">
+    <div id="cmd"><small>GET READY</small>&nbsp;</div>
+    <div id="timerTrack"><div id="timerFill"></div></div>
+  </div>
+
+  <div id="stage">
+    <div id="toyShadow">
+      <div id="toy">
+        <div class="screw tl"></div><div class="screw tr"></div><div class="screw bl"></div><div class="screw br"></div>
+
+        <div id="twistWrap">
+          <div id="twist"><div id="twistRidge"></div><div id="twistFace"><div class="dot"></div><div class="arrow">↻</div></div></div>
+          <div class="ctlLabel">TWIST <em>IT</em></div>
+        </div>
+
+        <div id="lcd"><span id="lcdScore">SCORE 0</span><span id="lcdMsg">HI 0</span></div>
+
+        <div id="midRow">
+          <div id="flickWrap">
+            <div id="flickSlot"><div id="flickSwitch"></div></div>
+            <div class="ctlLabel">FLICK <em>IT</em></div>
+          </div>
+          <div id="boopWrap">
+            <button id="boopBtn"><span>BOOP</span></button>
+            <div class="ctlLabel">BOOP <em>IT</em></div>
+          </div>
+          <div id="grille" aria-hidden="true"></div>
+        </div>
+
+        <div id="pullWrap">
+          <div id="pullTrack"><div id="pullShaft"></div><div id="pullHandle"><i></i><i></i><i></i></div></div>
+          <div class="ctlLabel">PULL <em>IT</em></div>
+        </div>
+
+        <div id="overlay">
+          <div id="ovTitle">BOOP IT!</div>
+          <div id="ovText">The toy shouts a command — <b>boop</b>, <b>twist</b>, <b>pull</b>, <b>flick</b> or <b>shake</b> it before the bar runs out. It only gets faster. Don't mess up.</div>
+          <button id="startBtn">▶ START</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="hint">
+    <b>How to play:</b> tap the big button to <b>BOOP</b> · drag the yellow knob in a circle to <b>TWIST</b> ·
+    drag the blue handle down to <b>PULL</b> · swipe the green switch to <b>FLICK</b> ·
+    for <b>SHAKE</b>, shake your phone — or grab the toy's body and wiggle it.<br>
+    Desktop keys: <b>Space</b> boop · <b>←/→</b> twist · <b>↓</b> pull · <b>↑</b> flick · <b>S</b> shake
+  </div>
+
+<script>
+(function(){
+'use strict';
+const $=id=>document.getElementById(id);
+const toy=$('toy'), cmdEl=$('cmd'), fill=$('timerFill'), lcdScore=$('lcdScore'), lcdMsg=$('lcdMsg'),
+      bestEl=$('best'), overlay=$('overlay'), ovTitle=$('ovTitle'), ovText=$('ovText'), startBtn=$('startBtn'),
+      boopBtn=$('boopBtn'), twistEl=$('twist'), flickSlot=$('flickSlot'), flickSwitch=$('flickSwitch'),
+      pullHandle=$('pullHandle'), pullShaft=$('pullShaft'), muteBtn=$('muteBtn');
+
+const COMMANDS=[
+  {id:'boop',  label:'BOOP IT!',  color:'#ff6a3d'},
+  {id:'twist', label:'TWIST IT!', color:'#ffd21f'},
+  {id:'pull',  label:'PULL IT!',  color:'#59d6f2'},
+  {id:'flick', label:'FLICK IT!', color:'#8fe33a'},
+  {id:'shake', label:'SHAKE IT!', color:'#ff5da2'}
+];
+const LS_KEY='boop-it-v1';
+let saved={}; try{ saved=JSON.parse(localStorage.getItem(LS_KEY)||'{}'); }catch(e){ saved={}; }
+let best=saved.best|0, muted=!!saved.muted;
+
+const S={ playing:false, over:true, score:0, cmd:null, deadline:0, windowMs:2600, lastTick:0, startedAt:0 };
+function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify({best:best, muted:muted})); }catch(e){} }
+function showBest(){ bestEl.textContent='BEST '+best; lcdMsg.textContent='HI '+best; }
+function showScore(){ lcdScore.textContent='SCORE '+S.score; }
+muteBtn.textContent = muted?'🔇':'🔊';
+showBest(); showScore();
+
+/* ---------------- audio (all synthesized, no files) ---------------- */
+let AC=null, master=null;
+function audio(){
+  if(muted) return null;
+  try{
+    if(!AC){ const Ctx=window.AudioContext||window.webkitAudioContext; if(!Ctx) return null;
+      AC=new Ctx(); master=AC.createGain(); master.gain.value=0.5; master.connect(AC.destination); }
+    if(AC.state==='suspended') AC.resume();
+    return AC;
+  }catch(e){ return null; }
+}
+function tone(f0,f1,dur,type,vol,when){
+  const ac=audio(); if(!ac) return;
+  const t=ac.currentTime+(when||0);
+  const o=ac.createOscillator(), g=ac.createGain();
+  o.type=type||'sine'; o.frequency.setValueAtTime(f0,t);
+  if(f1&&f1!==f0) o.frequency.exponentialRampToValueAtTime(Math.max(f1,1),t+dur);
+  g.gain.setValueAtTime(vol||0.5,t); g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t+dur+0.02);
+}
+function noiseBurst(dur,freq,vol,when){
+  const ac=audio(); if(!ac) return;
+  const t=ac.currentTime+(when||0);
+  const len=Math.max(1,(dur*ac.sampleRate)|0), buf=ac.createBuffer(1,len,ac.sampleRate), d=buf.getChannelData(0);
+  for(let i=0;i<len;i++) d[i]=Math.random()*2-1;
+  const src=ac.createBufferSource(); src.buffer=buf;
+  const f=ac.createBiquadFilter(); f.type='bandpass'; f.frequency.value=freq||1200; f.Q.value=0.9;
+  const g=ac.createGain(); g.gain.setValueAtTime(vol||0.4,t); g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+  src.connect(f); f.connect(g); g.connect(master); src.start(t); src.stop(t+dur+0.02);
+}
+const sfx={
+  boop(){ tone(300,70,0.14,'square',0.55); noiseBurst(0.05,500,0.25); },
+  ratchet(){ tone(2100,1600,0.025,'square',0.16); },
+  pull(){ tone(160,560,0.16,'sine',0.5); tone(90,300,0.2,'triangle',0.3,0.02); },
+  flick(){ tone(1500,900,0.04,'square',0.35); noiseBurst(0.04,2600,0.3); },
+  shakeHit(){ noiseBurst(0.07,800,0.35); },
+  good(){ const base=620*Math.pow(2,Math.min(S.score,18)/12); tone(base,base,0.09,'sine',0.45); tone(base*1.5,base*1.5,0.12,'sine',0.4,0.06); },
+  fail(){ tone(220,55,0.55,'sawtooth',0.5); noiseBurst(0.4,300,0.3,0.05); tone(110,40,0.6,'square',0.25,0.05); }
+};
+function speak(text){
+  if(muted) return;
+  try{
+    if(!('speechSynthesis' in window)) return;
+    const u=new SpeechSynthesisUtterance(text);
+    u.rate=1.12; u.pitch=0.62; u.volume=0.9;
+    speechSynthesis.cancel(); speechSynthesis.speak(u);
+  }catch(e){}
+}
+
+/* ---------------- game flow ---------------- */
+function windowFor(score){ return Math.max(850, 2600 - score*85); }
+function nextCommand(now){
+  let c, guard=0;
+  do{ c=COMMANDS[(Math.random()*COMMANDS.length)|0]; guard++; }
+  while(S.cmd && c.id===S.cmd.id && Math.random()<0.72 && guard<6);
+  S.cmd=c; S.windowMs=windowFor(S.score); S.deadline=now+S.windowMs;
+  resetGestures();
+  cmdEl.innerHTML=c.label; cmdEl.style.color=c.color;
+  cmdEl.classList.remove('pop'); void cmdEl.offsetWidth; cmdEl.classList.add('pop');
+  fill.style.width='100%'; fill.classList.remove('low');
+  speak(c.label);
+}
+function start(){
+  S.playing=true; S.over=false; S.score=0; S.cmd=null;
+  showScore(); overlay.classList.add('hidden');
+  cmdEl.innerHTML='<small>GET READY</small>3… 2… 1…';
+  audio(); // unlock on the start tap
+  if(window.DeviceMotionEvent && typeof DeviceMotionEvent.requestPermission==='function'){
+    DeviceMotionEvent.requestPermission().catch(()=>{});
+  }
+  const now=performance.now(); S.startedAt=now; S.lastTick=now;
+  nextCommand(now);
+}
+function gameOver(reason, now){
+  S.playing=false; S.over=true;
+  sfx.fail();
+  toy.classList.remove('bad'); void toy.offsetWidth; toy.classList.add('bad');
+  if(S.score>best){ best=S.score; save(); }
+  showBest(); showScore();
+  cmdEl.innerHTML='<small>GAME OVER</small>'+(reason==='time'?'TOO SLOW!':'WRONG MOVE!');
+  cmdEl.style.color='#ff5347'; fill.style.width='0%';
+  ovTitle.textContent='GAME OVER';
+  ovText.innerHTML=(reason==='time'?'The bar ran out. ':'That wasn\'t it. ')+
+    'You scored <b>'+S.score+'</b>'+(S.score>=best&&S.score>0?' — new best! 🏆':'')+'<br>Best: <b>'+best+'</b>';
+  startBtn.textContent='↻ BOOP AGAIN';
+  overlay.classList.remove('hidden');
+  try{ speechSynthesis.cancel(); }catch(e){}
+}
+function act(id, now){
+  now = (typeof now==='number') ? now : performance.now();
+  if(!S.playing) return false;
+  if(S.cmd && id===S.cmd.id){
+    S.score++; showScore(); sfx.good();
+    toy.classList.remove('good'); void toy.offsetWidth; toy.classList.add('good');
+    nextCommand(now);
+    return true;
+  }
+  gameOver('wrong', now);
+  return false;
+}
+/* main loop — timestamp based, so 30/60/120 Hz all play the same */
+function tick(now){
+  if(S.playing){
+    const gap=now-S.lastTick;
+    if(gap>300) S.deadline+=gap; // tab slept / phone hitched: don't steal the round
+    const remain=S.deadline-now;
+    if(remain<=0){ S.lastTick=now; gameOver('time', now); }
+    else{
+      const pct=Math.max(0,remain/S.windowMs*100);
+      fill.style.width=pct+'%';
+      fill.classList.toggle('low', pct<35);
+    }
+  }
+  S.lastTick=now;
+}
+if(!window.__BOOP_MANUAL__){
+  const loop=t=>{ tick(t); requestAnimationFrame(loop); };
+  requestAnimationFrame(loop);
+} else { S.lastTick=performance.now(); }
+
+/* ---------------- gestures ---------------- */
+function resetGestures(){
+  twistAccum=0; shakeTimes.length=0; motionHits.length=0;
+}
+/* BOOP */
+boopBtn.addEventListener('pointerdown', e=>{
+  e.preventDefault();
+  boopBtn.classList.add('pressed'); sfx.boop();
+  act('boop');
+});
+['pointerup','pointerleave','pointercancel'].forEach(ev=>
+  boopBtn.addEventListener(ev, ()=>boopBtn.classList.remove('pressed')));
+/* TWIST — drag in a circle around the knob */
+let twistDrag=null, twistAccum=0, knobRot=0, lastRatchet=0;
+function knobCenter(){ const r=twistEl.getBoundingClientRect(); return [r.left+r.width/2, r.top+r.height/2]; }
+twistEl.addEventListener('pointerdown', e=>{
+  e.preventDefault();
+  const c=knobCenter();
+  twistDrag={ id:e.pointerId, cx:c[0], cy:c[1], last:Math.atan2(e.clientY-c[1], e.clientX-c[0]) };
+  try{ twistEl.setPointerCapture(e.pointerId); }catch(err){}
+});
+twistEl.addEventListener('pointermove', e=>{
+  if(!twistDrag || e.pointerId!==twistDrag.id) return;
+  const a=Math.atan2(e.clientY-twistDrag.cy, e.clientX-twistDrag.cx);
+  let d=a-twistDrag.last;
+  while(d>Math.PI) d-=Math.PI*2; while(d<-Math.PI) d+=Math.PI*2;
+  twistDrag.last=a;
+  const deg=d*180/Math.PI;
+  knobRot+=deg; twistAccum+=deg;
+  twistEl.style.transform='rotate('+knobRot+'deg)';
+  if(Math.abs(twistAccum)-Math.abs(lastRatchet)>=32){ lastRatchet=twistAccum; sfx.ratchet(); }
+  if(Math.abs(twistAccum)>=100){ twistDrag=null; act('twist'); }
+});
+['pointerup','pointercancel'].forEach(ev=>twistEl.addEventListener(ev, e=>{
+  if(twistDrag && e.pointerId===twistDrag.id){ twistDrag=null; twistAccum=0; lastRatchet=0; }
+}));
+/* PULL — drag the handle down */
+let pullDrag=null, pullDone=false;
+function setPull(dy){
+  pullHandle.style.transform='translateY('+dy+'px)';
+  pullShaft.style.height=(44+dy)+'px';
+}
+pullHandle.addEventListener('pointerdown', e=>{
+  e.preventDefault(); pullDone=false;
+  pullDrag={ id:e.pointerId, y0:e.clientY };
+  pullHandle.style.transition='none'; pullShaft.style.transition='none';
+  try{ pullHandle.setPointerCapture(e.pointerId); }catch(err){}
+});
+pullHandle.addEventListener('pointermove', e=>{
+  if(!pullDrag || e.pointerId!==pullDrag.id) return;
+  const dy=Math.max(0, Math.min(84, e.clientY-pullDrag.y0));
+  setPull(dy);
+  if(dy>=62 && !pullDone){ pullDone=true; sfx.pull(); act('pull'); snapPull(); }
+});
+function snapPull(){
+  pullDrag=null;
+  pullHandle.style.transition='transform .28s cubic-bezier(.2,2.2,.4,1)';
+  pullShaft.style.transition='height .28s cubic-bezier(.2,2.2,.4,1)';
+  setPull(0);
+}
+['pointerup','pointercancel'].forEach(ev=>pullHandle.addEventListener(ev, e=>{
+  if(pullDrag && e.pointerId===pullDrag.id && !pullDone) snapPull();
+}));
+/* FLICK — swipe or tap the green switch */
+let flickDrag=null, flickFlipped=false, flickDown=false;
+function flipFlick(){
+  flickDown=!flickDown;
+  flickSwitch.classList.toggle('down', flickDown);
+  sfx.flick(); act('flick');
+}
+flickSlot.addEventListener('pointerdown', e=>{
+  e.preventDefault(); flickFlipped=false;
+  flickDrag={ id:e.pointerId, y0:e.clientY, t:performance.now() };
+  try{ flickSlot.setPointerCapture(e.pointerId); }catch(err){}
+});
+flickSlot.addEventListener('pointermove', e=>{
+  if(!flickDrag || e.pointerId!==flickDrag.id || flickFlipped) return;
+  if(Math.abs(e.clientY-flickDrag.y0)>=24){ flickFlipped=true; flipFlick(); }
+});
+['pointerup','pointercancel'].forEach(ev=>flickSlot.addEventListener(ev, e=>{
+  if(flickDrag && e.pointerId===flickDrag.id){
+    if(!flickFlipped && performance.now()-flickDrag.t<300) flipFlick(); // a quick tap counts as a flick
+    flickDrag=null;
+  }
+}));
+/* SHAKE — real device shake, or wiggle the toy with a pointer */
+const shakeTimes=[];
+function shakeHit(now){
+  shakeTimes.push(now);
+  while(shakeTimes.length && now-shakeTimes[0]>1200) shakeTimes.shift();
+  sfx.shakeHit();
+  toy.style.transform='rotate('+((Math.random()*4)-2)+'deg)';
+  setTimeout(()=>{ toy.style.transform=''; },70);
+  if(shakeTimes.length>=5) act('shake');
+}
+let wiggle=null;
+toy.addEventListener('pointerdown', e=>{
+  if(e.target===toy) wiggle={ id:e.pointerId, x:e.clientX, dir:0 };
+});
+window.addEventListener('pointermove', e=>{
+  if(!wiggle || e.pointerId!==wiggle.id) return;
+  const dx=e.clientX-wiggle.x;
+  if(Math.abs(dx)>=15){
+    const dir=dx>0?1:-1;
+    if(wiggle.dir!==0 && dir!==wiggle.dir) shakeHit(performance.now());
+    wiggle.dir=dir; wiggle.x=e.clientX;
+  }
+});
+['pointerup','pointercancel'].forEach(ev=>window.addEventListener(ev, e=>{
+  if(wiggle && e.pointerId===wiggle.id) wiggle=null;
+}));
+const motionHits=[];
+window.addEventListener('devicemotion', e=>{
+  if(!S.playing) return;
+  const a=e.accelerationIncludingGravity; if(!a) return;
+  const mag=Math.sqrt((a.x||0)*(a.x||0)+(a.y||0)*(a.y||0)+(a.z||0)*(a.z||0));
+  const now=performance.now();
+  if(Math.abs(mag-9.8)>11){
+    if(!motionHits.length || now-motionHits[motionHits.length-1]>140){
+      motionHits.push(now); sfx.shakeHit();
+      while(motionHits.length && now-motionHits[0]>1200) motionHits.shift();
+      if(motionHits.length>=3) act('shake');
+    }
+  }
+});
+/* keyboard (desktop) */
+let kbTwist=0; const kbShake=[];
+window.addEventListener('keydown', e=>{
+  if(e.repeat) return;
+  if(e.code==='Space'){ e.preventDefault(); boopBtn.classList.add('pressed'); sfx.boop(); act('boop'); setTimeout(()=>boopBtn.classList.remove('pressed'),110); }
+  else if(e.code==='ArrowDown'){ e.preventDefault(); setPull(70); sfx.pull(); setTimeout(snapPull,90); act('pull'); }
+  else if(e.code==='ArrowUp'){ e.preventDefault(); flipFlick(); }
+  else if(e.code==='ArrowLeft'||e.code==='ArrowRight'){
+    e.preventDefault();
+    kbTwist += (e.code==='ArrowRight'?40:-40); knobRot+= (e.code==='ArrowRight'?40:-40);
+    twistEl.style.transform='rotate('+knobRot+'deg)'; sfx.ratchet();
+    if(Math.abs(kbTwist)>=100){ kbTwist=0; act('twist'); }
+  }
+  else if(e.code==='KeyS'){ const n=performance.now(); kbShake.push(n); while(kbShake.length&&n-kbShake[0]>1200) kbShake.shift(); sfx.shakeHit(); if(kbShake.length>=4) act('shake'); }
+});
+/* buttons */
+startBtn.addEventListener('click', start);
+muteBtn.addEventListener('click', ()=>{
+  muted=!muted; save(); muteBtn.textContent=muted?'🔇':'🔊';
+  if(muted){ try{ speechSynthesis.cancel(); }catch(e){} }
+});
+overlay.addEventListener('pointerdown', e=>{ if(e.target===overlay) e.preventDefault(); });
+
+/* test hooks */
+window.__boop={
+  start, act, tick,
+  state:()=>({ playing:S.playing, over:S.over, score:S.score, cmd:S.cmd?S.cmd.id:null,
+               windowMs:S.windowMs, deadline:S.deadline, best:best }),
+  setDeadline:(t)=>{ S.deadline=t; },
+  els:{ boopBtn, twistEl, flickSlot, flickSwitch, pullHandle, toy }
+};
+})();
+</script>
+</body>
+</html>
