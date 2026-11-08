@@ -588,27 +588,34 @@ flickSlot.addEventListener('pointermove', e=>{
     flickDrag=null;
   }
 }));
-/* SHAKE — real device shake, or wiggle the toy with a pointer */
+/* SHAKE — real device shake, or wiggle the toy with a pointer.
+   The pointer path is tuned gentle for laptop trackpads: short 9px strokes,
+   either axis counts, 4 direction changes inside 1.4s. */
 const shakeTimes=[];
 function shakeHit(now){
   shakeTimes.push(now);
-  while(shakeTimes.length && now-shakeTimes[0]>1200) shakeTimes.shift();
+  while(shakeTimes.length && now-shakeTimes[0]>1400) shakeTimes.shift();
   sfx.shakeHit();
   toy.style.transform='rotate('+((Math.random()*4)-2)+'deg)';
   setTimeout(()=>{ toy.style.transform=''; },70);
-  if(shakeTimes.length>=5) act('shake');
+  if(shakeTimes.length>=4) act('shake');
 }
 let wiggle=null;
 toy.addEventListener('pointerdown', e=>{
-  if(e.target===toy) wiggle={ id:e.pointerId, x:e.clientX, dir:0 };
+  if(e.target===toy) wiggle={ id:e.pointerId, x:e.clientX, y:e.clientY, dirX:0, dirY:0 };
 });
 window.addEventListener('pointermove', e=>{
   if(!wiggle || e.pointerId!==wiggle.id) return;
-  const dx=e.clientX-wiggle.x;
-  if(Math.abs(dx)>=15){
+  const dx=e.clientX-wiggle.x, dy=e.clientY-wiggle.y;
+  if(Math.abs(dx)>=9){
     const dir=dx>0?1:-1;
-    if(wiggle.dir!==0 && dir!==wiggle.dir) shakeHit(performance.now());
-    wiggle.dir=dir; wiggle.x=e.clientX;
+    if(wiggle.dirX!==0 && dir!==wiggle.dirX) shakeHit(performance.now());
+    wiggle.dirX=dir; wiggle.x=e.clientX;
+  }
+  if(Math.abs(dy)>=9){
+    const dir=dy>0?1:-1;
+    if(wiggle.dirY!==0 && dir!==wiggle.dirY) shakeHit(performance.now());
+    wiggle.dirY=dir; wiggle.y=e.clientY;
   }
 });
 ['pointerup','pointercancel'].forEach(ev=>window.addEventListener(ev, e=>{
