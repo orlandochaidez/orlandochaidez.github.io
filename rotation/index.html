@@ -117,13 +117,24 @@
   }
   .mv.star{width:auto;padding:0 10px;font-size:11.5px;letter-spacing:.5px}
   .song .extra{flex:none}
-  body.admin .alb,body.admin .song,body.admin .art{touch-action:auto}
-  body.admin .alb.dragsrc,body.admin .song.dragsrc,body.admin .art.dragsrc{opacity:.92}
-  .dragging{
-    position:fixed !important;z-index:200;pointer-events:none;margin:0;
-    box-shadow:0 18px 40px rgba(0,0,0,.7);border-radius:12px;
+  /* grip-handle drag (old-iOS edit-mode style) */
+  .grip{display:none}
+  body.admin .grip{
+    display:flex;align-items:center;justify-content:center;flex:none;
+    width:40px;height:40px;border-radius:10px;
+    border:1.5px solid #4a3319;background:rgba(20,12,4,.9);color:#ffa726;
+    font-size:19px;line-height:1;cursor:grab;touch-action:none;
+    user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
   }
-  .dragslot{border:2px dashed rgba(255,176,58,.55);border-radius:12px;background:rgba(255,176,58,.06)}
+  .alb .grip{width:100%;height:32px;margin-top:8px}
+  .art .grip{width:64px;height:32px;margin:8px auto 0}
+  .lifting{
+    z-index:60;position:relative;
+    filter:drop-shadow(0 16px 24px rgba(0,0,0,.7));
+  }
+  .lifting img{outline:2px solid #ffb03a}
+  body.admin .song .xbtn{position:static;transform:none;flex:none}
+  body.admin .song .s-alb{display:none}
   .holdhint{display:none;text-align:center;color:#a08c66;font-family:system-ui,sans-serif;font-weight:600;font-size:12.5px;margin:-6px 0 14px}
   body.admin .holdhint{display:block}
   /* add panel */
@@ -189,7 +200,7 @@
   <p class="kick">ORLANDO'S</p>
   <h1>On Rotation</h1>
   <p class="tagline">What I been jamming to — hand-picked, no algorithm.</p>
-  <p class="holdhint">Admin mode: hold an item to drag it, use ↑ ↓ to nudge, ✕ to remove.</p>
+  <p class="holdhint">Admin mode: grab the ≡ handle to drag, ↑ ↓ to nudge, ✕ to remove.</p>
 
   <div id="heroSlot"></div>
 
@@ -392,9 +403,9 @@ function adminTools(item, section, idx, total){
   h += '<div class="movebtns extra">';
   if(idx>0) h += '<button class="mv" data-act="up" data-sec="'+section+'" data-idx="'+idx+'" aria-label="Move up">↑</button>';
   if(idx<total-1) h += '<button class="mv" data-act="down" data-sec="'+section+'" data-idx="'+idx+'" aria-label="Move down">↓</button>';
-  if(section==="album" && idx>1) h += '<button class="mv star" data-act="top" data-sec="'+section+'" data-idx="'+idx+'">★ Make #1</button>';
-  if(section==="album" && idx===1) h += '<button class="mv star" data-act="top" data-sec="'+section+'" data-idx="'+idx+'">★ Make #1</button>';
+  if(section==="album" && idx>=1) h += '<button class="mv star" data-act="top" data-sec="'+section+'" data-idx="'+idx+'">★ Make #1</button>';
   h += '</div>';
+  h += '<div class="grip" data-grip aria-label="Hold and drag to reorder">≡</div>';
   return h;
 }
 function render(){
@@ -522,86 +533,86 @@ document.addEventListener("click", function(e){
   else if(act==="del") removeItem(sec, idx);
 });
 
-/* ============ PRESS-HOLD DRAG ============ */
-var drag = null;
-function onPointerDown(e){
-  if(!state.admin) return;
-  if(e.target.closest("[data-act]") || e.target.closest("button") || e.target.closest("input")) return;
-  var el = e.target.closest ? e.target.closest("[data-sec][data-idx]") : null;
-  if(!el) return;
-  var startX = e.clientX, startY = e.clientY;
-  var timer = setTimeout(function(){ startDrag(e, el); }, 230);
-  function cancel(){ clearTimeout(timer); cleanup(); }
-  function onMove(ev){
-    if(Math.abs(ev.clientX-startX) + Math.abs(ev.clientY-startY) > 10) cancel();
-  }
-  function onUp(){ cancel(); }
-  function cleanup(){
-    document.removeEventListener("pointermove", onMove, true);
-    document.removeEventListener("pointerup", onUp, true);
-    document.removeEventListener("pointercancel", onUp, true);
-  }
-  document.addEventListener("pointermove", onMove, true);
-  document.addEventListener("pointerup", onUp, true);
-  document.addEventListener("pointercancel", onUp, true);
-  drag = { pendingCleanup: cleanup };
-}
-function startDrag(e, el){
+/* ============ GRIP-HANDLE DRAG (old-iOS style live swap) ============
+   Only the ≡ handle starts a drag. The item never leaves its parent and
+   never goes position:fixed — it slides via transform and swaps places
+   in the DOM live as it crosses a neighbour's centre. On release the
+   section order is rebuilt from the DOM and saved. */
+function startGripDrag(e, el, grip){
   var sec = el.getAttribute("data-sec");
   var parent = el.parentElement;
-  var rect = el.getBoundingClientRect();
-  var slot = document.createElement("div");
-  slot.className = "dragslot";
-  slot.style.width = rect.width + "px"; slot.style.height = rect.height + "px";
-  if(sec==="song"){ slot.style.width = "100%"; }
-  parent.insertBefore(slot, el);
-  el.classList.add("dragging");
-  el.style.width = rect.width + "px";
-  el.style.left = rect.left + "px";
-  el.style.top = rect.top + "px";
-  document.body.appendChild(el);
-  drag = { el: el, slot: slot, sec: sec, parent: parent, dx: e.clientX - rect.left, dy: e.clientY - rect.top, lastY: e.clientY };
+  var startX = e.clientX, startY = e.clientY, adjX = 0, adjY = 0;
+  el.classList.add("lifting");
+  el.style.transition = "none";
+  function visCenter(){
+    var r = el.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  }
+  function shouldSwap(sib, isNext, c){
+    /* "Passed" in reading order: clearly past on Y, or level on Y and past on X. */
+    var r = sib.getBoundingClientRect();
+    var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    if(isNext){
+      if(c.y > cy + 2) return true;
+      if(c.y < cy - 2) return false;
+      return c.x > cx;
+    }
+    if(c.y < cy - 2) return true;
+    if(c.y > cy + 2) return false;
+    return c.x < cx;
+  }
   function onMove(ev){
-    ev.preventDefault();
-    drag.lastY = ev.clientY;
-    el.style.left = (ev.clientX - drag.dx) + "px";
-    el.style.top = (ev.clientY - drag.dy) + "px";
-    /* find sibling to swap slot with */
-    var sibs = Array.prototype.slice.call(parent.querySelectorAll("[data-sec][data-idx], .dragslot"));
-    for(var i=0;i<sibs.length;i++){
-      var s = sibs[i]; if(s===slot) continue;
-      var r = s.getBoundingClientRect();
-      var midY = r.top + r.height/2, midX = r.left + r.width/2;
-      var before = (sec==="song") ? (ev.clientY < midY) : (ev.clientY < midY - 14 || (Math.abs(ev.clientY-midY) <= r.height/2 && ev.clientX < midX));
-      if(before){ if(sibs[i-1] !== slot && parent.children && s !== slot.nextSibling) parent.insertBefore(slot, s); break; }
-      else if(i === sibs.length-1){ parent.appendChild(slot); }
+    if(ev.cancelable) ev.preventDefault();
+    el.style.transform = "translate(" + (ev.clientX - startX - adjX) + "px," + (ev.clientY - startY - adjY) + "px)";
+    for(var tries = 0; tries < 3; tries++){
+      var c = visCenter();
+      var next = el.nextElementSibling, prev = el.previousElementSibling;
+      var swapped = false, bt, bl;
+      if(next && next.hasAttribute && next.hasAttribute("data-idx") && shouldSwap(next, true, c)){
+        bt = el.offsetTop; bl = el.offsetLeft;
+        parent.insertBefore(el, next.nextElementSibling);
+        adjY += el.offsetTop - bt; adjX += el.offsetLeft - bl;
+        swapped = true;
+      } else if(prev && prev.hasAttribute && prev.hasAttribute("data-idx") && shouldSwap(prev, false, c)){
+        bt = el.offsetTop; bl = el.offsetLeft;
+        parent.insertBefore(el, prev);
+        adjY += el.offsetTop - bt; adjX += el.offsetLeft - bl;
+        swapped = true;
+      }
+      if(!swapped) break;
+      el.style.transform = "translate(" + (ev.clientX - startX - adjX) + "px," + (ev.clientY - startY - adjY) + "px)";
     }
   }
   function onUp(){
-    document.removeEventListener("pointermove", onMove, true);
-    document.removeEventListener("pointerup", onUp, true);
-    document.removeEventListener("pointercancel", onUp, true);
-    /* commit: rebuild this section's order from DOM */
-    var orderEls = Array.prototype.slice.call(parent.querySelectorAll("[data-sec][data-idx]"));
-    /* orderEls excludes el (it's on body) — compute target index from slot position */
-    var kids = Array.prototype.slice.call(parent.children);
-    var slotIdx = kids.indexOf(slot);
-    var before = 0;
-    kids.forEach(function(k, i2){ if(i2 < slotIdx && k.hasAttribute && k.hasAttribute("data-idx")) before++; });
-    var fromIdx = parseInt(el.getAttribute("data-idx"), 10);
+    grip.removeEventListener("pointermove", onMove);
+    grip.removeEventListener("pointerup", onUp);
+    grip.removeEventListener("pointercancel", onUp);
+    el.style.transition = "transform .18s ease";
+    el.style.transform = "";
+    el.classList.remove("lifting");
+    /* direct children only — the admin buttons inside items also carry
+       data-sec/data-idx and must NOT be counted as items */
+    var kids = Array.prototype.filter.call(parent.children, function(k){ return k.hasAttribute && k.hasAttribute("data-idx"); });
     var arr = state.items[sec];
-    var it = arr.splice(fromIdx, 1)[0];
-    var insertAt = before;
-    if(sec==="album"){ /* shelf DOM starts at album idx 1; hero is separate */ insertAt = before + 1; if(fromIdx===0) insertAt = before + 1; }
-    arr.splice(Math.max(0, Math.min(insertAt, arr.length)), 0, it);
-    drag = null;
-    render(); saveOrder(sec);
+    var picked = kids.map(function(k){ return arr[parseInt(k.getAttribute("data-idx"), 10)]; });
+    if(sec === "album") state.items.album = [arr[0]].concat(picked);
+    else state.items[sec] = picked;
+    setTimeout(function(){ render(); saveOrder(sec); }, 190);
   }
-  document.addEventListener("pointermove", onMove, true);
-  document.addEventListener("pointerup", onUp, true);
-  document.addEventListener("pointercancel", onUp, true);
+  grip.addEventListener("pointermove", onMove);
+  grip.addEventListener("pointerup", onUp);
+  grip.addEventListener("pointercancel", onUp);
 }
-document.addEventListener("pointerdown", onPointerDown);
+document.addEventListener("pointerdown", function(e){
+  if(!state.admin) return;
+  var grip = e.target.closest ? e.target.closest("[data-grip]") : null;
+  if(!grip) return;
+  var el = grip.closest ? grip.closest("[data-sec][data-idx]") : null;
+  if(!el) return;
+  e.preventDefault();
+  try{ grip.setPointerCapture(e.pointerId); }catch(err){}
+  startGripDrag(e, el, grip);
+});
 
 /* ============ ADMIN UI ============ */
 $("adminBtn").addEventListener("click", function(){
@@ -764,7 +775,7 @@ setInterval(function(){
 }, 90000);
 
 /* test hooks */
-window.__rotation = { state: state, SEED: SEED, moveItem: moveItem, makeTop: makeTop, removeItem: removeItem, saveAdd: saveAdd, render: render };
+window.__rotation = { state: state, SEED: SEED, moveItem: moveItem, makeTop: makeTop, removeItem: removeItem, saveAdd: saveAdd, render: render, startGripDrag: startGripDrag };
 })();
 </script>
 </body>
