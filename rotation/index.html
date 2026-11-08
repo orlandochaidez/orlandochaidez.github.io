@@ -178,6 +178,24 @@
   .logoutrow{display:none;margin-top:14px;text-align:center}
   body.admin .logoutrow{display:block}
   .logoutrow button{background:none;border:0;color:#8a764f;font-family:system-ui,sans-serif;font-weight:700;font-size:13px;text-decoration:underline;cursor:pointer}
+  /* ---------- SECTION VISIBILITY (admin toggles) ---------- */
+  .sectpanel{display:none;margin-top:26px;background:linear-gradient(180deg,#211709,#1a1208);border:1px solid #ffb03a;border-radius:16px;padding:16px 14px;box-shadow:0 10px 24px rgba(0,0,0,.45)}
+  body.admin .sectpanel{display:block}
+  .sectpanel h3{margin:0 0 4px;font-size:19px;font-style:italic;text-transform:uppercase;color:#ffb03a}
+  .sectpanel .sub{color:#a08c66;font-family:system-ui,sans-serif;font-weight:600;font-size:12.5px;margin-bottom:10px}
+  .sectrow{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid rgba(255,176,58,.13)}
+  .sectrow:last-of-type{border-bottom:0}
+  .sectrow .sname{flex:1;min-width:0;font-size:15.5px}
+  .sectrow .sstate{flex:none;font-family:system-ui,sans-serif;font-weight:800;font-size:11.5px;letter-spacing:.6px;color:#a08c66;text-transform:uppercase}
+  .sectrow .sstate.on{color:#ffb03a}
+  .viswitch{flex:none;position:relative;width:52px;height:30px;border-radius:999px;border:1.5px solid #4a3319;background:#120b04;cursor:pointer;padding:0}
+  .viswitch::after{content:"";position:absolute;top:3px;left:3px;width:21px;height:21px;border-radius:50%;background:#8a764f;transition:all .15s}
+  .viswitch.on{border-color:#ffb03a}
+  .viswitch.on::after{left:24px;background:#ffb03a}
+  .sectnote{display:none;color:#ff9a8a;font-family:system-ui,sans-serif;font-weight:700;font-size:12.5px;margin-top:10px}
+  .hidetag{display:none}
+  body.admin .hidetag{display:inline-block;background:#ff7a6b;color:#2a0a06;font-family:system-ui,sans-serif;font-weight:800;font-size:10.5px;letter-spacing:1px;padding:3px 8px;border-radius:999px;vertical-align:middle;margin-left:8px;text-transform:none}
+  body.admin .vis-hidden{opacity:.45}
   /* ---------- LIBRARY ---------- */
   .lib-stats{color:#cdbb96;font-family:system-ui,sans-serif;font-weight:600;font-size:13.5px;margin:-6px 0 12px}
   .lib-search{width:100%;background:#120b04;border:1.5px solid #4a3319;border-radius:11px;color:#f5ead6;font-family:system-ui,sans-serif;font-size:15px;padding:11px 12px;outline:none;margin-bottom:12px}
@@ -238,14 +256,21 @@
 
   <div id="heroSlot"></div>
 
-  <h2 class="sect">Top Albums <span class="dot">·</span> The Shelf</h2>
-  <div class="shelf" id="shelf"></div>
+  <div class="sectpanel" id="sectPanel">
+    <h3>Sections</h3>
+    <div class="sub">Flip a switch to hide a whole section from visitors. You still see everything — hidden ones are dimmed and tagged for you.</div>
+    <div class="sectrow"><span class="sname">📚 The Library (incl. search)</span><span class="sstate" id="sectState-library"></span><button class="viswitch" data-vtoggle="library" aria-label="Toggle Library visibility"></button></div>
+    <div class="sectrow"><span class="sname">Top Albums</span><span class="sstate" id="sectState-albums"></span><button class="viswitch" data-vtoggle="albums" aria-label="Toggle Top Albums visibility"></button></div>
+    <div class="sectrow"><span class="sname">Top Songs</span><span class="sstate" id="sectState-songs"></span><button class="viswitch" data-vtoggle="songs" aria-label="Toggle Top Songs visibility"></button></div>
+    <div class="sectrow"><span class="sname">Top Artists</span><span class="sstate" id="sectState-artists"></span><button class="viswitch" data-vtoggle="artists" aria-label="Toggle Top Artists visibility"></button></div>
+    <div class="sectnote" id="sectNote">⚠️ Visibility isn't saving yet — paste the settings SQL (supabase-settings-setup.sql) in Supabase to make these switches stick for visitors.</div>
+  </div>
 
-  <h2 class="sect">Top Songs</h2>
-  <div class="songs" id="songs"></div>
+  <div id="slotAlbums"></div>
 
-  <h2 class="sect">Top Artists</h2>
-  <div class="artists" id="artists"></div>
+  <div id="slotSongs"></div>
+
+  <div id="slotArtists"></div>
 
   <div class="addpanel" id="addPanel">
     <h3>Add to the rotation</h3>
@@ -271,11 +296,7 @@
   </div>
 
 
-  <h2 class="sect">📚 The Library</h2>
-  <div class="lib-stats" id="libStats"></div>
-  <input class="lib-search" id="libSearch" type="text" placeholder="Search the crates — artist, album or song…" autocomplete="off">
-  <div class="lib-rail" id="libRail"></div>
-  <div id="libBody"></div>
+  <div id="slotLibrary"></div>
 
   <div class="logoutrow"><button id="logoutBtn">Log out of admin</button></div>
 
@@ -349,7 +370,9 @@ var state = {
   items: null,             // {album:[], song:[], artist:[]}
   session: null,           // {access_token, refresh_token, expires_at, email}
   admin: false,
-  addSeg: "album"
+  addSeg: "album",
+  vis: { library: true, albums: true, songs: true, artists: true },  // section visibility (server-side via page_settings)
+  visLive: false           // true once the settings row has been fetched OK
 };
 function $(id){ return document.getElementById(id); }
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
@@ -390,6 +413,56 @@ function insertItem(row){
   return fetch(SB_URL + "/rest/v1/rotation_items", { method:"POST", headers: sbHeaders({"Prefer":"return=representation"}), body: JSON.stringify(row) })
     .then(function(r){ if(!r.ok) throw new Error("insert "+r.status); return r.json(); });
 }
+
+/* ============ SECTION VISIBILITY (page_settings) ============ */
+function visShown(key){ return state.admin || state.vis[key] !== false; }
+function fetchSettings(){
+  return fetch(SB_URL + "/rest/v1/page_settings?select=value&key=eq.section_visibility", { headers: sbHeaders() })
+    .then(function(r){ if(!r.ok) throw new Error("settings "+r.status); return r.json(); })
+    .then(function(rows){
+      if(!rows || !rows.length || !rows[0].value) throw new Error("no settings row");
+      var v = rows[0].value, out = {};
+      ["library","albums","songs","artists"].forEach(function(k){ out[k] = v[k] !== false; });
+      return out;
+    });
+}
+function saveSettings(){
+  return ensureFresh().then(function(){
+    var body = { key: "section_visibility", value: state.vis };
+    return fetch(SB_URL + "/rest/v1/page_settings?on_conflict=key", {
+      method: "POST",
+      headers: sbHeaders({"Prefer":"resolution=merge-duplicates,return=minimal"}),
+      body: JSON.stringify(body)
+    }).then(function(r){ if(!r.ok) throw new Error("settings save "+r.status); });
+  });
+}
+function applySettings(vis){
+  state.vis = vis; state.visLive = true;
+  render(); renderLibrary(); renderSectPanel();
+}
+function renderSectPanel(){
+  ["library","albums","songs","artists"].forEach(function(k){
+    var sw = document.querySelector('[data-vtoggle="'+k+'"]');
+    if(sw) sw.classList.toggle("on", state.vis[k] !== false);
+    var st = $("sectState-"+k);
+    if(st){ var on = state.vis[k] !== false; st.textContent = on ? "Showing" : "Hidden"; st.classList.toggle("on", on); }
+  });
+  var note = $("sectNote");
+  if(note) note.style.display = (!state.visLive && state.admin) ? "block" : "none";
+}
+document.addEventListener("click", function(e){
+  var sw = e.target.closest ? e.target.closest("[data-vtoggle]") : null;
+  if(!sw || !state.admin) return;
+  var k = sw.getAttribute("data-vtoggle");
+  state.vis[k] = state.vis[k] === false ? true : false;
+  render(); renderLibrary(); renderSectPanel();
+  saveSettings().then(function(){
+    toast(state.vis[k] ? "Section showing for visitors ✓" : "Section hidden from visitors ✓");
+  }).catch(function(){
+    state.visLive = false; renderSectPanel();
+    toast("Couldn't save visibility — paste the settings SQL first");
+  });
+});
 
 /* ============ AUTH ============ */
 function saveSession(s){
@@ -434,6 +507,7 @@ function signOut(){
   document.body.classList.remove("admin");
   $("adminBtn").textContent = "🔒 Admin"; $("adminBtn").classList.remove("on");
   render();
+  renderLibrary();
   if(tok) fetch(SB_URL + "/auth/v1/logout", { method:"POST", headers:{ "apikey": SB_KEY, "Authorization":"Bearer "+tok } }).catch(function(){});
 }
 
@@ -466,35 +540,75 @@ function render(){
           (state.admin ? '<div class="movebtns"><button class="mv" data-act="del" data-sec="album" data-idx="0" style="width:auto;padding:0 12px;font-size:11.5px;border-color:#ff7a6b;color:#ff9a8a">✕ Remove #1</button></div>' : '') +
         '</div></div>';
   } else heroSlot.innerHTML = "";
-  /* shelf */
-  var shelf = $("shelf");
-  if(items.album.length <= 1) shelf.innerHTML = '<div class="empty">The shelf is empty — for now.</div>';
-  else shelf.innerHTML = items.album.slice(1).map(function(a, i){
-    var idx = i+1;
-    return '<div class="alb" data-sec="album" data-idx="'+idx+'">' +
-      '<img src="'+esc(a.cover_url)+'" alt="'+esc(a.title)+' album cover" loading="lazy" draggable="false">' +
-      '<span class="rank">#'+(idx+1)+'</span>' + adminTools(a,"album",idx,items.album.length) +
-      '<div class="a-artist">'+esc(a.artist||"")+'</div><div class="a-title">'+esc(a.title)+'</div>' +
-      (a.year ? '<div class="a-year">'+esc(a.year)+'</div>' : '') + '</div>';
-  }).join("");
-  /* songs */
-  var songs = $("songs");
-  if(!items.song.length) songs.innerHTML = '<div class="empty">No songs on the list right now.</div>';
-  else songs.innerHTML = items.song.map(function(s, idx){
-    return '<div class="song" data-sec="song" data-idx="'+idx+'">' +
-      '<span class="n">'+(idx+1)+'</span>' +
-      '<img src="'+esc(s.cover_url)+'" alt="" loading="lazy" draggable="false">' +
-      '<div class="s-main"><div class="s-title">'+esc(s.title)+'</div><div class="s-artist">'+esc(s.artist||"")+'</div></div>' +
-      '<div class="s-alb">'+esc(s.album||"")+'</div>' + adminTools(s,"song",idx,items.song.length) + '</div>';
-  }).join("");
-  /* artists */
-  var artists = $("artists");
-  if(!items.artist.length) artists.innerHTML = '<div class="empty">No artists on the list right now.</div>';
-  else artists.innerHTML = items.artist.map(function(a, idx){
-    return '<div class="art" data-sec="artist" data-idx="'+idx+'">' +
-      '<img src="'+esc(a.cover_url)+'" alt="'+esc(a.title)+'" loading="lazy" draggable="false">' + adminTools(a,"artist",idx,items.artist.length) +
-      '<div class="ar-name">'+esc(a.title)+'</div></div>';
-  }).join("");
+  /* Top Albums — the shelf (hero above is album #1 and always shows).
+     The section's persistent nodes (#shelf etc.) are only ever refilled via
+     textContent swaps on their innerHTML — same pattern as the original page —
+     so live DOM nodes (and their listeners/geometry) survive re-renders. */
+  var slotAlbums = $("slotAlbums");
+  var albHidden = !visShown("albums");
+  var albSt = slotAlbums.getAttribute("data-rendered");
+  if(albHidden && albSt !== "hidden"){ slotAlbums.innerHTML = ""; slotAlbums.setAttribute("data-rendered","hidden"); }
+  else if(!albHidden){
+    var albHide = (state.admin && state.vis.albums === false) ? '<span class="hidetag">Hidden from visitors</span>' : "";
+    var shelfEl = $("shelf");
+    if(albSt !== "shown" || !shelfEl){
+      slotAlbums.innerHTML = '<div class="'+(albHide ? "vis-hidden" : "")+'"><h2 class="sect">Top Albums <span class="dot">·</span> The Shelf'+albHide+'</h2><div class="shelf" id="shelf"></div></div>';
+      slotAlbums.setAttribute("data-rendered","shown");
+      shelfEl = $("shelf");
+    }
+    if(items.album.length <= 1) shelfEl.innerHTML = '<div class="empty">The shelf is empty — for now.</div>';
+    else shelfEl.innerHTML = items.album.slice(1).map(function(a, i){
+      var idx = i+1;
+      return '<div class="alb" data-sec="album" data-idx="'+idx+'">' +
+        '<img src="'+esc(a.cover_url)+'" alt="'+esc(a.title)+' album cover" loading="lazy" draggable="false">' +
+        '<span class="rank">#'+(idx+1)+'</span>' + adminTools(a,"album",idx,items.album.length) +
+        '<div class="a-artist">'+esc(a.artist||"")+'</div><div class="a-title">'+esc(a.title)+'</div>' +
+        (a.year ? '<div class="a-year">'+esc(a.year)+'</div>' : '') + '</div>';
+    }).join("");
+  }
+  /* Top Songs */
+  var slotSongs = $("slotSongs");
+  var songHidden = !visShown("songs");
+  var songSt = slotSongs.getAttribute("data-rendered");
+  if(songHidden && songSt !== "hidden"){ slotSongs.innerHTML = ""; slotSongs.setAttribute("data-rendered","hidden"); }
+  else if(!songHidden){
+    var songHide = (state.admin && state.vis.songs === false) ? '<span class="hidetag">Hidden from visitors</span>' : "";
+    var songsEl = $("songs");
+    if(songSt !== "shown" || !songsEl){
+      slotSongs.innerHTML = '<div class="'+(songHide ? "vis-hidden" : "")+'"><h2 class="sect">Top Songs'+songHide+'</h2><div class="songs" id="songs"></div></div>';
+      slotSongs.setAttribute("data-rendered","shown");
+      songsEl = $("songs");
+    }
+    if(!items.song.length) songsEl.innerHTML = '<div class="empty">No songs on the list right now.</div>';
+    else songsEl.innerHTML = items.song.map(function(s, idx){
+      return '<div class="song" data-sec="song" data-idx="'+idx+'">' +
+        '<span class="n">'+(idx+1)+'</span>' +
+        '<img src="'+esc(s.cover_url)+'" alt="" loading="lazy" draggable="false">' +
+        '<div class="s-main"><div class="s-title">'+esc(s.title)+'</div><div class="s-artist">'+esc(s.artist||"")+'</div></div>' +
+        '<div class="s-alb">'+esc(s.album||"")+'</div>' + adminTools(s,"song",idx,items.song.length) + '</div>';
+    }).join("");
+  }
+  /* Top Artists */
+  var slotArtists = $("slotArtists");
+  var artHidden = !visShown("artists");
+  var artSt = slotArtists.getAttribute("data-rendered");
+  if(artHidden && artSt !== "hidden"){ slotArtists.innerHTML = ""; slotArtists.setAttribute("data-rendered","hidden"); }
+  else if(!artHidden){
+    var artHide = (state.admin && state.vis.artists === false) ? '<span class="hidetag">Hidden from visitors</span>' : "";
+    var artistsEl = $("artists");
+    if(artSt !== "shown" || !artistsEl){
+      slotArtists.innerHTML = '<div class="'+(artHide ? "vis-hidden" : "")+'"><h2 class="sect">Top Artists'+artHide+'</h2><div class="artists" id="artists"></div></div>';
+      slotArtists.setAttribute("data-rendered","shown");
+      artistsEl = $("artists");
+    }
+    if(!items.artist.length) artistsEl.innerHTML = '<div class="empty">No artists on the list right now.</div>';
+    else artistsEl.innerHTML = items.artist.map(function(a, idx){
+      return '<div class="art" data-sec="artist" data-idx="'+idx+'">' +
+        '<img src="'+esc(a.cover_url)+'" alt="'+esc(a.title)+'" loading="lazy" draggable="false">' + adminTools(a,"artist",idx,items.artist.length) +
+        '<div class="ar-name">'+esc(a.title)+'</div></div>';
+    }).join("");
+  }
+  renderSectPanel();
 }
 
 /* ============ PERSISTENCE OF EDITS ============ */
@@ -656,7 +770,7 @@ $("adminBtn").addEventListener("click", function(){
   if(state.admin){
     state.admin = false; document.body.classList.remove("admin");
     $("adminBtn").textContent = "🔒 Admin"; $("adminBtn").classList.remove("on");
-    render(); return;
+    render(); renderLibrary(); return;
   }
   if(state.session){
     ensureFresh().then(function(ok){
@@ -672,6 +786,7 @@ function enterAdmin(){
   state.admin = true; document.body.classList.add("admin");
   $("adminBtn").textContent = "✓ Done"; $("adminBtn").classList.add("on");
   render();
+  renderLibrary();
   toast(state.mode==="live" ? "Admin mode — edits save live" : "Admin mode (demo — edits save on this phone only)");
 }
 $("loginCancel").addEventListener("click", function(){ $("loginBk").classList.remove("open"); $("loginErr").textContent=""; });
@@ -810,6 +925,18 @@ fetchItems().then(function(items){
 setInterval(function(){
   if(state.mode==="live" && !state.admin) fetchItems().then(function(items){ state.items = items; render(); }).catch(function(){});
 }, 90000);
+/* section visibility: fetch now, then poll so toggles reach open pages fast */
+fetchSettings().then(function(vis){ applySettings(vis); }).catch(function(){});
+setInterval(function(){
+  fetchSettings().then(function(vis){
+    if(!state.admin || !state.visLive) applySettings(vis);
+    else {
+      var changed = ["library","albums","songs","artists"].some(function(k){ return (vis[k] !== false) !== (state.vis[k] !== false); });
+      state.visLive = true; renderSectPanel();
+      if(changed){ state.vis = vis; render(); renderLibrary(); renderSectPanel(); }
+    }
+  }).catch(function(){});
+}, 45000);
 
 
 /* ============ LIBRARY (Phase 2) ============
@@ -918,6 +1045,22 @@ function libArtistBody(node){
   return h + '</div>';
 }
 function renderLibrary(){
+  var wrap = $("slotLibrary"); if(!wrap) return;
+  if(!visShown("library")){
+    if(wrap.innerHTML) wrap.innerHTML = "";
+    return;
+  }
+  if(!document.getElementById("libBody")){
+    wrap.innerHTML =
+      '<div class="'+((state.admin && state.vis.library === false) ? "vis-hidden" : "")+'">' +
+      '<h2 class="sect">📚 The Library'+((state.admin && state.vis.library === false) ? '<span class="hidetag">Hidden from visitors</span>' : "")+'</h2>' +
+      '<div class="lib-stats" id="libStats"></div>' +
+      '<input class="lib-search" id="libSearch" type="text" placeholder="Search the crates — artist, album or song…" autocomplete="off" value="'+esc(lib.query)+'">' +
+      '<div class="lib-rail" id="libRail"></div>' +
+      '<div id="libBody"></div></div>';
+    var rebuiltSearch = $("libSearch");
+    if(rebuiltSearch) rebuiltSearch.addEventListener("input", function(){ lib.query = rebuiltSearch.value; renderLibrary(); });
+  }
   var slot = $("libBody"); if(!slot || !lib.rows) return;
   var nodes = libNodes();
   var totalSongs = 0; lib.rows.forEach(function(r){ totalSongs += libTrackCount(r); });
@@ -1029,7 +1172,7 @@ function bootLibrary(){
 bootLibrary();
 
 /* test hooks */
-window.__rotation = { state: state, SEED: SEED, moveItem: moveItem, makeTop: makeTop, removeItem: removeItem, saveAdd: saveAdd, render: render, startGripDrag: startGripDrag, lib: lib, renderLibrary: renderLibrary, libOpenArtist: libOpenArtist };
+window.__rotation = { state: state, SEED: SEED, moveItem: moveItem, makeTop: makeTop, removeItem: removeItem, saveAdd: saveAdd, render: render, startGripDrag: startGripDrag, lib: lib, renderLibrary: renderLibrary, libOpenArtist: libOpenArtist, applySettings: applySettings, renderSectPanel: renderSectPanel };
 })();
 </script>
 </body>
