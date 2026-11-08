@@ -215,6 +215,13 @@
   .lib-tracks li{padding:3px 0;border-bottom:1px solid rgba(255,176,58,.07)}
   .lib-tracks li:last-child{border-bottom:0}
   .lib-note{color:#a08c66;font-family:system-ui,sans-serif;font-weight:600;font-size:13px;padding:6px 0}
+  .lib-tracks li.hl{color:#ffb03a;font-weight:800}
+  .lib-songs{margin-bottom:8px}
+  .lib-songrow{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;border-bottom:1px solid rgba(255,176,58,.1);padding:9px 2px;cursor:pointer;text-align:left;color:#f5ead6;font-family:inherit}
+  .lib-songrow .st{flex:1;min-width:0}
+  .lib-songrow .stt{font-size:15px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .lib-songrow .sta{color:#ffa726;font-family:system-ui,sans-serif;font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .lib-songrow .chev{flex:none;color:#ffb03a;font-size:14px}
   /* toast */
   .toast{
     position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(80px);z-index:400;
@@ -272,7 +279,7 @@
 
   <h2 class="sect">📚 The Library</h2>
   <div class="lib-stats" id="libStats"></div>
-  <input class="lib-search" id="libSearch" type="text" placeholder="Search the crates — artist or album…" autocomplete="off">
+  <input class="lib-search" id="libSearch" type="text" placeholder="Search the crates — artist, album or song…" autocomplete="off">
   <div class="lib-rail" id="libRail"></div>
   <div id="libBody"></div>
 
@@ -847,7 +854,7 @@ var LIB_REL = {
   "MellowHype": ["OFWGKTA"],
   "OFWGKTA": ["MellowHype"]
 };
-var lib = { mode: "demo", rows: null, openArtist: null, openAlbum: null, query: "", letter: "ALL" };
+var lib = { mode: "demo", rows: null, openArtist: null, openAlbum: null, hl: null, query: "", letter: "ALL" };
 function libTrackCount(r){ return r.tracks ? r.tracks.length : (r.tc || 0); }
 function libLetterOf(name){
   var n = name.replace(/^the\s+/i, "");
@@ -868,8 +875,16 @@ function fetchLibrary(){
     .then(function(r){ if(!r.ok) throw new Error("lib http "+r.status); return r.json(); })
     .then(function(rows){ if(!rows || !rows.length) throw new Error("lib empty"); return rows; });
 }
+function libOpenAlbum(nodeName, slug, hl){
+  lib.openArtist = nodeName; lib.openAlbum = slug; lib.hl = hl || null;
+  lib.letter = "ALL"; lib.query = "";
+  var q = $("libSearch"); if(q) q.value = "";
+  renderLibrary();
+  var el = document.querySelector('[data-lib-tracks="' + slug + '"]') || document.querySelector('[data-lib-artist="' + nodeName.replace(/"/g, "") + '"]');
+  if(el && el.scrollIntoView) el.scrollIntoView({ block: "center" });
+}
 function libOpenArtist(name){
-  lib.openArtist = name; lib.openAlbum = null;
+  lib.openArtist = name; lib.openAlbum = null; lib.hl = null;
   lib.letter = "ALL"; lib.query = "";
   var q = $("libSearch"); if(q) q.value = "";
   renderLibrary();
@@ -890,7 +905,7 @@ function libAlbumHTML(r){
 function libTracksHTML(r){
   var h = '<div class="lib-tracks" data-lib-tracks="'+esc(r.slug)+'"><div class="th">'+esc(r.title)+' — tracklist</div>';
   if(r.tracks && r.tracks.length){
-    h += '<ol>' + r.tracks.map(function(t){ return '<li>'+esc(t)+'</li>'; }).join("") + '</ol>';
+    h += '<ol>' + r.tracks.map(function(t){ return '<li'+(lib.hl && t === lib.hl ? ' class="hl"' : '')+'>'+esc(t)+'</li>'; }).join("") + '</ol>';
   } else {
     h += '<div class="lib-note">Tracklist loads when the library table is live.</div>';
   }
@@ -936,8 +951,29 @@ function renderLibrary(){
     if(L !== "ALL" && !letters[L]) return '<span class="lib-chip dim">'+L+'</span>';
     return '<button class="lib-chip'+(lib.letter===L ? " on" : "")+'" data-letter="'+L+'">'+(L==="ALL" ? "All" : L)+'</button>';
   }).join("");
-  if(!view.length){ slot.innerHTML = '<div class="empty">Nothing in the crates matches that.</div>'; return; }
-  var html = "", lastLetter = null;
+  /* Songs results group — track-title matches across every album */
+  var songHits = [];
+  if(q){
+    lib.rows.forEach(function(r){
+      if(!r.tracks) return;
+      r.tracks.forEach(function(t){
+        if(t.toLowerCase().indexOf(q) >= 0) songHits.push({ title: t, album: r.title, node: r.artist_node, slug: r.slug });
+      });
+    });
+  }
+  if(!view.length && !songHits.length){ slot.innerHTML = '<div class="empty">Nothing in the crates matches that.</div>'; return; }
+  var html = "";
+  if(songHits.length){
+    html += '<div class="lib-letter">Songs</div><div class="lib-songs">' +
+      songHits.slice(0, 60).map(function(sh){
+        return '<button class="lib-songrow" data-song-slug="'+esc(sh.slug)+'" data-song-node="'+esc(sh.node)+'" data-song-title="'+esc(sh.title)+'">' +
+          '<span class="st"><span class="stt">'+esc(sh.title)+'</span><br><span class="sta">'+esc(sh.node)+' · '+esc(sh.album)+'</span></span>' +
+          '<span class="chev">▸</span></button>';
+      }).join("") +
+      (songHits.length > 60 ? '<div class="lib-note">Showing the first 60 song matches — narrow the search to see more.</div>' : '') +
+      '</div>';
+  }
+  var lastLetter = null;
   view.forEach(function(n){
     var L = libLetterOf(n.name);
     if(lib.letter === "ALL" && L !== lastLetter){ html += '<div class="lib-letter">'+esc(L)+'</div>'; lastLetter = L; }
@@ -963,17 +999,23 @@ document.addEventListener("click", function(e){
     else libOpenArtist(f);
     return;
   }
+  var srow = t.closest ? t.closest("[data-song-slug]") : null;
+  if(srow){
+    libOpenAlbum(srow.getAttribute("data-song-node"), srow.getAttribute("data-song-slug"), srow.getAttribute("data-song-title"));
+    return;
+  }
   var alb = t.closest ? t.closest("[data-lib-album]") : null;
   if(alb){
     var slug = alb.getAttribute("data-lib-album");
     lib.openAlbum = (lib.openAlbum === slug) ? null : slug;
+    lib.hl = null;
     renderLibrary(); return;
   }
   var row = t.closest ? t.closest("[data-artist]") : null;
   if(row){
     var name = row.getAttribute("data-artist");
     lib.openArtist = (lib.openArtist === name) ? null : name;
-    lib.openAlbum = null;
+    lib.openAlbum = null; lib.hl = null;
     renderLibrary();
   }
 });
