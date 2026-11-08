@@ -62,20 +62,20 @@
       url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='0.10'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E"),
       radial-gradient(130% 60% at 50% -8%, rgba(255,255,255,.8), rgba(255,255,255,0) 55%),
       radial-gradient(20% 11% at 23% 8%, rgba(255,255,255,.95), rgba(255,255,255,0) 70%),
-      linear-gradient(165deg, rgba(240,244,248,.80) 0%, rgba(208,216,226,.74) 38%, rgba(178,188,200,.76) 66%, rgba(148,158,172,.82) 100%);
+      linear-gradient(165deg, rgba(219,199,255,.80) 0%, rgba(178,141,238,.74) 38%, rgba(143,105,216,.76) 66%, rgba(112,76,186,.84) 100%);
     background-blend-mode:normal, normal, normal, normal;
     box-shadow:
       inset 0 2px 3px rgba(255,255,255,.9),
-      inset 0 0 34px rgba(120,130,145,.28),
-      inset 0 -18px 26px rgba(96,106,122,.45),
+      inset 0 0 34px rgba(122,90,190,.25),
+      inset 0 -18px 26px rgba(84,58,150,.42),
       inset 3px 0 8px rgba(255,255,255,.35),
-      inset -3px 0 10px rgba(96,106,122,.35),
-      0 24px 38px rgba(50,58,75,.28), 0 6px 14px rgba(50,58,75,.18);
+      inset -3px 0 10px rgba(84,58,150,.32),
+      0 24px 38px rgba(84,50,150,.30), 0 6px 14px rgba(84,50,150,.20);
     touch-action:none;
   }
   /* the guts: circuit board, batteries, wires and speaker seen through the clear shell */
   .guts{ position:absolute; inset:8px; border-radius:56px 56px 70px 70px / 48px 48px 82px 82px; z-index:0; pointer-events:none;
-    opacity:.58; filter:blur(1px) saturate(1);
+    opacity:.45; filter:blur(1.4px) saturate(.92);
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='520' viewBox='0 0 360 520'%3E%3Crect x='16' y='296' width='186' height='138' rx='10' fill='%231d7a3a'/%3E%3Cg stroke='%23d8b13a' stroke-width='3' fill='none' opacity='.85'%3E%3Cpath d='M30 330 H120 V360 H180'/%3E%3Cpath d='M30 380 H84 V410 H160'/%3E%3Cpath d='M140 312 V350'/%3E%3Cpath d='M52 420 H190'/%3E%3C/g%3E%3Cg fill='%23cfd4dc'%3E%3Ccircle cx='30' cy='330' r='4'/%3E%3Ccircle cx='120' cy='330' r='4'/%3E%3Ccircle cx='180' cy='360' r='4'/%3E%3Ccircle cx='84' cy='380' r='4'/%3E%3Ccircle cx='160' cy='410' r='4'/%3E%3Ccircle cx='52' cy='420' r='4'/%3E%3C/g%3E%3Crect x='52' y='336' width='52' height='30' rx='3' fill='%2322262e'/%3E%3Crect x='126' y='392' width='34' height='20' rx='3' fill='%2322262e'/%3E%3Cg%3E%3Crect x='248' y='322' width='36' height='102' rx='9' fill='%23c9ced8' stroke='%238a8f99' stroke-width='2'/%3E%3Crect x='248' y='322' width='36' height='16' rx='8' fill='%23e8b13a'/%3E%3Crect x='296' y='322' width='36' height='102' rx='9' fill='%23c9ced8' stroke='%238a8f99' stroke-width='2'/%3E%3Crect x='296' y='322' width='36' height='16' rx='8' fill='%23d84a3a'/%3E%3C/g%3E%3Cg fill='none' stroke-width='5' stroke-linecap='round'%3E%3Cpath d='M60 296 C70 240 40 210 66 160' stroke='%23d84a3a'/%3E%3Cpath d='M266 322 C250 260 300 250 292 200' stroke='%23f2c21b'/%3E%3Cpath d='M120 296 C160 250 210 260 246 226' stroke='%233a7bd8'/%3E%3C/g%3E%3Cg fill='none' stroke='%23b87333'%3E%3Ccircle cx='52' cy='212' r='24' stroke-width='4'/%3E%3Ccircle cx='52' cy='212' r='16' stroke-width='3'/%3E%3Ccircle cx='52' cy='212' r='8' stroke-width='3'/%3E%3C/g%3E%3Cg%3E%3Ccircle cx='300' cy='118' r='27' fill='%232c2c30'/%3E%3Ccircle cx='300' cy='118' r='17' fill='none' stroke='%23555a64' stroke-width='3'/%3E%3Ccircle cx='300' cy='118' r='7' fill='%23555a64'/%3E%3C/g%3E%3Crect x='128' y='52' width='104' height='17' rx='3' fill='%23e5ddc8'/%3E%3Cg stroke='%23c2a878' stroke-width='2'%3E%3Cpath d='M140 52 V69'/%3E%3Cpath d='M156 52 V69'/%3E%3Cpath d='M172 52 V69'/%3E%3Cpath d='M188 52 V69'/%3E%3Cpath d='M204 52 V69'/%3E%3Cpath d='M220 52 V69'/%3E%3C/g%3E%3C/svg%3E");
     background-size:cover; background-position:center; }
   /* molded seam */
@@ -88,15 +88,7 @@
   /* molded-plastic grain overlay: SVG noise skinned over the surface */
   .grain{ position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:1;
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.55' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='1'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E");
-    opacity:.13; }
-  .screw{ position:absolute; width:15px; height:15px; border-radius:50%; z-index:3;
-    background:radial-gradient(circle at 35% 30%, #e8ecf4, #9aa1b1 45%, #565d6e 80%, #333947);
-    box-shadow:inset 0 -1px 2px rgba(0,0,0,.6), 0 1px 1px rgba(0,0,0,.5); }
-  .screw::after{ content:''; position:absolute; left:1.5px; right:1.5px; top:6.2px; height:2.4px; border-radius:2px;
-    background:linear-gradient(180deg,#22262f,#454c5e); transform:rotate(38deg); }
-  .screw.tl{ left:20px; top:20px; } .screw.tr{ right:20px; top:20px; }
-  .screw.bl{ left:20px; bottom:20px; } .screw.br{ right:20px; bottom:20px; }
-  .screw.tr::after{ transform:rotate(-64deg); } .screw.bl::after{ transform:rotate(101deg); } .screw.br::after{ transform:rotate(12deg); }
+    opacity:.07; }
   /* ---------- LCD ---------- */
   #lcd{ position:relative; z-index:2; margin:0 auto 4px; width:196px; padding:5px 10px 6px; border-radius:9px;
     background:linear-gradient(180deg,#20261c,#2e3826 30%,#39482c);
@@ -106,8 +98,8 @@
   #lcd::after{ content:''; position:absolute; inset:0; border-radius:9px;
     background:linear-gradient(115deg, rgba(255,255,255,.15), rgba(255,255,255,0) 45%); pointer-events:none; }
   /* ---------- control labels ---------- */
-  .ctlLabel{ text-align:center; font-size:12.5px; font-weight:900; letter-spacing:2.2px; color:#2e3440;
-    text-shadow:0 1px 0 rgba(255,255,255,.7); margin-top:5px; }
+  .ctlLabel{ text-align:center; font-size:12.5px; font-weight:900; letter-spacing:2.2px; color:#221636;
+    text-shadow:0 1px 0 rgba(255,255,255,.55); margin-top:5px; }
   .ctlLabel em{ font-style:normal; color:#d98e00; }
   /* ---------- TWIST knob ---------- */
   #twistWrap{ position:absolute; left:50%; top:-38px; transform:translateX(-50%); z-index:5; width:128px; }
@@ -147,10 +139,6 @@
     box-shadow:inset 0 2px 3px rgba(255,255,255,.6), inset 0 -5px 8px rgba(20,70,0,.55), 0 4px 7px rgba(0,0,0,.6);
     transition:top .07s ease-out; }
   #flickSwitch.down{ top:43px; }
-  /* speaker grille */
-  #grille{ width:74px; height:92px; border-radius:14px; opacity:.95;
-    background-image:radial-gradient(circle, rgba(28,32,42,.8) 2.1px, rgba(255,255,255,.35) 2.6px, transparent 3.1px);
-    background-size:13px 13px; background-position:center; }
   /* BOOP button — a fisheye pup whose snoot IS the button */
   #boopWrap{ display:flex; flex-direction:column; align-items:center; }
   #boopBtn{ width:150px; height:150px; border-radius:50%; border:none; cursor:pointer; touch-action:none;
@@ -235,7 +223,6 @@
       <div id="toy">
         <div class="guts" aria-hidden="true"></div>
         <div class="grain" aria-hidden="true"></div>
-        <div class="screw tl"></div><div class="screw tr"></div><div class="screw bl"></div><div class="screw br"></div>
 
         <div id="twistWrap">
           <div id="twist"><div id="twistRidge"></div><div id="twistFace"><div class="dot"></div><div class="arrow">↻</div></div></div>
@@ -255,7 +242,7 @@
             </button>
             <div class="ctlLabel">BOOP <em>IT</em></div>
           </div>
-          <div id="grille" aria-hidden="true"></div>
+          <div style="width:74px" aria-hidden="true"></div>
         </div>
 
         <div id="pullWrap">
