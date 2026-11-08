@@ -115,7 +115,11 @@
   .seq-head span { color:#c9c9d1; font-size:10.5px; font-weight:800; letter-spacing:.22em; }
   .seq-head button { background:#3d3d45; color:#e8e8ea; border:none; border-radius:6px; font-family:inherit; font-weight:800; font-size:11px; padding:6px 11px; cursor:pointer; letter-spacing:.08em; }
   .seq { min-width:560px; }
-  .srow { display:grid; grid-template-columns:64px repeat(16,1fr); gap:5px; align-items:center; margin-bottom:5px; }
+  .srow { display:grid; grid-template-columns:64px repeat(16,1fr) 18px; gap:5px; align-items:center; margin-bottom:5px; }
+  .seq-head .btns { display:flex; gap:8px; }
+  .seq-head button.on { background:#f26722; color:#fff; }
+  .rmrow { background:none; border:none; color:#9a9aa2; font-size:16px; font-weight:900; cursor:pointer; padding:0; line-height:1; }
+  .rmrow:hover { color:#ff6b5e; }
   .srow .rlab { color:#d7d7de; font-size:10.5px; font-weight:800; letter-spacing:.08em; cursor:pointer; text-align:right; padding-right:5px; white-space:nowrap; overflow:hidden; }
   .srow .rlab:hover { color:#ffd94d; }
   .step { height:24px; border:none; border-radius:5px; cursor:pointer; background:#3a3a42; box-shadow:inset 0 1px 3px rgba(0,0,0,.6); padding:0; }
@@ -187,7 +191,7 @@
   </div>
 
   <div class="seq-wrap">
-    <div class="seq-head"><span>STEP SEQUENCER — TAP THE SQUARES, OR ARM REC AND PLAY THE PADS LIVE</span><button id="clearLiveBtn">CLEAR LIVE LAYER</button></div>
+    <div class="seq-head"><span>STEP SEQUENCER — TAP THE SQUARES, OR ARM REC AND PLAY THE PADS LIVE</span><span class="btns"><button id="addRowBtn">+ ADD ROW</button><button id="clearLiveBtn">CLEAR LIVE LAYER</button></span></div>
     <div class="seq" id="seq"></div>
   </div>
 
@@ -198,7 +202,7 @@
   <b>How to cook:</b> tap the pads to jam, or hit <b>LOAD PRESET</b> then <b>PLAY</b> for an instant beat.
   Build your own in the step sequencer, flip kits mid-loop (your pattern stays, the sounds change), and use <b>REC</b> to record pad playing into the loop.
   Keyboard works too: <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> top row of pads, <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd>,
-  <kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><kbd>F</kbd>, <kbd>Z</kbd><kbd>X</kbd><kbd>C</kbd><kbd>V</kbd> bottom row. <kbd>Space</kbd> = play/stop. The <b>SAMPLES</b> bank holds real audio bites: pad 13 is the Strum, pad 14 is a guitar loop — tap it once to start it looping, tap again to stop it.
+  <kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><kbd>F</kbd>, <kbd>Z</kbd><kbd>X</kbd><kbd>C</kbd><kbd>V</kbd> bottom row. <kbd>Space</kbd> = play/stop. The <b>SAMPLES</b> bank holds real audio bites: pad 13 is the Strum, pad 14 is a guitar loop — tap it once to start it looping, tap again to stop it. Want a pad in the sequencer? Hit <b>+ ADD ROW</b>, then tap any pad — it gets its own row (up to 8 extra). Your rows and patterns save on this device automatically.
 </p>
 
 <script>
@@ -268,7 +272,14 @@ let kitKey = "boombap", kit = KITS.boombap;
 let bpm = kit.bpm, swing = kit.swing, volume = 0.85;
 let playing = false, recArmed = false, currentStep = 0, barCount = 1, nextTime = 0, timerID = null;
 let pattern = {}; SEQ_ROWS.forEach(r => pattern[r.key] = new Array(16).fill(false));
+let extraRows = [];
+let savedState = null;
+try { savedState = JSON.parse(localStorage.getItem("beatlab-state") || "null"); } catch (e) {}
+if (savedState && savedState.pattern) SEQ_ROWS.forEach(r => { if (Array.isArray(savedState.pattern[r.key])) pattern[r.key] = savedState.pattern[r.key].slice(0, 16).concat(new Array(16).fill(false)).slice(0, 16); });
+let extraRowsData = (savedState && Array.isArray(savedState.extraRows)) ? savedState.extraRows.filter(e => e && typeof e.slot === "number" && Array.isArray(e.pattern)) : [];
+function saveState() { try { localStorage.setItem("beatlab-state", JSON.stringify({ pattern, live, extraRows: extraRows.map(e => ({ slot: e.slot, pattern: e.pattern })) })); } catch (e) {} }
 let live = {}; for (let i = 0; i < 16; i++) live[i] = [];
+if (savedState && savedState.live) for (let i = 0; i < 16; i++) if (Array.isArray(savedState.live[i])) live[i] = savedState.live[i].filter(s => typeof s === "number");
 let crackleOn = false, clickOn = false;
 
 /* ============================== AUDIO ============================== */
@@ -432,20 +443,47 @@ Object.keys(KITS).forEach(k => {
   $("kitBtns").appendChild(b);
 });
 const stepEls = {};
-SEQ_ROWS.forEach(r => {
+function makeSeqRow(cfg) {
   const row = document.createElement("div"); row.className = "srow";
-  const lab = document.createElement("div"); lab.className = "rlab"; lab.textContent = r.label; lab.title = "Tap to hear it";
-  lab.addEventListener("pointerdown", () => { audio(); trigger(r.slot, AC.currentTime + 0.01); flashPad(r.slot); });
-  row.appendChild(lab); stepEls[r.key] = [];
+  const lab = document.createElement("div"); lab.className = "rlab"; lab.textContent = cfg.label(); lab.title = "Tap to hear it";
+  lab.addEventListener("pointerdown", () => { audio(); trigger(cfg.slot, AC.currentTime + 0.01); flashPad(cfg.slot); });
+  row.appendChild(lab);
+  const els = [];
   for (let s = 0; s < 16; s++) {
     const st = document.createElement("button");
-    st.className = "step" + (s % 4 === 0 ? " grp" : ""); st.dataset.row = r.key; st.dataset.step = s;
-    st.addEventListener("click", () => { pattern[r.key][s] = !pattern[r.key][s]; st.classList.toggle("on", pattern[r.key][s]); if (pattern[r.key][s]) { audio(); trigger(r.slot, AC.currentTime + 0.01); } });
-    row.appendChild(st); stepEls[r.key].push(st);
+    st.className = "step" + (s % 4 === 0 ? " grp" : "") + (cfg.pattern[s] ? " on" : "");
+    st.addEventListener("click", () => { cfg.pattern[s] = !cfg.pattern[s]; st.classList.toggle("on", cfg.pattern[s]); saveState(); if (cfg.pattern[s]) { audio(); trigger(cfg.slot, AC.currentTime + 0.01); } });
+    row.appendChild(st); els.push(st);
   }
+  if (cfg.onRemove) { const x = document.createElement("button"); x.className = "rmrow"; x.textContent = "×"; x.title = "Remove this row"; x.addEventListener("click", cfg.onRemove); row.appendChild(x); }
+  else { const sp = document.createElement("span"); row.appendChild(sp); }
   $("seq").appendChild(row);
-});
-function refreshSeq() { SEQ_ROWS.forEach(r => { for (let s = 0; s < 16; s++) stepEls[r.key][s].classList.toggle("on", pattern[r.key][s]); }); }
+  return { rowEl: row, labEl: lab, stepEls: els };
+}
+SEQ_ROWS.forEach(r => { const ui = makeSeqRow({ slot: r.slot, label: () => r.label, pattern: pattern[r.key] }); stepEls[r.key] = ui.stepEls; });
+function addExtraRow(slot, pat) {
+  const er = { slot, pattern: (pat || new Array(16).fill(false)).slice(0, 16).concat(new Array(16).fill(false)).slice(0, 16) };
+  er.ui = makeSeqRow({ slot, label: () => padLabel(slot), pattern: er.pattern, onRemove: () => { extraRows = extraRows.filter(e => e !== er); er.ui.rowEl.remove(); saveState(); lcdHit("ROW REMOVED: " + padLabel(slot)); } });
+  extraRows.push(er);
+  return er;
+}
+extraRowsData.forEach(d => { if (!SEQ_ROWS.some(r => r.slot === d.slot) && !extraRows.some(e => e.slot === d.slot)) addExtraRow(d.slot, d.pattern); });
+let pendingAdd = false;
+function tryAddRow(slot) {
+  if (SEQ_ROWS.some(r => r.slot === slot) || extraRows.some(e => e.slot === slot)) { lcdHit("PAD " + (slot + 1) + " (" + padLabel(slot) + ") ALREADY HAS A ROW — TAP A DIFFERENT PAD"); return; }
+  if (extraRows.length >= 8) { lcdHit("MAX 8 EXTRA ROWS — REMOVE ONE WITH ITS × FIRST"); setPendingAdd(false); return; }
+  addExtraRow(slot);
+  saveState();
+  setPendingAdd(false);
+  lcdHit("ROW ADDED: " + padLabel(slot) + " — NOW TAP ITS SQUARES TO BUILD THE PATTERN");
+}
+function setPendingAdd(on) {
+  pendingAdd = on;
+  $("addRowBtn").textContent = on ? "TAP A PAD…" : "+ ADD ROW";
+  $("addRowBtn").classList.toggle("on", on);
+}
+function refreshSeq() { SEQ_ROWS.forEach(r => { for (let s = 0; s < 16; s++) stepEls[r.key][s].classList.toggle("on", pattern[r.key][s]); }); extraRows.forEach(e => { for (let s = 0; s < 16; s++) e.ui.stepEls[s].classList.toggle("on", e.pattern[s]); }); }
+$("addRowBtn").addEventListener("click", () => { setPendingAdd(!pendingAdd); lcdHit(pendingAdd ? "ADD ROW: TAP ANY PAD UP TOP AND IT GETS ITS OWN SEQUENCER ROW" : "ADD ROW CANCELLED"); });
 function flashPad(slot) { const el = padEls[slot]; if (!el) return; el.classList.add("hit"); setTimeout(() => el.classList.remove("hit"), 130); }
 function lcdHit(txt) { $("lcdHit").textContent = txt; }
 function hitPad(slot, el) {
@@ -453,7 +491,8 @@ function hitPad(slot, el) {
   trigger(slot, AC.currentTime + 0.01);
   flashPad(slot);
   if (!(kitKey === "samples" && slot === 13)) lcdHit("LAST HIT: PAD " + (slot + 1) + " — " + padLabel(slot) + "  ·  KIT: " + kit.name);
-  if (playing && recArmed) { if (!live[currentStep].includes(slot)) live[currentStep].push(slot); }
+  if (pendingAdd) { tryAddRow(slot); return; }
+  if (playing && recArmed) { if (!live[currentStep].includes(slot)) { live[currentStep].push(slot); saveState(); } }
 }
 
 /* ============================== KITS / CONTROLS ============================== */
@@ -466,6 +505,7 @@ function setKit(k) {
   $("lcdBpm").textContent = bpm; $("lcdSwing").textContent = swing + "%"; $("lcdKit").textContent = kit.name;
   document.querySelectorAll(".kit-btn").forEach(b => b.classList.toggle("on", b.dataset.kit === k));
   GRID_ORDER.forEach(slot => { padEls[slot].querySelector(".lab").textContent = padLabel(slot); });
+  extraRows.forEach(e => { e.ui.labEl.textContent = padLabel(e.slot); });
   if (crackleGain) crackleGain.gain.linearRampToValueAtTime((crackleOn && kit.crackle) ? 0.5 : 0, AC.currentTime + 0.2);
   lcdHit("KIT LOADED: " + kit.name + " — YOUR PATTERN STAYED, THE SOUNDS CHANGED");
 }
@@ -481,16 +521,18 @@ function loadPreset() {
   SEQ_ROWS.forEach(r => { for (let s = 0; s < 16; s++) pattern[r.key][s] = kit.preset[r.key].includes(s); });
   for (let i = 0; i < 16; i++) live[i] = (kit.preset.live && kit.preset.live[i]) ? kit.preset.live[i].slice() : [];
   refreshSeq();
-  lcdHit("PRESET LOADED: " + kit.name + " — HIT PLAY");
+  saveState();
+  lcdHit("PRESET LOADED: " + kit.name + " — HIT PLAY (YOUR EXTRA ROWS KEPT THEIR PATTERNS)");
 }
 function clearAll() {
   SEQ_ROWS.forEach(r => pattern[r.key].fill(false));
+  extraRows.forEach(e => e.pattern.fill(false));
   for (let i = 0; i < 16; i++) live[i] = [];
-  refreshSeq(); lcdHit("CLEARED. BLANK CANVAS — COOK SOMETHING");
+  refreshSeq(); saveState(); lcdHit("CLEARED. BLANK CANVAS — COOK SOMETHING");
 }
 $("presetBtn").addEventListener("click", loadPreset);
 $("clearBtn").addEventListener("click", clearAll);
-$("clearLiveBtn").addEventListener("click", () => { for (let i = 0; i < 16; i++) live[i] = []; lcdHit("LIVE LAYER CLEARED (STEP PATTERN KEPT)"); });
+$("clearLiveBtn").addEventListener("click", () => { for (let i = 0; i < 16; i++) live[i] = []; saveState(); lcdHit("LIVE LAYER CLEARED (STEP PATTERN KEPT)"); });
 $("recBtn").addEventListener("click", () => { recArmed = !recArmed; $("recBtn").classList.toggle("armed", recArmed); $("lcdStatus").classList.toggle("rec", recArmed); $("lcdStatus").textContent = recArmed ? "● REC ARMED" : (playing ? "PLAYING" : "READY"); });
 
 let rollTimer = null;
@@ -502,6 +544,7 @@ $("rollBtn").addEventListener("pointerdown", startRoll);
 function scheduleStep(step, t) {
   SEQ_ROWS.forEach(r => { if (pattern[r.key][step]) { trigger(r.slot, t, r.key === "chat" ? 0.75 : 1); drawQueue.push({ step, slot: r.slot, time: t }); } });
   live[step].forEach(slot => { trigger(slot, t); drawQueue.push({ step, slot, time: t }); });
+  extraRows.forEach(e => { if (e.pattern[step]) { trigger(e.slot, t); drawQueue.push({ step, slot: e.slot, time: t }); } });
   if (clickOn && step % 4 === 0) { const o = osc("square", step === 0 ? 1560 : 1040, t); out(o, t, 0.12, 0.03); o.stop(t + 0.04); }
 }
 const drawQueue = [];
@@ -525,6 +568,7 @@ function drawLoop() {
       if (d.slot === -1) {
         document.querySelectorAll(".step.now").forEach(el => el.classList.remove("now"));
         SEQ_ROWS.forEach(r => stepEls[r.key][d.step].classList.add("now"));
+        extraRows.forEach(e => e.ui.stepEls[d.step].classList.add("now"));
         $("lcdStep").textContent = d.step + 1; $("lcdBar").textContent = ((barCount - 1) % 4) + 1;
       } else { flashPad(d.slot); }
     }
