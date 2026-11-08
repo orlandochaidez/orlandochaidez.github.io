@@ -178,7 +178,8 @@
         <div class="kits" id="kitBtns"></div>
       </div>
       <div class="slider-row"><label>TEMPO <b id="bpmVal">92 BPM</b></label><input type="range" id="bpm" min="60" max="180" value="92"></div>
-      <div class="slider-row"><label>SWING <b id="swingVal">55%</b></label><input type="range" id="swing" min="0" max="60" value="55"></div>
+      <div class="slider-row"><label>SWING <b id="swingVal">56%</b></label><input type="range" id="swing" min="50" max="75" value="56"></div>
+      <div class="slider-row"><label>TAP TEMPO</label><button class="tog" id="tapBtn" style="width:100%;margin-top:7px;">TAP IN TIME</button></div>
       <div class="slider-row"><label>VOLUME <b id="volVal">85%</b></label><input type="range" id="vol" min="0" max="100" value="85"></div>
       <div class="toggles">
         <button class="tgl" id="vinylBtn">VINYL&nbsp;OFF</button>
@@ -208,7 +209,7 @@
   <b>How to cook:</b> tap the pads to jam, or hit <b>LOAD PRESET</b> then <b>PLAY</b> for an instant beat.
   Build your own in the step sequencer, flip kits mid-loop (your pattern stays, the sounds change), and use <b>REC</b> to record pad playing into the loop.
   Keyboard works too: <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> top row of pads, <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd>,
-  <kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><kbd>F</kbd>, <kbd>Z</kbd><kbd>X</kbd><kbd>C</kbd><kbd>V</kbd> bottom row. <kbd>Space</kbd> = play/stop. The <b>SAMPLES</b> bank holds real audio bites: pad 13 is the Strum, pad 14 is a guitar loop — tap it once to start it looping, tap again to stop it. Want a pad in the sequencer? Hit <b>+ ADD ROW</b>, then tap any pad — it gets its own row (up to 8 extra). Your rows and patterns save on this device automatically.
+  <kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><kbd>F</kbd>, <kbd>Z</kbd><kbd>X</kbd><kbd>C</kbd><kbd>V</kbd> bottom row. <kbd>Space</kbd> = play/stop. The <b>SAMPLES</b> bank holds real audio bites: pad 13 is the Strum, pad 14 is a guitar loop — tap it once to start it looping, tap again to stop it. Want a pad in the sequencer? Hit <b>+ ADD ROW</b>, then tap any pad — it gets its own row (up to 8 extra). Your rows and patterns save on this device automatically. The Hotel Loop is <b>BPM-locked</b> — it stretches to whatever tempo you set, and in the sequencer a step only ever <i>starts</i> it, never stops it. <b>TAP TEMPO</b>: tap the button in time with a beat in your head and the tempo follows.
 </p>
 
 <script>
@@ -219,23 +220,23 @@ const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
 const BASE_LABELS = ["KICK","KICK 2","SNARE","CLAP","HAT","OPEN HAT","SHAKER","CRASH","BASS LO","BASS HI","PERC","FX","CHOP 1","CHOP 2","CHOP 3","CHOP 4"];
 const KITS = {
   boombap: {
-    name: "BOOM BAP '93", btn: "BOOM BAP", bpm: 92, swing: 55, crackle: true,
+    name: "BOOM BAP '93", btn: "BOOM BAP", bpm: 92, swing: 56, crackle: true,
     kickF: 130, kickD: 0.34, snareF: 185, hatD: 0.045, dark: 0.75, bassType: "upright", melo: "piano",
     chops: [57, 55, 60, 65], bassLo: 33, bassHi: 38, fxKind: "scratch", percKind: "tom", clapKind: "rim",
     labels: {3:"RIMSHOT", 8:"BASS LO", 10:"TOM", 11:"SCRATCH", 12:"JAZZ CHD", 13:"JAZZ CHD 2", 14:"HORN STAB", 15:"PIANO HI"},
-    preset: { kick:[0,7,10], snare:[4,12], clap:[], chat:[0,2,4,6,8,10,12,14], ohat:[14], shaker:[2,6,10,14], bass:[0,10], perc:[15],
+    preset: { kick:[0,7,10], snare:[4,12], clap:[], chat:[0,2,4,6,8,10,12,14], ohat:[14], shaker:[6,14], bass:[0,10], perc:[15],
               live:{ 0:[12], 8:[13] } }
   },
   memphis: {
-    name: "MEMPHIS DARK", btn: "MEMPHIS", bpm: 140, swing: 8, crackle: false,
+    name: "MEMPHIS DARK", btn: "MEMPHIS", bpm: 140, swing: 51, crackle: false,
     kickF: 160, kickD: 0.42, snareF: 200, hatD: 0.04, dark: 0.9, bassType: "808", melo: "dark",
     chops: [45, 44, 48, 51], bassLo: 36, bassHi: 31, fxKind: "chant", percKind: "cowbell", clapKind: "clap",
     labels: {1:"808 KICK", 8:"808 LO", 9:"808 HI", 10:"COWBELL", 11:"CHANT", 12:"DARK KEYS", 13:"DARK KEYS 2", 14:"STRINGS", 15:"BELL"},
-    preset: { kick:[0,6,10], snare:[8], clap:[8], chat:[0,2,4,6,7,10,12,14,15], ohat:[], shaker:[], bass:[0,6,11], perc:[0,3,6,10,12,14],
+    preset: { kick:[0,6,10], snare:[8], clap:[8], chat:[0,4,7,10,12,14], ohat:[], shaker:[], bass:[0,6,11], perc:[3,10],
               live:{ 0:[12], 8:[13] } }
   },
   west: {
-    name: "WEST COAST FUNK", btn: "WEST COAST", bpm: 96, swing: 30, crackle: false,
+    name: "WEST COAST FUNK", btn: "WEST COAST", bpm: 96, swing: 54, crackle: false,
     kickF: 120, kickD: 0.3, snareF: 195, hatD: 0.05, dark: 0.85, bassType: "slap", melo: "funk",
     chops: [53, 55, 57, 60], bassLo: 36, bassHi: 41, fxKind: "talk", percKind: "conga", clapKind: "snap",
     labels: {3:"SNAP", 8:"SLAP BASS", 10:"CONGA", 11:"TALKBOX", 12:"FUNK CHD", 13:"FUNK CHD 2", 14:"SYNTH STAB", 15:"WHINE LEAD"},
@@ -243,15 +244,15 @@ const KITS = {
               live:{ 4:[12], 12:[13] } }
   },
   house: {
-    name: "HOUSE / FUNK", btn: "HOUSE", bpm: 122, swing: 12, crackle: false,
+    name: "HOUSE / FUNK", btn: "HOUSE", bpm: 122, swing: 50, crackle: false,
     kickF: 125, kickD: 0.26, snareF: 190, hatD: 0.05, dark: 0.95, bassType: "sub", melo: "house",
     chops: [60, 62, 65, 67], bassLo: 38, bassHi: 43, fxKind: "riser", percKind: "conga", clapKind: "clap",
     labels: {8:"SUB BASS", 10:"CONGA", 11:"RISER", 12:"HOUSE PIANO", 13:"PIANO 2", 14:"STRINGS", 15:"DISCO STAB"},
-    preset: { kick:[0,4,8,12], snare:[], clap:[4,12], chat:[0,2,4,6,8,10,12,14], ohat:[2,6,10,14], shaker:[0,4,8,12], bass:[2,6,10,14], perc:[0,3,8,11],
+    preset: { kick:[0,4,8,12], snare:[], clap:[4,12], chat:[0,2,4,6,8,10,12,14], ohat:[2,6,10,14], shaker:[4,12], bass:[2,6,10,14], perc:[0,3,8,11],
               live:{ 0:[12], 8:[14] } }
   },
   samples: {
-    name: "SAMPLES", btn: "SAMPLES", bpm: 74, swing: 0, crackle: false,
+    name: "SAMPLES", btn: "SAMPLES", bpm: 74, swing: 50, crackle: false,
     kickF: 130, kickD: 0.34, snareF: 185, hatD: 0.045, dark: 0.75, bassType: "upright", melo: "piano",
     chops: [57, 55, 60, 65], bassLo: 33, bassHi: 38, fxKind: "scratch", percKind: "tom", clapKind: "clap",
     labels: {12:"STRUM", 13:"HOTEL LOOP", 14:"CHOP 3", 15:"CHOP 4"},
@@ -297,6 +298,7 @@ let AC = null, master = null, crackleGain = null;
 function audio() {
   if (AC) { if (AC.state === "suspended") AC.resume(); return AC; }
   AC = new (window.AudioContext || window.webkitAudioContext)();
+  try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (e) {} /* iOS: play through the silent switch */
   const comp = AC.createDynamicsCompressor();
   comp.threshold.value = -14; comp.ratio.value = 5; comp.connect(AC.destination);
   master = AC.createGain(); master.gain.value = volume; master.connect(comp);
@@ -310,6 +312,11 @@ function audio() {
   loadStrum();
   return AC;
 }
+let silentUnlocked = false;
+document.addEventListener("pointerdown", () => {
+  if (silentUnlocked) return; silentUnlocked = true;
+  try { const a = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA="); const p = a.play(); if (p && p.catch) p.catch(() => {}); } catch (e) {}
+}, { passive: true });
 function env(g, t, peak, decay) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(peak, 0.0002), t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + decay); }
 function noiseSrc(t, dur) { const b = AC.createBuffer(1, Math.ceil(AC.sampleRate * dur), AC.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; const s = AC.createBufferSource(); s.buffer = b; s.start(t); s.stop(t + dur + 0.05); return s; }
 function osc(type, f, t) { const o = AC.createOscillator(); o.type = type; o.frequency.setValueAtTime(f, t); o.start(t); return o; }
@@ -392,31 +399,41 @@ function playStrum(t, vel) {
   const g = AC.createGain(); g.gain.value = 0.95 * (vel || 1);
   src.connect(g); g.connect(master); src.start(t);
 }
-function stopHotelLoop(fade) {
-  if (!hotelLoop) return;
-  const h = hotelLoop; hotelLoop = null;
-  if (padEls[13]) padEls[13].classList.remove("looping");
-  try {
-    const t = AC.currentTime, d = fade || 0.08;
-    h.g.gain.cancelScheduledValues(t); h.g.gain.setValueAtTime(h.g.gain.value, t);
-    h.g.gain.linearRampToValueAtTime(0.0001, t + d);
-    setTimeout(() => { try { h.src.stop(); } catch (e) {} }, (d + 0.06) * 1000);
-  } catch (e) {}
-}
-function toggleHotel(t) {
-  if (hotelLoop) { stopHotelLoop(); lcdHit("HOTEL LOOP: OFF"); return; }
+function hotelRate() { return (hotelBuf && hotelBuf.duration) ? hotelBuf.duration / (4 * 60 / bpm) : 1; }
+function startHotel(t) {
   const src = AC.createBufferSource(); src.buffer = hotelBuf; src.loop = true;
+  src.playbackRate.value = hotelRate();
   const g = AC.createGain(); g.gain.value = 0.95;
   src.connect(g); g.connect(master); src.start(t);
   hotelLoop = { src, g };
   if (padEls[13]) padEls[13].classList.add("looping");
-  lcdHit("HOTEL LOOP: ON — TAP PAD 14 AGAIN TO STOP IT");
+}
+function stopHotelLoop(fade, atTime) {
+  if (!hotelLoop) return;
+  const h = hotelLoop; hotelLoop = null;
+  const now = AC.currentTime, t0 = (atTime && atTime > now) ? atTime : now, d = fade || 0.08, delayMs = (t0 - now) * 1000;
+  if (padEls[13]) { if (delayMs > 40) setTimeout(() => padEls[13].classList.remove("looping"), delayMs); else padEls[13].classList.remove("looping"); }
+  try {
+    h.g.gain.cancelScheduledValues(t0); h.g.gain.setValueAtTime(0.95, t0);
+    h.g.gain.linearRampToValueAtTime(0.0001, t0 + d);
+    setTimeout(() => { try { h.src.stop(); } catch (e) {} }, delayMs + (d + 0.06) * 1000);
+  } catch (e) {}
+}
+function nextBarTime() { const sd = 60 / bpm / 4, rem = (16 - (currentStep % 16)) % 16; return nextTime + rem * sd; }
+function toggleHotel(t) {
+  if (hotelLoop) {
+    if (playing) { stopHotelLoop(0.08, nextBarTime()); lcdHit("HOTEL LOOP: STOPS AT THE NEXT BAR LINE"); }
+    else { stopHotelLoop(); lcdHit("HOTEL LOOP: OFF"); }
+    return;
+  }
+  if (playing) { startHotel(nextBarTime()); lcdHit("HOTEL LOOP: STARTS ON THE NEXT BAR — LOCKED TO " + bpm + " BPM"); }
+  else { startHotel(t); lcdHit("HOTEL LOOP: ON — LOCKED TO " + bpm + " BPM · TAP AGAIN TO STOP"); }
 }
 
-function trigger(slot, t, vel) {
+function trigger(slot, t, vel, fromSeq) {
   vel = vel || 1;
   if (kitKey === "samples" && slot === 12 && strumBuf) { playStrum(t, vel); return; }
-  if (kitKey === "samples" && slot === 13 && hotelBuf) { toggleHotel(t); return; }
+  if (kitKey === "samples" && slot === 13 && hotelBuf) { if (fromSeq) { if (!hotelLoop) startHotel(t); } else toggleHotel(t); return; }
   switch (slot) {
     case 0: sKick(t, false); break;
     case 1: sKick(t, true); break;
@@ -521,7 +538,7 @@ function hitPad(slot, el) {
   flashPad(slot);
   if (!(kitKey === "samples" && slot === 13)) lcdHit("LAST HIT: PAD " + (slot + 1) + " — " + padLabel(slot) + "  ·  KIT: " + kit.name);
   if (pendingAdd) { tryAddRow(slot); return; }
-  if (playing && recArmed) { if (!live[currentStep].includes(slot)) { live[currentStep].push(slot); saveState(); } }
+  if (playing && recArmed && !(kitKey === "samples" && slot === 13)) { const ts = recTarget(); if (!live[ts]) live[ts] = []; if (!live[ts].includes(slot)) { live[ts].push(slot); saveState(); } }
 }
 
 /* ============================== KITS / CONTROLS ============================== */
@@ -538,7 +555,19 @@ function setKit(k) {
   if (crackleGain) crackleGain.gain.linearRampToValueAtTime((crackleOn && kit.crackle) ? 0.5 : 0, AC.currentTime + 0.2);
   lcdHit("KIT LOADED: " + kit.name + " — YOUR PATTERN STAYED, THE SOUNDS CHANGED");
 }
-$("bpm").addEventListener("input", e => { bpm = +e.target.value; $("bpmVal").textContent = bpm + " BPM"; $("lcdBpm").textContent = bpm; });
+$("bpm").addEventListener("input", e => { bpm = +e.target.value; $("bpmVal").textContent = bpm + " BPM"; $("lcdBpm").textContent = bpm; if (hotelLoop) { try { hotelLoop.src.playbackRate.value = hotelRate(); } catch (err) {} } });
+let tapTimes = [];
+$("tapBtn").addEventListener("click", () => {
+  const now = performance.now();
+  tapTimes = tapTimes.filter(t => now - t < 2000); tapTimes.push(now);
+  if (tapTimes.length > 1) {
+    const iv = (tapTimes[tapTimes.length - 1] - tapTimes[0]) / (tapTimes.length - 1);
+    bpm = Math.min(180, Math.max(60, Math.round(60000 / iv)));
+    $("bpm").value = bpm; $("bpmVal").textContent = bpm + " BPM"; $("lcdBpm").textContent = bpm;
+    if (hotelLoop) { try { hotelLoop.src.playbackRate.value = hotelRate(); } catch (err) {} }
+    lcdHit("TAP TEMPO: " + bpm + " BPM — KEEP TAPPING TO LOCK IT IN");
+  } else lcdHit("TAP TEMPO: TAP AGAIN, IN TIME…");
+});
 $("swing").addEventListener("input", e => { swing = +e.target.value; $("swingVal").textContent = swing + "%"; $("lcdSwing").textContent = swing + "%"; });
 $("vol").addEventListener("input", e => { volume = +e.target.value / 100; $("volVal").textContent = e.target.value + "%"; if (master) master.gain.value = volume; });
 $("vinylBtn").addEventListener("click", () => { crackleOn = !crackleOn; $("vinylBtn").textContent = crackleOn ? "VINYL ON" : "VINYL OFF"; $("vinylBtn").classList.toggle("on", crackleOn); if (crackleGain) crackleGain.gain.linearRampToValueAtTime((crackleOn && kit.crackle) ? 0.5 : 0, AC.currentTime + 0.15); });
@@ -565,15 +594,23 @@ $("clearLiveBtn").addEventListener("click", () => { for (const k in live) live[k
 $("recBtn").addEventListener("click", () => { recArmed = !recArmed; $("recBtn").classList.toggle("armed", recArmed); $("lcdStatus").classList.toggle("rec", recArmed); $("lcdStatus").textContent = recArmed ? "● REC ARMED" : (playing ? "PLAYING" : "READY"); });
 
 let rollTimer = null;
-function startRoll(e) { e.preventDefault(); audio(); trigger(4, AC.currentTime + 0.01); flashPad(4); const rate = kitKey === "memphis" ? 52 : 78; rollTimer = setInterval(() => { trigger(4, AC.currentTime + 0.01); flashPad(4); if (playing && recArmed && !live[currentStep].includes(4)) live[currentStep].push(4); }, rate); }
+function startRoll(e) { e.preventDefault(); audio(); trigger(4, AC.currentTime + 0.01); flashPad(4); const rate = kitKey === "memphis" ? 52 : 78; rollTimer = setInterval(() => { trigger(4, AC.currentTime + 0.01); flashPad(4); if (playing && recArmed) { const ts = recTarget(); if (!live[ts]) live[ts] = []; if (!live[ts].includes(4)) { live[ts].push(4); saveState(); } } }, rate); }
 function stopRoll() { if (rollTimer) { clearInterval(rollTimer); rollTimer = null; } }
 $("rollBtn").addEventListener("pointerdown", startRoll);
 ["pointerup","pointerleave","pointercancel"].forEach(ev => $("rollBtn").addEventListener(ev, stopRoll));
 
+let soundingStep = 0, soundingTime = 0;
+function recTarget() {
+  if (!playing || !AC) return currentStep;
+  const sd = 60 / bpm / 4;
+  let target = soundingStep;
+  if (AC.currentTime - soundingTime > sd * 0.5) target = (soundingStep + 1) % plen;
+  return target;
+}
 function scheduleStep(step, t) {
-  SEQ_ROWS.forEach(r => { if (pattern[r.key][step]) { trigger(r.slot, t, r.key === "chat" ? 0.75 : 1); drawQueue.push({ step, slot: r.slot, time: t }); } });
-  (live[step] || []).forEach(slot => { trigger(slot, t); drawQueue.push({ step, slot, time: t }); });
-  extraRows.forEach(e => { if (e.pattern[step]) { trigger(e.slot, t); drawQueue.push({ step, slot: e.slot, time: t }); } });
+  SEQ_ROWS.forEach(r => { if (pattern[r.key][step]) { trigger(r.slot, t, r.key === "chat" ? 0.75 : 1, true); drawQueue.push({ step, slot: r.slot, time: t }); } });
+  (live[step] || []).forEach(slot => { trigger(slot, t, 1, true); drawQueue.push({ step, slot, time: t }); });
+  extraRows.forEach(e => { if (e.pattern[step]) { trigger(e.slot, t, 1, true); drawQueue.push({ step, slot: e.slot, time: t }); } });
   if (clickOn && step % 4 === 0) { const o = osc("square", step === 0 ? 1560 : 1040, t); out(o, t, 0.12, 0.03); o.stop(t + 0.04); }
 }
 const drawQueue = [];
@@ -581,7 +618,7 @@ function scheduler() {
   while (nextTime < AC.currentTime + 0.12) {
     const stepDur = 60 / bpm / 4;
     let t = nextTime;
-    if (currentStep % 2 === 1) t += stepDur * (swing / 100) * 0.9;
+    if (currentStep % 2 === 1) t += stepDur * (2 * (swing / 100) - 1); /* MPC swing: 50=straight, ~66=triplet, 75=max */
     scheduleStep(currentStep, t);
     drawQueue.push({ step: currentStep, slot: -1, time: t });
     nextTime += stepDur;
@@ -595,10 +632,11 @@ function drawLoop() {
     while (drawQueue.length && drawQueue[0].time <= now + 0.001) {
       const d = drawQueue.shift();
       if (d.slot === -1) {
+        soundingStep = d.step; soundingTime = d.time;
         document.querySelectorAll(".step.now").forEach(el => el.classList.remove("now"));
         SEQ_ROWS.forEach(r => stepEls[r.key][d.step].classList.add("now"));
         extraRows.forEach(e => e.ui.stepEls[d.step].classList.add("now"));
-        $("lcdStep").textContent = d.step + 1; $("lcdBar").textContent = ((barCount - 1) % 4) + 1;
+        $("lcdStep").textContent = d.step + 1; $("lcdBar").textContent = Math.floor(d.step / 16) + 1;
       } else { flashPad(d.slot); }
     }
   }
