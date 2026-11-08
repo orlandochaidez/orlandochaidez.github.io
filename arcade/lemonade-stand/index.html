@@ -16,10 +16,17 @@
   .bank small{display:block;font-weight:800;letter-spacing:2px;font-size:11px;color:#713f12}
   .bank .cash{font-size:clamp(30px,8.4vw,44px);font-weight:900;line-height:1.05;color:#422006;font-variant-numeric:tabular-nums}
   .bank .per{font-weight:800;color:#713f12;font-size:14.5px;font-variant-numeric:tabular-nums}
-  .ticker{background:#26230f;color:#fde68a;border-radius:10px;padding:8px 12px;font-size:13.5px;display:flex;justify-content:space-between;gap:10px;align-items:center;font-variant-numeric:tabular-nums}
+  .ticker{background:#26230f;color:#fde68a;border-radius:12px;padding:10px 12px;font-size:13.5px;font-variant-numeric:tabular-nums}
   .ticker .px{font-weight:900}
   .ticker .up{color:#4ade80}.ticker .down{color:#f87171}
-  .ticker .news{color:#fef3c7;font-size:12.5px;text-align:right;flex:1}
+  #tickRow{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  @media(max-width:480px){#tickRow{grid-template-columns:repeat(2,1fr)}}
+  .chip{background:rgba(255,255,255,.06);border:1px solid rgba(253,230,138,.25);border-radius:9px;padding:5px 6px 6px;text-align:center;white-space:nowrap;overflow:hidden}
+  .chip .ct{font-size:9.5px;letter-spacing:1.2px;color:#d6c98a;font-weight:800}
+  .chip .cv{font-size:13px;margin-top:1px}
+  .newsline{display:flex;gap:8px;align-items:flex-start;margin-top:9px;border-top:1px dashed rgba(253,230,138,.3);padding-top:8px;min-height:37px}
+  .newsTag{font-size:10px;font-weight:900;letter-spacing:1px;color:#26230f;background:#fde68a;border-radius:5px;padding:2px 6px;white-space:nowrap;margin-top:1px}
+  .ticker .news{color:#fef3c7;font-size:12.5px;line-height:1.45;flex:1}
   h2{font-size:15px;letter-spacing:1.5px;margin:20px 0 8px;color:#713f12}
   .qtyrow{display:flex;gap:8px;align-items:center;margin:2px 0 10px}
   .qtyrow span{font-size:13px;font-weight:800;color:#713f12}
@@ -81,8 +88,8 @@
   <div id="toast"></div>
 
   <div class="ticker">
-    <span id="tickRow"></span>
-    <span class="news" id="news">Markets quiet. Squeeze on.</span>
+    <div id="tickRow"></div>
+    <div class="newsline"><span class="newsTag">🗞️ WIRE</span><span class="news" id="news">Markets quiet. Squeeze on.</span></div>
   </div>
 
   <h2>🏭 PRODUCTION DIVISIONS</h2>
@@ -187,7 +194,7 @@
     for(let i=0;i<QUALITY.length;i++) $('qbtn'+i).onclick=()=>buyQuality(i);
   }
   function buildMarket(){
-    $('tickRow').innerHTML=COMMODS.map(c=>'<span>'+c.icon+' '+c.name.toUpperCase()+' <span class="px" id="tkp-'+c.id+'"></span> <span id="tkd-'+c.id+'"></span></span>').join(' &nbsp;·&nbsp; ');
+    $('tickRow').innerHTML=COMMODS.map(c=>'<div class="chip"><div class="ct">'+c.icon+' '+c.name.toUpperCase()+'</div><div class="cv"><span class="px" id="tkp-'+c.id+'"></span> <span id="tkd-'+c.id+'"></span></div></div>').join('');
     $('futCards').innerHTML=COMMODS.map(c=>
       '<div class="fcard">'+
         '<div class="row"><span>'+c.icon+' '+c.name.toUpperCase()+' — contract ('+c.per+')</span><b id="fp-'+c.id+'"></b></div>'+
