@@ -209,7 +209,7 @@
   <b>How to cook:</b> tap the pads to jam, or hit <b>LOAD PRESET</b> then <b>PLAY</b> for an instant beat.
   Build your own in the step sequencer, flip kits mid-loop (your pattern stays, the sounds change), and use <b>REC</b> to record pad playing into the loop.
   Keyboard works too: <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> top row of pads, <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd>,
-  <kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><kbd>F</kbd>, <kbd>Z</kbd><kbd>X</kbd><kbd>C</kbd><kbd>V</kbd> bottom row. <kbd>Space</kbd> = play/stop. The <b>SAMPLES</b> bank holds real audio bites: pad 13 is the Strum, pad 14 is a guitar loop — tap it once to start it looping, tap again to stop it. Want a pad in the sequencer? Hit <b>+ ADD ROW</b>, then tap any pad — it gets its own row (up to 8 extra). Your rows and patterns save on this device automatically. The Hotel Loop is <b>BPM-locked</b> — it stretches to whatever tempo you set, and in the sequencer a step only ever <i>starts</i> it, never stops it. <b>TAP TEMPO</b>: tap the button in time with a beat in your head and the tempo follows.
+  <kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><kbd>F</kbd>, <kbd>Z</kbd><kbd>X</kbd><kbd>C</kbd><kbd>V</kbd> bottom row. <kbd>Space</kbd> = play/stop. The <b>SAMPLES</b> bank holds real audio bites: pad 13 is the Strum, pad 14 is a guitar loop — tap it once to start it looping, tap again to stop it. Want a pad in the sequencer? Hit <b>+ ADD ROW</b>, then tap any pad — it gets its own row (up to 8 extra). Your rows and patterns save on this device automatically. The <b>★ MY KIT</b> bank is yours to build: hit <b>ASSIGN PADS</b>, tap the pad you want to change, switch to any kit, and tap the sound you want on it — the Eagles loop next to Boom Bap drums, whatever you want. Your bank saves on this device too. The Hotel Loop is <b>BPM-locked</b> — it stretches to whatever tempo you set, and in the sequencer a step only ever <i>starts</i> it, never stops it. <b>TAP TEMPO</b>: tap the button in time with a beat in your head and the tempo follows.
 </p>
 
 <script>
@@ -258,6 +258,14 @@ const KITS = {
     labels: {12:"STRUM", 13:"HOTEL LOOP", 14:"CHOP 3", 15:"CHOP 4"},
     preset: { kick:[0,8], snare:[4,12], clap:[], chat:[0,2,4,6,8,10,12,14], ohat:[], shaker:[2,6,10,14], bass:[0,10], perc:[],
               live:{ 0:[12] } }
+  },
+  custom: {
+    name: "MY KIT ★ CUSTOM", btn: "★ MY KIT", bpm: 92, swing: 56, crackle: true,
+    kickF: 130, kickD: 0.34, snareF: 185, hatD: 0.045, dark: 0.75, bassType: "upright", melo: "piano",
+    chops: [57, 55, 60, 65], bassLo: 33, bassHi: 38, fxKind: "scratch", percKind: "tom", clapKind: "clap",
+    labels: {},
+    preset: { kick:[0,7,10], snare:[4,12], clap:[], chat:[0,2,4,6,8,10,12,14], ohat:[14], shaker:[6,14], bass:[0,10], perc:[15],
+              live:{ 0:[12], 8:[13] } }
   }
 };
 const SEQ_ROWS = [
@@ -287,7 +295,13 @@ if (savedState && [16, 32, 64].includes(savedState.plen)) plen = savedState.plen
 if (savedState && savedState.pattern) SEQ_ROWS.forEach(r => { if (Array.isArray(savedState.pattern[r.key])) pattern[r.key] = savedState.pattern[r.key].slice(0, plen).concat(new Array(plen).fill(false)).slice(0, plen); });
 else if (plen !== 16) SEQ_ROWS.forEach(r => { pattern[r.key] = pattern[r.key].concat(new Array(plen).fill(false)).slice(0, plen); });
 let extraRowsData = (savedState && Array.isArray(savedState.extraRows)) ? savedState.extraRows.filter(e => e && typeof e.slot === "number" && Array.isArray(e.pattern)) : [];
-function saveState() { try { localStorage.setItem("beatlab-state", JSON.stringify({ pattern, live, plen, extraRows: extraRows.map(e => ({ slot: e.slot, pattern: e.pattern })) })); } catch (e) {} }
+let customMap = {};
+for (let i = 0; i < 16; i++) customMap[i] = { kit: "boombap", slot: i };
+customMap[12] = { kit: "samples", slot: 12 };
+customMap[13] = { kit: "samples", slot: 13 };
+customMap[15] = { kit: "west", slot: 15 };
+if (savedState && savedState.customMap) for (let i = 0; i < 16; i++) { const a = savedState.customMap[i]; if (a && KITS[a.kit] && typeof a.slot === "number") customMap[i] = { kit: a.kit, slot: a.slot }; }
+function saveState() { try { localStorage.setItem("beatlab-state", JSON.stringify({ pattern, live, plen, customMap, extraRows: extraRows.map(e => ({ slot: e.slot, pattern: e.pattern })) })); } catch (e) {} }
 function normPat(a) { return (a || []).slice(0, plen).concat(new Array(plen).fill(false)).slice(0, plen); }
 let live = {}; for (let i = 0; i < 64; i++) live[i] = [];
 if (savedState && savedState.live) for (let i = 0; i < 64; i++) if (Array.isArray(savedState.live[i])) live[i] = savedState.live[i].filter(s => typeof s === "number");
@@ -432,6 +446,16 @@ function toggleHotel(t) {
 
 function trigger(slot, t, vel, fromSeq) {
   vel = vel || 1;
+  if (kitKey === "custom") {
+    const a = customMap[slot];
+    if (a) {
+      const saveKit = kit, saveKey = kitKey;
+      kit = KITS[a.kit]; kitKey = a.kit;
+      trigger(a.slot, t, vel, fromSeq);
+      kit = saveKit; kitKey = saveKey;
+      return;
+    }
+  }
   if (kitKey === "samples" && slot === 12 && strumBuf) { playStrum(t, vel); return; }
   if (kitKey === "samples" && slot === 13 && hotelBuf) { if (fromSeq) { if (!hotelLoop) startHotel(t); } else toggleHotel(t); return; }
   switch (slot) {
@@ -454,7 +478,8 @@ function trigger(slot, t, vel, fromSeq) {
 /* ============================== UI BUILD ============================== */
 const $ = id => document.getElementById(id);
 const padEls = {};
-function padLabel(slot) { return (kit.labels && kit.labels[slot]) || BASE_LABELS[slot]; }
+function labelFor(k, slot) { const kk = KITS[k]; return (kk.labels && kk.labels[slot]) || BASE_LABELS[slot]; }
+function padLabel(slot) { if (kitKey === "custom") { const a = customMap[slot]; return a ? labelFor(a.kit, a.slot) : BASE_LABELS[slot]; } return labelFor(kitKey, slot); }
 GRID_ORDER.forEach(slot => {
   const b = document.createElement("button");
   b.className = "pad"; b.dataset.slot = slot;
@@ -465,9 +490,23 @@ GRID_ORDER.forEach(slot => {
 });
 Object.keys(KITS).forEach(k => {
   const b = document.createElement("button");
-  b.className = "kit-btn" + (k === kitKey ? " on" : "") + (k === "samples" ? " wide" : ""); b.textContent = KITS[k].btn; b.dataset.kit = k;
+  b.className = "kit-btn" + (k === kitKey ? " on" : "") + ((k === "samples" || k === "custom") ? " wide" : ""); b.textContent = KITS[k].btn; b.dataset.kit = k;
   b.addEventListener("click", () => setKit(k));
   $("kitBtns").appendChild(b);
+});
+const assignBtn = document.createElement("button");
+assignBtn.id = "assignBtn"; assignBtn.className = "kit-btn wide"; assignBtn.style.display = "none"; assignBtn.style.marginTop = "8px";
+assignBtn.textContent = "🎛 ASSIGN PADS — BUILD YOUR BANK";
+$("kitBtns").appendChild(assignBtn);
+let assignState = null, assignTarget = null;
+function setAssign(state) {
+  assignState = state;
+  assignBtn.textContent = state ? "TAP… (TAP HERE TO CANCEL)" : "🎛 ASSIGN PADS — BUILD YOUR BANK";
+  assignBtn.classList.toggle("on", !!state);
+}
+assignBtn.addEventListener("click", () => {
+  if (assignState) { setAssign(null); lcdHit("ASSIGN CANCELLED"); }
+  else { setAssign("target"); lcdHit("ASSIGN: TAP THE PAD YOU WANT TO CHANGE"); }
 });
 const stepEls = {};
 function makeSeqRow(cfg) {
@@ -533,6 +572,20 @@ stylePlen();
 function flashPad(slot) { const el = padEls[slot]; if (!el) return; el.classList.add("hit"); setTimeout(() => el.classList.remove("hit"), 130); }
 function lcdHit(txt) { $("lcdHit").textContent = txt; }
 function hitPad(slot, el) {
+  if (assignState === "target" && kitKey === "custom") {
+    assignTarget = slot; setAssign("source");
+    lcdHit("PAD " + (slot + 1) + " PICKED — NOW SWITCH TO ANY KIT (BOOM BAP, SAMPLES, MEMPHIS…) AND TAP THE SOUND YOU WANT ON IT");
+    return;
+  }
+  if (assignState === "source" && kitKey !== "custom") {
+    const src = { kit: kitKey, slot }, lbl = labelFor(kitKey, slot), fromName = kit.name;
+    customMap[assignTarget] = src;
+    setAssign(null);
+    setKit("custom");
+    saveState();
+    lcdHit("PAD " + (assignTarget + 1) + " IS NOW " + lbl + " (FROM " + fromName + ") — SAVED TO YOUR BANK ★");
+    return;
+  }
   audio();
   trigger(slot, AC.currentTime + 0.01);
   flashPad(slot);
@@ -544,7 +597,9 @@ function hitPad(slot, el) {
 /* ============================== KITS / CONTROLS ============================== */
 function setKit(k) {
   stopHotelLoop(0.03);
+  if (assignState === "target" && k !== "custom") setAssign(null);
   kitKey = k; kit = KITS[k];
+  assignBtn.style.display = k === "custom" ? "" : "none";
   bpm = kit.bpm; swing = kit.swing;
   $("bpm").value = bpm; $("swing").value = swing;
   $("bpmVal").textContent = bpm + " BPM"; $("swingVal").textContent = swing + "%";
