@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#16525a" />
+  <meta name="description" content="Pocket Putt — a pocket-sized mini golf game. Pull back, aim, and sink it in as few strokes as you can." />
+  <title>Pocket Putt · Mini Golf</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%235cc34f'/%3E%3Ccircle cx='32' cy='38' r='9' fill='%23163020'/%3E%3Cpath d='M32 38V10l16 7-16 7' stroke='%23fff' stroke-width='3' fill='%23ff6b5b'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <canvas id="game" aria-label="Mini golf course"></canvas>
+
+  <div id="hud">
+    <div class="hud-row">
+      <div class="pill hole"><span class="lbl">Hole</span><b id="hHole">1</b><span class="dim">/9</span></div>
+      <div class="pill"><span class="lbl">Par</span><b id="hPar">3</b></div>
+      <div class="pill"><span class="lbl">Strokes</span><b id="hStrokes">0</b></div>
+      <div class="pill"><span class="lbl">Total</span><b id="hTotal">E</b></div>
+      <div class="hud-btns">
+        <button id="muteBtn" class="icon-btn" aria-label="Mute sound">
+          <svg id="icoSound" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+          <svg id="icoMute" viewBox="0 0 24 24" class="hidden"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <button id="menuBtn" class="icon-btn" aria-label="Menu">
+          <svg viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+    </div>
+    <div id="holeName" class="hole-name"></div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <div id="hint" class="hint">Drag back anywhere, let go to putt</div>
+  <div id="fade" class="fade"></div>
+
+  <!-- Title -->
+  <div id="title" class="modal show">
+    <div class="card title-card">
+      <div class="logo">
+        <svg viewBox="0 0 120 120" aria-hidden="true">
+          <circle cx="60" cy="60" r="56" fill="#5cc34f"/>
+          <circle cx="60" cy="60" r="56" fill="none" stroke="#b9783f" stroke-width="7"/>
+          <ellipse cx="60" cy="80" rx="15" ry="12" fill="#173322"/>
+          <path d="M60 80V22" stroke="#f4f1e8" stroke-width="4" stroke-linecap="round"/>
+          <path d="M62 23l30 12-30 12z" fill="#ff6b5b"/>
+          <circle cx="36" cy="88" r="8" fill="#fff"/>
+        </svg>
+      </div>
+      <h1>Pocket Putt</h1>
+      <p class="sub">9 holes of tiny-course mini golf</p>
+      <div class="how">
+        <div><span class="step">1</span>Touch anywhere and drag back</div>
+        <div><span class="step">2</span>Aim the arrow, watch the power ring</div>
+        <div><span class="step">3</span>Let go to putt. Drag back to the start to cancel</div>
+      </div>
+      <button id="playBtn" class="btn primary">Play</button>
+      <p id="bestLine" class="best"></p>
+      <a class="btn ghost" href="../index.html" style="text-decoration:none;text-align:center">← All games</a>
+    </div>
+  </div>
+
+  <!-- Pause menu -->
+  <div id="menu" class="modal">
+    <div class="card">
+      <h2>Paused</h2>
+      <p class="sub" id="roundCode"></p>
+      <button id="resumeBtn" class="btn primary">Resume</button>
+      <button id="cardBtn" class="btn">Scorecard</button>
+      <button id="restartBtn" class="btn">Restart this round</button>
+      <button id="newRoundBtn2" class="btn">New round</button>
+      <a class="btn ghost" href="../index.html" style="text-decoration:none;text-align:center">← All games</a>
+    </div>
+  </div>
+
+  <!-- Scorecard -->
+  <div id="scorecard" class="modal">
+    <div class="card wide">
+      <h2 id="scTitle">Scorecard</h2>
+      <p class="sub" id="scSub"></p>
+      <div class="table-wrap"><table id="scTable"></table></div>
+      <div class="sc-total" id="scTotal"></div>
+      <p class="best" id="scBest"></p>
+      <div class="btn-row">
+        <button id="replayBtn" class="btn">Replay</button>
+        <button id="newRoundBtn" class="btn primary">New round</button>
+      </div>
+      <button id="scCloseBtn" class="btn ghost">Back to game</button>
+    </div>
+  </div>
+
+  <script src="js/course.js"></script>
+  <script src="js/physics.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
