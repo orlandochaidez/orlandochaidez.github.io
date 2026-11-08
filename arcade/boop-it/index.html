@@ -407,13 +407,24 @@ const sfx={
   good(){ const base=620*Math.pow(2,Math.min(S.score,18)/12); tone(base,base,0.09,'sine',0.45); tone(base*1.5,base*1.5,0.12,'sine',0.4,0.06); },
   fail(){ tone(220,55,0.55,'sawtooth',0.5); noiseBurst(0.4,300,0.3,0.05); tone(110,40,0.6,'square',0.25,0.05); }
 };
+let speakTimer=null;
 function speak(text){
   if(muted) return;
   try{
     if(!('speechSynthesis' in window)) return;
+    const synth=speechSynthesis;
+    if(synth.paused) synth.resume();           // iOS can leave the synth stuck paused
     const u=new SpeechSynthesisUtterance(text);
-    u.rate=1.12; u.pitch=0.62; u.volume=0.9;
-    speechSynthesis.cancel(); speechSynthesis.speak(u);
+    u.rate=1.12; u.pitch=0.62; u.volume=1;
+    if(synth.speaking || synth.pending){
+      // iOS silently drops an utterance queued in the same tick as cancel() —
+      // cancel first, then speak a beat later.
+      synth.cancel();
+      clearTimeout(speakTimer);
+      speakTimer=setTimeout(()=>{ try{ synth.speak(u); }catch(e){} }, 80);
+    } else {
+      synth.speak(u);
+    }
   }catch(e){}
 }
 
@@ -435,6 +446,7 @@ function start(){
   showScore(); overlay.classList.add('hidden');
   cmdEl.innerHTML='<small>GET READY</small>3… 2… 1…';
   audio(); // unlock on the start tap
+  if('speechSynthesis' in window){ try{ speechSynthesis.resume(); speechSynthesis.getVoices(); }catch(e){} } // prime the voice on the same tap
   if(window.DeviceMotionEvent && typeof DeviceMotionEvent.requestPermission==='function'){
     DeviceMotionEvent.requestPermission().catch(()=>{});
   }
