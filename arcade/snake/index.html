@@ -21,18 +21,24 @@
   .pad button{min-width:0;height:56px;font-size:22px;background:#232733;color:#fff;border:1px solid #3a4050}
   .pad .spacer{visibility:hidden}
   .hint{color:#9aa3b2;font-size:13px;line-height:1.5;text-align:center;margin-top:10px}
+  #board{display:none;background:#171b23;border:1px solid #2a3040;border-radius:12px;padding:12px 16px;margin-top:12px}
+  #board h3{margin:0 0 8px;font-size:13px;letter-spacing:1.5px;color:#ffd60a;text-align:center}
+  #board .brow{display:flex;justify-content:space-between;font-size:15px;font-weight:700;padding:3px 2px;color:#dfe5ee}
+  #board .brow.me{color:#35c759}
+  #board .myrank{text-align:center;margin-top:9px;font-size:14px;font-weight:800;color:#fff;border-top:1px dashed #2a3040;padding-top:9px}
   @media(min-width:700px){.pad{display:none}}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header><h1>🐍 Snake</h1><a class="back" href="../index.html">← All games</a></header>
-  <div class="score"><div><small>SCORE</small><span id="score">0</span></div><div><small>BEST</small><span id="best">0</span></div></div>
+  <div class="score"><div><small>SCORE</small><span id="score">0</span></div><div><small>BEST</small><span id="best">0</span></div><div><small>🌍 WORLD BEST</small><span id="worldBest">…</span></div></div>
   <canvas id="game" width="480" height="480"></canvas>
   <div class="bar">
     <button id="startBtn">Start / Restart</button>
     <button class="secondary" id="pauseBtn">Pause</button>
   </div>
+  <div id="board"></div>
   <div class="pad" aria-label="Direction pad">
     <span class="spacer"></span><button data-dir="up">↑</button><span class="spacer"></span>
     <button data-dir="left">←</button><button data-dir="down">↓</button><button data-dir="right">→</button>
@@ -43,6 +49,50 @@
 (() => {
   const cv=document.getElementById('game'), ctx=cv.getContext('2d');
   const N=24, S=cv.width/N;
+
+  /* ================= worldwide board (anonymous, forever) =================
+     Same Supabase project as Boop It / Chess / Polls. Until the snake_scores
+     table exists the game runs in local mode and flips live on its own. */
+  const SB_URL='https://qewxxfmdkichcmhyxqjo.supabase.co';
+  const SB_KEY='sb_publishable_-siKrI5IZ3TjXC_TWcRbDw_9cbY6NaB';
+  const W={ live:false, top:[], total:0, myRank:0 };
+  function sbHeaders(extra){ return Object.assign({ apikey:SB_KEY, Authorization:'Bearer '+SB_KEY }, extra||{}); }
+  function worldLoad(){
+    if(typeof fetch!=='function') return Promise.resolve(false);
+    const topP=fetch(SB_URL+'/rest/v1/snake_scores?select=score,created_at&order=score.desc&limit=10',
+      { headers:sbHeaders() }).then(r=>{ if(!r.ok) throw 0; return r.json(); });
+    const cntP=fetch(SB_URL+'/rest/v1/snake_scores?select=id',
+      { headers:sbHeaders({ Prefer:'count=exact', Range:'0-0' }) })
+      .then(r=>{ const cr=r.headers.get('content-range')||''; const tot=parseInt((cr.split('/')[1]||''),10); return isNaN(tot)?0:tot; })
+      .catch(()=>0);
+    return Promise.all([topP,cntP]).then(([rows,total])=>{
+      W.live=true; W.top=rows||[]; W.total=total;
+      document.getElementById('worldBest').textContent = W.top.length? W.top[0].score : '—';
+      return true;
+    }).catch(()=>{ W.live=false; document.getElementById('worldBest').textContent='local'; return false; });
+  }
+  function worldSubmit(myScore){
+    if(!W.live || !(myScore>0)) return Promise.resolve(false);
+    return fetch(SB_URL+'/rest/v1/snake_scores', { method:'POST',
+        headers:sbHeaders({ 'Content-Type':'application/json', Prefer:'return=minimal' }),
+        body:JSON.stringify({ score:myScore }) })
+      .then(r=>{ if(!r.ok) throw 0;
+        return fetch(SB_URL+'/rest/v1/snake_scores?select=id&score=gt.'+myScore,
+          { headers:sbHeaders({ Prefer:'count=exact', Range:'0-0' }) });
+      })
+      .then(r=>{ const cr=(r&&r.headers&&r.headers.get('content-range'))||''; const above=parseInt((cr.split('/')[1]||''),10);
+        W.myRank=(isNaN(above)?0:above)+1;
+        return worldLoad().then(()=>{ renderBoard(myScore); return true; });
+      })
+      .catch(()=>false);
+  }
+  function renderBoard(myScore){
+    const b=document.getElementById('board'); if(!W.live){ b.style.display='none'; return; }
+    const rows=W.top.slice(0,5).map((r,i)=>'<div class="brow"><span>#'+(i+1)+'</span><span>'+r.score+'</span></div>').join('');
+    b.innerHTML='<h3>🌍 WORLD TOP 5 — FOREVER BOARD</h3>'+rows+
+      (myScore>0&&W.myRank? '<div class="myrank">Your '+myScore+' ranks #'+W.myRank+' worldwide · '+W.total+' games played</div>' : '');
+    b.style.display='block';
+  }
   let snake, dir, next, food, score, best=+localStorage.getItem('snake-best')||0, timer=null, running=false, paused=false, delay=135;
   document.getElementById('best').textContent=best;
   function placeFood(){
@@ -76,7 +126,9 @@
     if(head.x<0||head.y<0||head.x>=N||head.y>=N||snake.some(p=>p.x===head.x&&p.y===head.y)){
       running=false; clearInterval(timer);
       if(score>best){best=score;localStorage.setItem('snake-best',best);document.getElementById('best').textContent=best;}
-      draw('Game over 💀'); return;
+      draw('Game over 💀');
+      if(score>0) worldSubmit(score);
+      return;
     }
     snake.unshift(head);
     if(head.x===food.x&&head.y===food.y){
@@ -99,10 +151,16 @@
     if(Math.abs(dx)<20&&Math.abs(dy)<20) return;
     Math.abs(dx)>Math.abs(dy)?setDir(Math.sign(dx),0):setDir(0,Math.sign(dy));
   },{passive:true});
-  function start(){ reset(); running=true; paused=false; restartTimer(); draw(); }
+  function start(){ reset(); running=true; paused=false; document.getElementById('board').style.display='none'; restartTimer(); draw(); }
   document.getElementById('startBtn').onclick=start;
   document.getElementById('pauseBtn').onclick=()=>{ if(running){ paused=!paused; if(paused) draw('Paused'); else draw(); }};
   reset(); draw('SNAKE');
+  worldLoad();
+  setInterval(()=>{ if(!W.live) worldLoad(); },45000);
+  window.__snake={ state:()=>({ score:score, best:best, running:running }),
+    start, step:()=>{ if(running&&!paused) tick(); },
+    setScore:n=>{ score=n; document.getElementById('score').textContent=score; },
+    world:()=>W, worldLoad, worldSubmit };
 })();
 </script>
 </body>
