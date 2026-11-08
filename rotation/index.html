@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>On Rotation — Orlando</title>
+<title>Orlando's iPod</title>
 <meta name="description" content="What Orlando's been jamming to: top albums, songs and artists, hand-picked.">
 <style>
   *{box-sizing:border-box}
@@ -29,11 +29,8 @@
     text-shadow:2px 2px 0 #000;letter-spacing:.5px;
   }
   h2.sect .dot{color:#f5ead6}
-  /* top bar: mode badge + admin */
-  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
-  .modebadge{font-family:system-ui,sans-serif;font-weight:800;font-size:11.5px;letter-spacing:1.5px;padding:5px 11px;border-radius:999px;border:1.5px solid #4a3319;color:#cdbb96;background:rgba(20,12,4,.6)}
-  .modebadge.live{color:#8ee08a;border-color:#3f7a38}
-  .modebadge.demo{color:#ffb03a;border-color:#7a5514}
+  /* top bar: admin */
+  .topbar{display:flex;justify-content:flex-end;align-items:center;margin-bottom:14px}
   .adminbtn{font-family:system-ui,sans-serif;font-weight:800;font-size:12.5px;letter-spacing:.5px;padding:7px 14px;border-radius:999px;border:1.5px solid #ffb03a;background:transparent;color:#ffb03a;cursor:pointer}
   .adminbtn.on{background:#ffb03a;color:#1c1206}
   /* NOW SPINNING hero */
@@ -234,11 +231,10 @@
 <body>
 <div class="wrap">
   <div class="topbar">
-    <span class="modebadge demo" id="modeBadge">● DEMO</span>
     <button class="adminbtn" id="adminBtn">🔒 Admin</button>
   </div>
   <p class="kick">ORLANDO'S</p>
-  <h1>On Rotation</h1>
+  <h1>Orlando's iPod</h1>
   <p class="tagline">What I been jamming to — hand-picked, no algorithm.</p>
   <p class="holdhint">Admin mode: grab the ≡ handle to drag, ↑ ↓ to nudge, ✕ to remove.</p>
 
@@ -285,7 +281,7 @@
 
   <div class="logoutrow"><button id="logoutBtn">Log out of admin</button></div>
 
-  <p class="foot">Updated November 2026 · All downloaded, no streaming — the rotation lives on the iPhone.<br>Rotation changes? Tell Future Overlord.</p>
+  <p class="foot">Updated November 2026</p>
 </div>
 
 <div class="modalbk" id="loginBk">
@@ -501,10 +497,6 @@ function render(){
       '<img src="'+esc(a.cover_url)+'" alt="'+esc(a.title)+'" loading="lazy" draggable="false">' + adminTools(a,"artist",idx,items.artist.length) +
       '<div class="ar-name">'+esc(a.title)+'</div></div>';
   }).join("");
-  /* badge */
-  var b = $("modeBadge");
-  if(state.mode==="live"){ b.textContent = "● LIVE"; b.className = "modebadge live"; }
-  else { b.textContent = "● DEMO"; b.className = "modebadge demo"; }
 }
 
 /* ============ PERSISTENCE OF EDITS ============ */
