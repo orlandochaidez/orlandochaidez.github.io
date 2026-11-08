@@ -29,6 +29,13 @@
     text-shadow:2px 2px 0 #000;letter-spacing:.5px;
   }
   h2.sect .dot{color:#f5ead6}
+  /* top bar: mode badge + admin */
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+  .modebadge{font-family:system-ui,sans-serif;font-weight:800;font-size:11.5px;letter-spacing:1.5px;padding:5px 11px;border-radius:999px;border:1.5px solid #4a3319;color:#cdbb96;background:rgba(20,12,4,.6)}
+  .modebadge.live{color:#8ee08a;border-color:#3f7a38}
+  .modebadge.demo{color:#ffb03a;border-color:#7a5514}
+  .adminbtn{font-family:system-ui,sans-serif;font-weight:800;font-size:12.5px;letter-spacing:.5px;padding:7px 14px;border-radius:999px;border:1.5px solid #ffb03a;background:transparent;color:#ffb03a;cursor:pointer}
+  .adminbtn.on{background:#ffb03a;color:#1c1206}
   /* NOW SPINNING hero */
   .hero{
     position:relative;display:flex;gap:18px;align-items:center;
@@ -67,15 +74,14 @@
   .alb img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;display:block;background:#2c1e10;box-shadow:0 6px 18px rgba(0,0,0,.5)}
   .rank{
     position:absolute;top:8px;left:8px;background:rgba(10,6,2,.82);color:#ffb03a;border:1.5px solid #ffb03a;
-    font-size:12.5px;padding:2px 8px;border-radius:999px;letter-spacing:.5px;
+    font-size:12.5px;padding:2px 8px;border-radius:999px;letter-spacing:.5px;z-index:2;
   }
   .alb .a-artist{color:#ffa726;font-size:12px;letter-spacing:1.2px;text-transform:uppercase;margin-top:9px}
   .alb .a-title{font-size:15.5px;line-height:1.2;margin-top:2px}
   .alb .a-year{color:#a08c66;font-family:system-ui,sans-serif;font-size:12.5px;font-weight:600;margin-top:2px}
-  a.alb{text-decoration:none;color:inherit}
   /* songs */
   .songs{background:linear-gradient(180deg,#211709,#1a1208);border:1px solid #3d2a14;border-radius:16px;padding:6px 14px;box-shadow:0 10px 24px rgba(0,0,0,.45)}
-  .song{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,176,58,.13)}
+  .song{position:relative;display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,176,58,.13)}
   .song:last-child{border-bottom:0}
   .song .n{flex:none;width:22px;text-align:center;color:#ffb03a;font-size:16px}
   .song img{flex:none;width:52px;height:52px;border-radius:8px;object-fit:cover;background:#2c1e10}
@@ -85,156 +91,681 @@
   .song .s-alb{flex:none;color:#a08c66;font-family:system-ui,sans-serif;font-size:12px;font-weight:600;text-align:right;max-width:32%}
   /* artists */
   .artists{display:flex;flex-wrap:wrap;gap:18px 10px;justify-content:space-between}
-  .art{flex:1 1 21%;min-width:120px;text-align:center}
+  .art{position:relative;flex:1 1 21%;min-width:120px;text-align:center}
   .art img{width:104px;height:104px;border-radius:50%;object-fit:cover;border:3px solid #ffb03a;box-shadow:0 8px 20px rgba(0,0,0,.55);background:#2c1e10}
   .art .ar-name{margin-top:9px;font-size:15px;line-height:1.2}
   .foot{text-align:center;color:#8a764f;font-family:system-ui,sans-serif;font-size:12.5px;margin-top:36px;line-height:1.55}
+  .empty{color:#a08c66;font-family:system-ui,sans-serif;font-weight:600;font-size:14px;padding:14px 4px}
+  /* ---------- ADMIN ---------- */
+  .admintools{display:none}
+  body.admin .admintools{display:flex}
+  .xbtn{
+    position:absolute;top:6px;right:6px;z-index:5;width:30px;height:30px;border-radius:50%;
+    border:1.5px solid #ff7a6b;background:rgba(20,4,2,.88);color:#ff9a8a;font-size:15px;line-height:1;
+    cursor:pointer;display:none;align-items:center;justify-content:center;font-family:system-ui,sans-serif;font-weight:900;
+  }
+  .song .xbtn{top:50%;right:0;transform:translateY(-50%)}
+  .art .xbtn{top:0;right:calc(50% - 58px)}
+  body.admin .xbtn{display:flex}
+  .movebtns{display:none;gap:6px;margin-top:8px}
+  body.admin .movebtns{display:flex}
+  .song .movebtns,.art .movebtns{margin-top:0}
+  .art .movebtns{justify-content:center;margin-top:6px}
+  .mv{
+    font-family:system-ui,sans-serif;font-weight:900;font-size:13px;width:34px;height:30px;border-radius:9px;
+    border:1.5px solid #ffb03a;background:rgba(20,12,4,.85);color:#ffb03a;cursor:pointer;
+  }
+  .mv.star{width:auto;padding:0 10px;font-size:11.5px;letter-spacing:.5px}
+  .song .extra{flex:none}
+  body.admin .alb,body.admin .song,body.admin .art{touch-action:auto}
+  body.admin .alb.dragsrc,body.admin .song.dragsrc,body.admin .art.dragsrc{opacity:.92}
+  .dragging{
+    position:fixed !important;z-index:200;pointer-events:none;margin:0;
+    box-shadow:0 18px 40px rgba(0,0,0,.7);border-radius:12px;
+  }
+  .dragslot{border:2px dashed rgba(255,176,58,.55);border-radius:12px;background:rgba(255,176,58,.06)}
+  .holdhint{display:none;text-align:center;color:#a08c66;font-family:system-ui,sans-serif;font-weight:600;font-size:12.5px;margin:-6px 0 14px}
+  body.admin .holdhint{display:block}
+  /* add panel */
+  .addpanel{
+    display:none;margin-top:34px;background:linear-gradient(180deg,#211709,#1a1208);
+    border:1px solid #ffb03a;border-radius:16px;padding:16px 14px;box-shadow:0 10px 24px rgba(0,0,0,.45);
+  }
+  body.admin .addpanel{display:block}
+  .addpanel h3{margin:0 0 4px;font-size:19px;font-style:italic;text-transform:uppercase;color:#ffb03a}
+  .addpanel .sub{color:#a08c66;font-family:system-ui,sans-serif;font-weight:600;font-size:12.5px;margin-bottom:12px}
+  .segrow{display:flex;gap:8px;margin-bottom:12px}
+  .seg{flex:1;font-family:system-ui,sans-serif;font-weight:800;font-size:13px;padding:9px 0;border-radius:999px;border:1.5px solid #4a3319;background:transparent;color:#cdbb96;cursor:pointer}
+  .seg.on{background:#ffb03a;color:#1c1206;border-color:#ffb03a}
+  .addrow{display:flex;gap:8px}
+  .addrow input{
+    flex:1;min-width:0;background:#120b04;border:1.5px solid #4a3319;border-radius:11px;color:#f5ead6;
+    font-family:system-ui,sans-serif;font-size:15px;padding:11px 12px;outline:none;
+  }
+  .addrow input:focus{border-color:#ffb03a}
+  .gobtn{font-family:system-ui,sans-serif;font-weight:900;font-size:14px;padding:0 18px;border-radius:11px;border:0;background:#ffb03a;color:#1c1206;cursor:pointer}
+  .results{margin-top:12px}
+  .res{display:flex;align-items:center;gap:11px;padding:8px 6px;border-radius:11px;cursor:pointer;border-bottom:1px solid rgba(255,176,58,.1)}
+  .res:active{background:rgba(255,176,58,.12)}
+  .res img{width:46px;height:46px;border-radius:7px;object-fit:cover;background:#2c1e10;flex:none}
+  .res .r-main{flex:1;min-width:0}
+  .res .r-title{font-size:14.5px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .res .r-artist{color:#ffa726;font-family:system-ui,sans-serif;font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .res .r-plus{flex:none;color:#ffb03a;font-size:22px;font-weight:900}
+  .manual{margin-top:14px;border-top:1px solid rgba(255,176,58,.15);padding-top:12px}
+  .manual input{width:100%;background:#120b04;border:1.5px solid #4a3319;border-radius:11px;color:#f5ead6;font-family:system-ui,sans-serif;font-size:14px;padding:10px 12px;margin-bottom:8px;outline:none}
+  .manual input:focus{border-color:#ffb03a}
+  /* login modal */
+  .modalbk{display:none;position:fixed;inset:0;background:rgba(5,3,1,.78);z-index:300;align-items:center;justify-content:center;padding:20px}
+  .modalbk.open{display:flex}
+  .modal{background:#211709;border:1.5px solid #ffb03a;border-radius:18px;padding:22px 18px;width:100%;max-width:360px;box-shadow:0 24px 60px rgba(0,0,0,.7)}
+  .modal h3{margin:0 0 4px;font-size:21px;font-style:italic;text-transform:uppercase;color:#ffb03a}
+  .modal .sub{color:#a08c66;font-family:system-ui,sans-serif;font-weight:600;font-size:13px;margin-bottom:14px}
+  .modal input{width:100%;background:#120b04;border:1.5px solid #4a3319;border-radius:11px;color:#f5ead6;font-family:system-ui,sans-serif;font-size:15px;padding:12px;margin-bottom:10px;outline:none}
+  .modal input:focus{border-color:#ffb03a}
+  .modal .err{color:#ff9a8a;font-family:system-ui,sans-serif;font-weight:700;font-size:13px;min-height:18px;margin-bottom:8px}
+  .modal .row{display:flex;gap:8px}
+  .modal .row button{flex:1;font-family:system-ui,sans-serif;font-weight:900;font-size:14.5px;padding:12px 0;border-radius:11px;cursor:pointer}
+  .btn-go{background:#ffb03a;color:#1c1206;border:0}
+  .btn-cancel{background:transparent;color:#cdbb96;border:1.5px solid #4a3319}
+  .logoutrow{display:none;margin-top:14px;text-align:center}
+  body.admin .logoutrow{display:block}
+  .logoutrow button{background:none;border:0;color:#8a764f;font-family:system-ui,sans-serif;font-weight:700;font-size:13px;text-decoration:underline;cursor:pointer}
+  /* toast */
+  .toast{
+    position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(80px);z-index:400;
+    background:#ffb03a;color:#1c1206;font-family:system-ui,sans-serif;font-weight:800;font-size:14px;
+    padding:11px 18px;border-radius:999px;box-shadow:0 12px 30px rgba(0,0,0,.6);opacity:0;transition:all .25s;max-width:88vw;text-align:center;
+  }
+  .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
 </style>
 </head>
 <body>
 <div class="wrap">
+  <div class="topbar">
+    <span class="modebadge demo" id="modeBadge">● DEMO</span>
+    <button class="adminbtn" id="adminBtn">🔒 Admin</button>
+  </div>
   <p class="kick">ORLANDO'S</p>
   <h1>On Rotation</h1>
   <p class="tagline">What I been jamming to — hand-picked, no algorithm.</p>
+  <p class="holdhint">Admin mode: hold an item to drag it, use ↑ ↓ to nudge, ✕ to remove.</p>
 
-  <div class="hero">
-    <div class="discwrap">
-      <div class="disc"></div>
-      <img class="cover" src="https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/9e/82/85/9e8285d0-3b13-d828-5b97-055efe8bbb1f/196589338778.jpg/600x600bb.jpg" alt="De Todas las Flores album cover">
-    </div>
-    <div class="herotxt">
-      <span class="nowtag">NOW SPINNING · #1</span>
-      <div class="album">De Todas las Flores</div>
-      <div class="artist">Natalia Lafourcade</div>
-      <div class="yr">2022</div>
-    </div>
-  </div>
+  <div id="heroSlot"></div>
 
   <h2 class="sect">Top Albums <span class="dot">·</span> The Shelf</h2>
-  <div class="shelf">
-    <a class="alb" href="https://music.apple.com/us/album/cancionera/1801618079" target="_blank" rel="noopener">
-      <img src="https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/e7/08/27/e708271d-69f4-338c-720b-c9f7b758a85c/196872955699.jpg/600x600bb.jpg" alt="Cancionera album cover" loading="lazy">
-      <span class="rank">#2</span>
-      <div class="a-artist">Natalia Lafourcade</div><div class="a-title">Cancionera</div><div class="a-year">2025</div>
-    </a>
-    <div class="alb">
-      <img src="https://upload.wikimedia.org/wikipedia/en/7/73/Black_Bastard_%28KMD_album_-_cover_art%29.jpg" alt="Black Bastards album cover" loading="lazy">
-      <span class="rank">#3</span>
-      <div class="a-artist">KMD</div><div class="a-title">Black Bastards</div><div class="a-year">2000</div>
-    </div>
-    <div class="alb">
-      <img src="https://upload.wikimedia.org/wikipedia/en/2/25/Joey-Badass-Summer-Knights.jpg" alt="Summer Knights album cover" loading="lazy">
-      <span class="rank">#4</span>
-      <div class="a-artist">Joey Bada$$</div><div class="a-title">Summer Knights</div><div class="a-year">2013</div>
-    </div>
-    <div class="alb">
-      <img src="https://upload.wikimedia.org/wikipedia/en/5/56/1999_Joey_Badass.jpg" alt="1999 album cover" loading="lazy">
-      <span class="rank">#5</span>
-      <div class="a-artist">Joey Bada$$</div><div class="a-title">1999</div><div class="a-year">2012</div>
-    </div>
-    <a class="alb" href="https://music.apple.com/us/album/magical-mystery-tour/1441163490" target="_blank" rel="noopener">
-      <img src="https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/43/0e/37/430e3790-75d5-c96a-1380-f9d9803aa700/18UMGIM31245.rgb.jpg/600x600bb.jpg" alt="Magical Mystery Tour album cover" loading="lazy">
-      <span class="rank">#6</span>
-      <div class="a-artist">The Beatles</div><div class="a-title">Magical Mystery Tour</div><div class="a-year">1967</div>
-    </a>
-    <div class="alb">
-      <img src="https://is1-ssl.mzstatic.com/image/thumb/Music128/v4/32/75/0f/32750f44-3ee4-119e-ad0a-ca1d81119921/00602547748966.rgb.jpg/600x600bb.jpg" alt="Super Ape album cover" loading="lazy">
-      <span class="rank">#7</span>
-      <div class="a-artist">Lee "Scratch" Perry &amp; The Upsetters</div><div class="a-title">Super Ape</div><div class="a-year">1976</div>
-    </div>
-    <a class="alb" href="https://music.apple.com/us/album/life-is-beautiful/1795525610" target="_blank" rel="noopener">
-      <img src="https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/d8/73/79/d8737963-50ac-d4e7-32f2-7bdbedfb228e/197342973236_cover.jpg/600x600bb.jpg" alt="Life Is Beautiful album cover" loading="lazy">
-      <span class="rank">#8</span>
-      <div class="a-artist">Larry June, 2 Chainz &amp; The Alchemist</div><div class="a-title">Life Is Beautiful</div><div class="a-year">2025</div>
-    </a>
-    <div class="alb">
-      <img src="https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/af/70/1d/af701d68-5dec-42d6-33ef-bc99533a8be1/56047.jpg/600x600bb.jpg" alt="Special Herbs Vol. 7 and 8 album cover" loading="lazy">
-      <span class="rank">#9</span>
-      <div class="a-artist">Metal Fingers</div><div class="a-title">Special Herbs, Vol. 7 &amp; 8</div><div class="a-year">2004</div>
-    </div>
-    <a class="alb" href="https://music.apple.com/us/album/some-other-ones/6789795541" target="_blank" rel="noopener">
-      <img src="https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/45/4c/40/454c4083-b701-e87f-42d3-f55f733d8474/cover.jpg/600x600bb.jpg" alt="Some Other Ones album cover" loading="lazy">
-      <span class="rank">#10</span>
-      <div class="a-artist">Mac DeMarco</div><div class="a-title">Some Other Ones</div><div class="a-year">2015</div>
-    </a>
-    <div class="alb">
-      <img src="https://upload.wikimedia.org/wikipedia/en/c/ca/Born-like-this.jpg" alt="Born Like This album cover" loading="lazy">
-      <span class="rank">#11</span>
-      <div class="a-artist">MF DOOM</div><div class="a-title">Born Like This</div><div class="a-year">2009</div>
-    </div>
-  </div>
+  <div class="shelf" id="shelf"></div>
 
   <h2 class="sect">Top Songs</h2>
-  <div class="songs">
-    <div class="song">
-      <span class="n">1</span>
-      <img src="https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/e7/08/27/e708271d-69f4-338c-720b-c9f7b758a85c/196872955699.jpg/300x300bb.jpg" alt="" loading="lazy">
-      <div class="s-main"><div class="s-title">Cocos en la Playa</div><div class="s-artist">Natalia Lafourcade</div></div>
-      <div class="s-alb">Cancionera</div>
+  <div class="songs" id="songs"></div>
+
+  <h2 class="sect">Top Artists</h2>
+  <div class="artists" id="artists"></div>
+
+  <div class="addpanel" id="addPanel">
+    <h3>Add to the rotation</h3>
+    <div class="sub">Search the catalogs — tap a result to add it to the end of that list. Can't find a mixtape? Add it manually underneath.</div>
+    <div class="segrow">
+      <button class="seg on" data-seg="album">Album</button>
+      <button class="seg" data-seg="song">Song</button>
+      <button class="seg" data-seg="artist">Artist</button>
     </div>
-    <div class="song">
-      <span class="n">2</span>
-      <img src="https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/45/4c/40/454c4083-b701-e87f-42d3-f55f733d8474/cover.jpg/300x300bb.jpg" alt="" loading="lazy">
-      <div class="s-main"><div class="s-title">PETERS PICKLES</div><div class="s-artist">Mac DeMarco</div></div>
-      <div class="s-alb">Some Other Ones</div>
+    <div class="addrow">
+      <input id="searchBox" type="text" placeholder="Search albums…" autocomplete="off">
+      <button class="gobtn" id="searchBtn">Go</button>
     </div>
-    <div class="song">
-      <span class="n">3</span>
-      <img src="https://is1-ssl.mzstatic.com/image/thumb/Music123/v4/b9/ec/9f/b9ec9f4a-c4f1-5136-7587-86826e28d67b/06UMGIM34964.rgb.jpg/300x300bb.jpg" alt="" loading="lazy">
-      <div class="s-main"><div class="s-title">Natty Dread</div><div class="s-artist">Bob Marley &amp; The Wailers</div></div>
-      <div class="s-alb">Natty Dread</div>
-    </div>
-    <div class="song">
-      <span class="n">4</span>
-      <img src="https://upload.wikimedia.org/wikipedia/en/6/6c/Playboi_Carti_-_Whole_Lotta_Red.png" alt="" loading="lazy">
-      <div class="s-main"><div class="s-title">Slay3r</div><div class="s-artist">Playboi Carti</div></div>
-      <div class="s-alb">Whole Lotta Red</div>
-    </div>
-    <div class="song">
-      <span class="n">5</span>
-      <img src="https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/00/67/45/006745f5-95d5-5a06-35ed-d515e9cfd7d8/dj.tbwlxwoh.jpg/300x300bb.jpg" alt="" loading="lazy">
-      <div class="s-main"><div class="s-title">Third Stone from the Sun</div><div class="s-artist">The Jimi Hendrix Experience</div></div>
-      <div class="s-alb">Are You Experienced</div>
-    </div>
-    <div class="song">
-      <span class="n">6</span>
-      <img src="https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/df/6f/d3/df6fd3a2-be2b-ed7c-bf2b-ca6229aec3e0/4050538719277.jpg/300x300bb.jpg" alt="" loading="lazy">
-      <div class="s-main"><div class="s-title">JU$T (feat. Pharrell Williams &amp; Zack de la Rocha)</div><div class="s-artist">Run The Jewels</div></div>
-      <div class="s-alb">RTJ4</div>
-    </div>
-    <div class="song">
-      <span class="n">7</span>
-      <img src="https://upload.wikimedia.org/wikipedia/en/c/ca/Born-like-this.jpg" alt="" loading="lazy">
-      <div class="s-main"><div class="s-title">Microwave Mayo</div><div class="s-artist">MF DOOM</div></div>
-      <div class="s-alb">Born Like This</div>
+    <div class="results" id="results"></div>
+    <div class="manual">
+      <input id="mTitle" type="text" placeholder="Title / artist name">
+      <input id="mArtist" type="text" placeholder="Artist (skip for Artist adds)">
+      <input id="mAlbum" type="text" placeholder="Album (songs only)">
+      <input id="mYear" type="text" inputmode="numeric" placeholder="Year (albums only)">
+      <input id="mCover" type="text" placeholder="Cover image URL (https://…)">
+      <button class="gobtn" id="manualBtn" style="width:100%;padding:12px 0">Add manually</button>
     </div>
   </div>
 
-  <h2 class="sect">Top Artists</h2>
-  <div class="artists">
-    <div class="art">
-      <img src="https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/9e/82/85/9e8285d0-3b13-d828-5b97-055efe8bbb1f/196589338778.jpg/300x300bb.jpg" alt="Natalia Lafourcade" loading="lazy">
-      <div class="ar-name">Natalia Lafourcade</div>
-    </div>
-    <div class="art">
-      <img src="https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/45/4c/40/454c4083-b701-e87f-42d3-f55f733d8474/cover.jpg/300x300bb.jpg" alt="Mac DeMarco" loading="lazy">
-      <div class="ar-name">Mac DeMarco</div>
-    </div>
-    <div class="art">
-      <img src="https://upload.wikimedia.org/wikipedia/en/6/6c/Playboi_Carti_-_Whole_Lotta_Red.png" alt="Playboi Carti" loading="lazy">
-      <div class="ar-name">Playboi Carti</div>
-    </div>
-    <div class="art">
-      <img src="https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/d8/73/79/d8737963-50ac-d4e7-32f2-7bdbedfb228e/197342973236_cover.jpg/300x300bb.jpg" alt="Larry June" loading="lazy">
-      <div class="ar-name">Larry June</div>
-    </div>
-    <div class="art">
-      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/64/MF_Doom_-_Hultsfred_2011_%28cropped%29.jpg/250px-MF_Doom_-_Hultsfred_2011_%28cropped%29.jpg" alt="MF DOOM" loading="lazy">
-      <div class="ar-name">MF DOOM</div>
-    </div>
-  </div>
+  <div class="logoutrow"><button id="logoutBtn">Log out of admin</button></div>
 
   <p class="foot">Updated November 2026 · All downloaded, no streaming — the rotation lives on the iPhone.<br>Rotation changes? Tell Future Overlord.</p>
 </div>
+
+<div class="modalbk" id="loginBk">
+  <div class="modal">
+    <h3>Owner login</h3>
+    <div class="sub">Only Orlando can edit the rotation. Visitors just look.</div>
+    <input id="loginEmail" type="email" placeholder="Email" autocomplete="username">
+    <input id="loginPass" type="password" placeholder="Password" autocomplete="current-password">
+    <div class="err" id="loginErr"></div>
+    <div class="row">
+      <button class="btn-cancel" id="loginCancel">Cancel</button>
+      <button class="btn-go" id="loginGo">Log in</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script>
+(function(){
+"use strict";
+/* ============ CONFIG ============ */
+var SB_URL = "https://qewxxfmdkichcmhyxqjo.supabase.co";
+var SB_KEY = "sb_publishable_-siKrI5IZ3TjXC_TWcRbDw_9cbY6NaB";
+var LS_DEMO = "rotation-demo-v1";
+var LS_SESS = "rotation-admin-v1";
+
+/* ============ SEED (mirrors the SQL seed — the current live lists) ============ */
+var W = "https://upload.wikimedia.org/wikipedia/en/c/ca/Born-like-this.jpg";
+var SEED = {
+  album: [
+    {title:"De Todas las Flores", artist:"Natalia Lafourcade", year:2022, cover_url:"https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/9e/82/85/9e8285d0-3b13-d828-5b97-055efe8bbb1f/196589338778.jpg/600x600bb.jpg"},
+    {title:"Cancionera", artist:"Natalia Lafourcade", year:2025, cover_url:"https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/e7/08/27/e708271d-69f4-338c-720b-c9f7b758a85c/196872955699.jpg/600x600bb.jpg"},
+    {title:"Black Bastards", artist:"KMD", year:2000, cover_url:"https://upload.wikimedia.org/wikipedia/en/7/73/Black_Bastard_%28KMD_album_-_cover_art%29.jpg"},
+    {title:"Summer Knights", artist:"Joey Bada$$", year:2013, cover_url:"https://upload.wikimedia.org/wikipedia/en/2/25/Joey-Badass-Summer-Knights.jpg"},
+    {title:"1999", artist:"Joey Bada$$", year:2012, cover_url:"https://upload.wikimedia.org/wikipedia/en/5/56/1999_Joey_Badass.jpg"},
+    {title:"Magical Mystery Tour", artist:"The Beatles", year:1967, cover_url:"https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/43/0e/37/430e3790-75d5-c96a-1380-f9d9803aa700/18UMGIM31245.rgb.jpg/600x600bb.jpg"},
+    {title:"Super Ape", artist:"Lee \"Scratch\" Perry & The Upsetters", year:1976, cover_url:"https://is1-ssl.mzstatic.com/image/thumb/Music128/v4/32/75/0f/32750f44-3ee4-119e-ad0a-ca1d81119921/00602547748966.rgb.jpg/600x600bb.jpg"},
+    {title:"Life Is Beautiful", artist:"Larry June, 2 Chainz & The Alchemist", year:2025, cover_url:"https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/d8/73/79/d8737963-50ac-d4e7-32f2-7bdbedfb228e/197342973236_cover.jpg/600x600bb.jpg"},
+    {title:"Special Herbs, Vol. 7 & 8", artist:"Metal Fingers", year:2004, cover_url:"https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/af/70/1d/af701d68-5dec-42d6-33ef-bc99533a8be1/56047.jpg/600x600bb.jpg"},
+    {title:"Some Other Ones", artist:"Mac DeMarco", year:2015, cover_url:"https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/45/4c/40/454c4083-b701-e87f-42d3-f55f733d8474/cover.jpg/600x600bb.jpg"},
+    {title:"Born Like This", artist:"MF DOOM", year:2009, cover_url:W}
+  ],
+  song: [
+    {title:"Cocos en la Playa", artist:"Natalia Lafourcade", album:"Cancionera", cover_url:"https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/e7/08/27/e708271d-69f4-338c-720b-c9f7b758a85c/196872955699.jpg/300x300bb.jpg"},
+    {title:"PETERS PICKLES", artist:"Mac DeMarco", album:"Some Other Ones", cover_url:"https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/45/4c/40/454c4083-b701-e87f-42d3-f55f733d8474/cover.jpg/300x300bb.jpg"},
+    {title:"Natty Dread", artist:"Bob Marley & The Wailers", album:"Natty Dread", cover_url:"https://is1-ssl.mzstatic.com/image/thumb/Music123/v4/b9/ec/9f/b9ec9f4a-c4f1-5136-7587-86826e28d67b/06UMGIM34964.rgb.jpg/300x300bb.jpg"},
+    {title:"Slay3r", artist:"Playboi Carti", album:"Whole Lotta Red", cover_url:"https://upload.wikimedia.org/wikipedia/en/6/6c/Playboi_Carti_-_Whole_Lotta_Red.png"},
+    {title:"Third Stone from the Sun", artist:"The Jimi Hendrix Experience", album:"Are You Experienced", cover_url:"https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/00/67/45/006745f5-95d5-5a06-35ed-d515e9cfd7d8/dj.tbwlxwoh.jpg/300x300bb.jpg"},
+    {title:"JU$T (feat. Pharrell Williams & Zack de la Rocha)", artist:"Run The Jewels", album:"RTJ4", cover_url:"https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/df/6f/d3/df6fd3a2-be2b-ed7c-bf2b-ca6229aec3e0/4050538719277.jpg/300x300bb.jpg"},
+    {title:"Microwave Mayo", artist:"MF DOOM", album:"Born Like This", cover_url:W}
+  ],
+  artist: [
+    {title:"Natalia Lafourcade", cover_url:"https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/9e/82/85/9e8285d0-3b13-d828-5b97-055efe8bbb1f/196589338778.jpg/300x300bb.jpg"},
+    {title:"Mac DeMarco", cover_url:"https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/45/4c/40/454c4083-b701-e87f-42d3-f55f733d8474/cover.jpg/300x300bb.jpg"},
+    {title:"Playboi Carti", cover_url:"https://upload.wikimedia.org/wikipedia/en/6/6c/Playboi_Carti_-_Whole_Lotta_Red.png"},
+    {title:"Larry June", cover_url:"https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/d8/73/79/d8737963-50ac-d4e7-32f2-7bdbedfb228e/197342973236_cover.jpg/300x300bb.jpg"},
+    {title:"MF DOOM", cover_url:"https://upload.wikimedia.org/wikipedia/commons/thumb/6/64/MF_Doom_-_Hultsfred_2011_%28cropped%29.jpg/250px-MF_Doom_-_Hultsfred_2011_%28cropped%29.jpg"}
+  ]
+};
+SEED.album.forEach(function(x,i){x.position=i+1;});
+SEED.song.forEach(function(x,i){x.position=i+1;});
+SEED.artist.forEach(function(x,i){x.position=i+1;});
+
+/* ============ STATE ============ */
+var state = {
+  mode: "demo",            // "demo" | "live"
+  items: null,             // {album:[], song:[], artist:[]}
+  session: null,           // {access_token, refresh_token, expires_at, email}
+  admin: false,
+  addSeg: "album"
+};
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+var toastTimer=null;
+function toast(msg){
+  var t=$("toast"); t.textContent=msg; t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer=setTimeout(function(){ t.classList.remove("show"); }, 2600);
+}
+
+/* ============ SUPABASE REST ============ */
+function sbHeaders(extra){
+  var h = { "apikey": SB_KEY, "Content-Type": "application/json" };
+  if(state.session && state.session.access_token) h["Authorization"] = "Bearer " + state.session.access_token;
+  else h["Authorization"] = "Bearer " + SB_KEY;
+  if(extra) for(var k in extra) h[k]=extra[k];
+  return h;
+}
+function fetchItems(){
+  return fetch(SB_URL + "/rest/v1/rotation_items?select=id,section,position,title,artist,album,year,cover_url&order=section.asc,position.asc", { headers: sbHeaders() })
+    .then(function(r){ if(!r.ok) throw new Error("http "+r.status); return r.json(); })
+    .then(function(rows){
+      if(!rows || !rows.length) throw new Error("empty");
+      var out = { album:[], song:[], artist:[] };
+      rows.forEach(function(row){ if(out[row.section]) out[row.section].push(row); });
+      ["album","song","artist"].forEach(function(s){ out[s].sort(function(a,b){ return a.position-b.position; }); });
+      return out;
+    });
+}
+function patchItem(id, body){
+  return fetch(SB_URL + "/rest/v1/rotation_items?id=eq." + id, { method:"PATCH", headers: sbHeaders({"Prefer":"return=minimal"}), body: JSON.stringify(body) })
+    .then(function(r){ if(!r.ok) throw new Error("patch "+r.status); });
+}
+function deleteItem(id){
+  return fetch(SB_URL + "/rest/v1/rotation_items?id=eq." + id, { method:"DELETE", headers: sbHeaders({"Prefer":"return=minimal"}) })
+    .then(function(r){ if(!r.ok) throw new Error("delete "+r.status); });
+}
+function insertItem(row){
+  return fetch(SB_URL + "/rest/v1/rotation_items", { method:"POST", headers: sbHeaders({"Prefer":"return=representation"}), body: JSON.stringify(row) })
+    .then(function(r){ if(!r.ok) throw new Error("insert "+r.status); return r.json(); });
+}
+
+/* ============ AUTH ============ */
+function saveSession(s){
+  state.session = s;
+  try{ localStorage.setItem(LS_SESS, JSON.stringify(s)); }catch(e){}
+}
+function loadSession(){
+  try{
+    var s = JSON.parse(localStorage.getItem(LS_SESS) || "null");
+    if(s && s.refresh_token) state.session = s;
+  }catch(e){}
+}
+function signIn(email, password){
+  return fetch(SB_URL + "/auth/v1/token?grant_type=password", {
+    method:"POST", headers:{ "apikey": SB_KEY, "Content-Type":"application/json" },
+    body: JSON.stringify({ email: email, password: password })
+  }).then(function(r){ return r.json().then(function(j){ if(!r.ok) throw new Error(j.error_description || j.msg || "Login failed"); return j; }); })
+    .then(function(j){
+      saveSession({ access_token:j.access_token, refresh_token:j.refresh_token, expires_at: Date.now() + (j.expires_in||3600)*1000, email: email });
+      return j;
+    });
+}
+function refreshSession(){
+  if(!state.session || !state.session.refresh_token) return Promise.resolve(false);
+  return fetch(SB_URL + "/auth/v1/token?grant_type=refresh_token", {
+    method:"POST", headers:{ "apikey": SB_KEY, "Content-Type":"application/json" },
+    body: JSON.stringify({ refresh_token: state.session.refresh_token })
+  }).then(function(r){ if(!r.ok) throw new Error("refresh"); return r.json(); })
+    .then(function(j){
+      saveSession({ access_token:j.access_token, refresh_token:j.refresh_token, expires_at: Date.now() + (j.expires_in||3600)*1000, email: state.session.email });
+      return true;
+    }).catch(function(){ return false; });
+}
+function ensureFresh(){
+  if(state.session && state.session.expires_at && Date.now() > state.session.expires_at - 60000) return refreshSession();
+  return Promise.resolve(!!state.session);
+}
+function signOut(){
+  var tok = state.session && state.session.access_token;
+  state.session = null; state.admin = false;
+  try{ localStorage.removeItem(LS_SESS); }catch(e){}
+  document.body.classList.remove("admin");
+  $("adminBtn").textContent = "🔒 Admin"; $("adminBtn").classList.remove("on");
+  render();
+  if(tok) fetch(SB_URL + "/auth/v1/logout", { method:"POST", headers:{ "apikey": SB_KEY, "Authorization":"Bearer "+tok } }).catch(function(){});
+}
+
+/* ============ RENDER ============ */
+function adminTools(item, section, idx, total){
+  if(!state.admin) return "";
+  var h = '<button class="xbtn" data-act="del" data-sec="'+section+'" data-idx="'+idx+'" aria-label="Remove">✕</button>';
+  h += '<div class="movebtns extra">';
+  if(idx>0) h += '<button class="mv" data-act="up" data-sec="'+section+'" data-idx="'+idx+'" aria-label="Move up">↑</button>';
+  if(idx<total-1) h += '<button class="mv" data-act="down" data-sec="'+section+'" data-idx="'+idx+'" aria-label="Move down">↓</button>';
+  if(section==="album" && idx>1) h += '<button class="mv star" data-act="top" data-sec="'+section+'" data-idx="'+idx+'">★ Make #1</button>';
+  if(section==="album" && idx===1) h += '<button class="mv star" data-act="top" data-sec="'+section+'" data-idx="'+idx+'">★ Make #1</button>';
+  h += '</div>';
+  return h;
+}
+function render(){
+  var items = state.items; if(!items) return;
+  /* hero = album #1 */
+  var heroSlot = $("heroSlot");
+  var first = items.album[0];
+  if(first){
+    heroSlot.innerHTML =
+      '<div class="hero" data-sec="album" data-idx="0">' +
+        '<div class="discwrap"><div class="disc"></div>' +
+          '<img class="cover" src="'+esc(first.cover_url)+'" alt="'+esc(first.title)+' album cover"></div>' +
+        '<div class="herotxt"><span class="nowtag">NOW SPINNING · #1</span>' +
+          '<div class="album">'+esc(first.title)+'</div>' +
+          '<div class="artist">'+esc(first.artist||"")+'</div>' +
+          (first.year ? '<div class="yr">'+esc(first.year)+'</div>' : '') +
+          (state.admin ? '<div class="movebtns"><button class="mv" data-act="del" data-sec="album" data-idx="0" style="width:auto;padding:0 12px;font-size:11.5px;border-color:#ff7a6b;color:#ff9a8a">✕ Remove #1</button></div>' : '') +
+        '</div></div>';
+  } else heroSlot.innerHTML = "";
+  /* shelf */
+  var shelf = $("shelf");
+  if(items.album.length <= 1) shelf.innerHTML = '<div class="empty">The shelf is empty — for now.</div>';
+  else shelf.innerHTML = items.album.slice(1).map(function(a, i){
+    var idx = i+1;
+    return '<div class="alb" data-sec="album" data-idx="'+idx+'">' +
+      '<img src="'+esc(a.cover_url)+'" alt="'+esc(a.title)+' album cover" loading="lazy" draggable="false">' +
+      '<span class="rank">#'+(idx+1)+'</span>' + adminTools(a,"album",idx,items.album.length) +
+      '<div class="a-artist">'+esc(a.artist||"")+'</div><div class="a-title">'+esc(a.title)+'</div>' +
+      (a.year ? '<div class="a-year">'+esc(a.year)+'</div>' : '') + '</div>';
+  }).join("");
+  /* songs */
+  var songs = $("songs");
+  if(!items.song.length) songs.innerHTML = '<div class="empty">No songs on the list right now.</div>';
+  else songs.innerHTML = items.song.map(function(s, idx){
+    return '<div class="song" data-sec="song" data-idx="'+idx+'">' +
+      '<span class="n">'+(idx+1)+'</span>' +
+      '<img src="'+esc(s.cover_url)+'" alt="" loading="lazy" draggable="false">' +
+      '<div class="s-main"><div class="s-title">'+esc(s.title)+'</div><div class="s-artist">'+esc(s.artist||"")+'</div></div>' +
+      '<div class="s-alb">'+esc(s.album||"")+'</div>' + adminTools(s,"song",idx,items.song.length) + '</div>';
+  }).join("");
+  /* artists */
+  var artists = $("artists");
+  if(!items.artist.length) artists.innerHTML = '<div class="empty">No artists on the list right now.</div>';
+  else artists.innerHTML = items.artist.map(function(a, idx){
+    return '<div class="art" data-sec="artist" data-idx="'+idx+'">' +
+      '<img src="'+esc(a.cover_url)+'" alt="'+esc(a.title)+'" loading="lazy" draggable="false">' + adminTools(a,"artist",idx,items.artist.length) +
+      '<div class="ar-name">'+esc(a.title)+'</div></div>';
+  }).join("");
+  /* badge */
+  var b = $("modeBadge");
+  if(state.mode==="live"){ b.textContent = "● LIVE"; b.className = "modebadge live"; }
+  else { b.textContent = "● DEMO"; b.className = "modebadge demo"; }
+}
+
+/* ============ PERSISTENCE OF EDITS ============ */
+function persistDemo(){
+  try{ localStorage.setItem(LS_DEMO, JSON.stringify(state.items)); }catch(e){}
+}
+function renumber(section){
+  state.items[section].forEach(function(it, i){ it.position = i+1; });
+}
+function saveOrder(section){
+  renumber(section);
+  if(state.mode !== "live"){ persistDemo(); return Promise.resolve(); }
+  return ensureFresh().then(function(){
+    var jobs = state.items[section].map(function(it){
+      return it.id ? patchItem(it.id, { position: it.position }) : Promise.resolve();
+    });
+    return Promise.all(jobs);
+  }).catch(function(){ toast("Saved on this device — server hiccup, tell Future Overlord"); });
+}
+function saveDelete(section, item){
+  renumber(section);
+  if(state.mode !== "live"){ persistDemo(); return Promise.resolve(); }
+  return ensureFresh().then(function(){
+    var jobs = [];
+    if(item.id) jobs.push(deleteItem(item.id));
+    state.items[section].forEach(function(it){ if(it.id) jobs.push(patchItem(it.id, { position: it.position })); });
+    return Promise.all(jobs);
+  }).catch(function(){ toast("Removed here — server hiccup, tell Future Overlord"); });
+}
+function saveAdd(section, row){
+  if(state.mode !== "live"){
+    row.position = state.items[section].length + 1;
+    state.items[section].push(row); persistDemo(); render();
+    toast("Added (demo — goes public after the SQL paste)");
+    return Promise.resolve();
+  }
+  row.position = state.items[section].length + 1;
+  return ensureFresh().then(function(){ return insertItem(row); })
+    .then(function(rows){
+      if(rows && rows[0]) state.items[section].push(rows[0]);
+      renumber(section); render(); toast("Added ✓");
+    })
+    .catch(function(){ toast("Couldn't add — are you logged in as the owner?"); });
+}
+
+/* ============ EDIT ACTIONS ============ */
+function moveItem(section, idx, dir){
+  var arr = state.items[section];
+  var j = idx + dir;
+  if(j < 0 || j >= arr.length) return;
+  var tmp = arr[idx]; arr[idx] = arr[j]; arr[j] = tmp;
+  render(); saveOrder(section);
+}
+function makeTop(section, idx){
+  var arr = state.items[section];
+  if(idx <= 0) return;
+  var it = arr.splice(idx,1)[0]; arr.unshift(it);
+  render(); saveOrder(section); toast("Now Spinning: " + it.title + " ★");
+}
+function removeItem(section, idx){
+  var arr = state.items[section];
+  var it = arr.splice(idx,1)[0];
+  render(); saveDelete(section, it); toast("Removed: " + (it.title || ""));
+}
+document.addEventListener("click", function(e){
+  var btn = e.target.closest ? e.target.closest("[data-act]") : null;
+  if(!btn || !state.admin) return;
+  var sec = btn.getAttribute("data-sec"), idx = parseInt(btn.getAttribute("data-idx"), 10);
+  var act = btn.getAttribute("data-act");
+  if(act==="up") moveItem(sec, idx, -1);
+  else if(act==="down") moveItem(sec, idx, 1);
+  else if(act==="top") makeTop(sec, idx);
+  else if(act==="del") removeItem(sec, idx);
+});
+
+/* ============ PRESS-HOLD DRAG ============ */
+var drag = null;
+function onPointerDown(e){
+  if(!state.admin) return;
+  if(e.target.closest("[data-act]") || e.target.closest("button") || e.target.closest("input")) return;
+  var el = e.target.closest ? e.target.closest("[data-sec][data-idx]") : null;
+  if(!el) return;
+  var startX = e.clientX, startY = e.clientY;
+  var timer = setTimeout(function(){ startDrag(e, el); }, 230);
+  function cancel(){ clearTimeout(timer); cleanup(); }
+  function onMove(ev){
+    if(Math.abs(ev.clientX-startX) + Math.abs(ev.clientY-startY) > 10) cancel();
+  }
+  function onUp(){ cancel(); }
+  function cleanup(){
+    document.removeEventListener("pointermove", onMove, true);
+    document.removeEventListener("pointerup", onUp, true);
+    document.removeEventListener("pointercancel", onUp, true);
+  }
+  document.addEventListener("pointermove", onMove, true);
+  document.addEventListener("pointerup", onUp, true);
+  document.addEventListener("pointercancel", onUp, true);
+  drag = { pendingCleanup: cleanup };
+}
+function startDrag(e, el){
+  var sec = el.getAttribute("data-sec");
+  var parent = el.parentElement;
+  var rect = el.getBoundingClientRect();
+  var slot = document.createElement("div");
+  slot.className = "dragslot";
+  slot.style.width = rect.width + "px"; slot.style.height = rect.height + "px";
+  if(sec==="song"){ slot.style.width = "100%"; }
+  parent.insertBefore(slot, el);
+  el.classList.add("dragging");
+  el.style.width = rect.width + "px";
+  el.style.left = rect.left + "px";
+  el.style.top = rect.top + "px";
+  document.body.appendChild(el);
+  drag = { el: el, slot: slot, sec: sec, parent: parent, dx: e.clientX - rect.left, dy: e.clientY - rect.top, lastY: e.clientY };
+  function onMove(ev){
+    ev.preventDefault();
+    drag.lastY = ev.clientY;
+    el.style.left = (ev.clientX - drag.dx) + "px";
+    el.style.top = (ev.clientY - drag.dy) + "px";
+    /* find sibling to swap slot with */
+    var sibs = Array.prototype.slice.call(parent.querySelectorAll("[data-sec][data-idx], .dragslot"));
+    for(var i=0;i<sibs.length;i++){
+      var s = sibs[i]; if(s===slot) continue;
+      var r = s.getBoundingClientRect();
+      var midY = r.top + r.height/2, midX = r.left + r.width/2;
+      var before = (sec==="song") ? (ev.clientY < midY) : (ev.clientY < midY - 14 || (Math.abs(ev.clientY-midY) <= r.height/2 && ev.clientX < midX));
+      if(before){ if(sibs[i-1] !== slot && parent.children && s !== slot.nextSibling) parent.insertBefore(slot, s); break; }
+      else if(i === sibs.length-1){ parent.appendChild(slot); }
+    }
+  }
+  function onUp(){
+    document.removeEventListener("pointermove", onMove, true);
+    document.removeEventListener("pointerup", onUp, true);
+    document.removeEventListener("pointercancel", onUp, true);
+    /* commit: rebuild this section's order from DOM */
+    var orderEls = Array.prototype.slice.call(parent.querySelectorAll("[data-sec][data-idx]"));
+    /* orderEls excludes el (it's on body) — compute target index from slot position */
+    var kids = Array.prototype.slice.call(parent.children);
+    var slotIdx = kids.indexOf(slot);
+    var before = 0;
+    kids.forEach(function(k, i2){ if(i2 < slotIdx && k.hasAttribute && k.hasAttribute("data-idx")) before++; });
+    var fromIdx = parseInt(el.getAttribute("data-idx"), 10);
+    var arr = state.items[sec];
+    var it = arr.splice(fromIdx, 1)[0];
+    var insertAt = before;
+    if(sec==="album"){ /* shelf DOM starts at album idx 1; hero is separate */ insertAt = before + 1; if(fromIdx===0) insertAt = before + 1; }
+    arr.splice(Math.max(0, Math.min(insertAt, arr.length)), 0, it);
+    drag = null;
+    render(); saveOrder(sec);
+  }
+  document.addEventListener("pointermove", onMove, true);
+  document.addEventListener("pointerup", onUp, true);
+  document.addEventListener("pointercancel", onUp, true);
+}
+document.addEventListener("pointerdown", onPointerDown);
+
+/* ============ ADMIN UI ============ */
+$("adminBtn").addEventListener("click", function(){
+  if(state.admin){
+    state.admin = false; document.body.classList.remove("admin");
+    $("adminBtn").textContent = "🔒 Admin"; $("adminBtn").classList.remove("on");
+    render(); return;
+  }
+  if(state.session){
+    ensureFresh().then(function(ok){
+      if(ok){ enterAdmin(); }
+      else { state.session = null; $("loginBk").classList.add("open"); }
+    });
+  } else {
+    $("loginBk").classList.add("open");
+    setTimeout(function(){ $("loginEmail").focus(); }, 60);
+  }
+});
+function enterAdmin(){
+  state.admin = true; document.body.classList.add("admin");
+  $("adminBtn").textContent = "✓ Done"; $("adminBtn").classList.add("on");
+  render();
+  toast(state.mode==="live" ? "Admin mode — edits save live" : "Admin mode (demo — edits save on this phone only)");
+}
+$("loginCancel").addEventListener("click", function(){ $("loginBk").classList.remove("open"); $("loginErr").textContent=""; });
+$("loginGo").addEventListener("click", function(){
+  var email = $("loginEmail").value.trim(), pass = $("loginPass").value;
+  if(!email || !pass){ $("loginErr").textContent = "Type your email and password."; return; }
+  $("loginErr").textContent = "Logging in…";
+  signIn(email, pass).then(function(){
+    $("loginBk").classList.remove("open"); $("loginPass").value = ""; $("loginErr").textContent = "";
+    enterAdmin();
+  }).catch(function(err){
+    $("loginErr").textContent = "That login didn't work — check the email/password.";
+  });
+});
+$("loginPass").addEventListener("keydown", function(e){ if(e.key==="Enter") $("loginGo").click(); });
+$("logoutBtn").addEventListener("click", function(){ signOut(); toast("Logged out"); });
+
+/* ============ ADD: SEARCH ============ */
+document.querySelectorAll(".seg").forEach(function(b){
+  b.addEventListener("click", function(){
+    document.querySelectorAll(".seg").forEach(function(x){ x.classList.remove("on"); });
+    b.classList.add("on"); state.addSeg = b.getAttribute("data-seg");
+    $("searchBox").placeholder = { album:"Search albums…", song:"Search songs…", artist:"Search artists…" }[state.addSeg];
+    $("mArtist").style.display = state.addSeg==="artist" ? "none" : "";
+    $("mAlbum").style.display = state.addSeg==="song" ? "" : "none";
+    $("mYear").style.display = state.addSeg==="album" ? "" : "none";
+  });
+});
+function jsonp(url){
+  return new Promise(function(resolve, reject){
+    var cb = "dzcb" + Math.random().toString(36).slice(2);
+    var sc = document.createElement("script");
+    window[cb] = function(data){ delete window[cb]; sc.remove(); resolve(data); };
+    sc.onerror = function(){ delete window[cb]; sc.remove(); reject(new Error("jsonp")); };
+    sc.src = url + (url.indexOf("?")>=0 ? "&" : "?") + "output=jsonp&callback=" + cb;
+    document.head.appendChild(sc);
+  });
+}
+function itunesSearch(term, seg){
+  var entity = { album:"album", song:"song", artist:"musicArtist" }[seg];
+  return fetch("https://itunes.apple.com/search?term=" + encodeURIComponent(term) + "&entity=" + entity + "&limit=8&country=US")
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      return (j.results||[]).map(function(x){
+        if(seg==="artist") return { title: x.artistName, artist:"", album:"", year:null, cover_url: "" };
+        return {
+          title: seg==="song" ? x.trackName : x.collectionName,
+          artist: x.artistName || "",
+          album: seg==="song" ? (x.collectionName||"") : "",
+          year: x.releaseDate ? parseInt(x.releaseDate.slice(0,4),10) : null,
+          cover_url: (x.artworkUrl100||"").replace("100x100bb.jpg","600x600bb.jpg")
+        };
+      });
+    }).catch(function(){ return []; });
+}
+function deezerSearch(term, seg){
+  var type = { album:"album", song:"track", artist:"artist" }[seg];
+  return jsonp("https://api.deezer.com/search/" + type + "?q=" + encodeURIComponent(term) + "&limit=8")
+    .then(function(j){
+      return (j.data||[]).map(function(x){
+        if(seg==="artist") return { title: x.name, artist:"", album:"", year:null, cover_url: x.picture_big || x.picture_medium || "" };
+        if(seg==="song") return { title: x.title, artist: x.artist.name, album: x.album.title, year:null, cover_url: x.album.cover_big || x.album.cover_medium || "" };
+        return { title: x.title, artist: x.artist.name, album:"", year:null, cover_url: x.cover_big || x.cover_medium || "" };
+      });
+    }).catch(function(){ return []; });
+}
+function doSearch(){
+  var term = $("searchBox").value.trim();
+  if(!term) return;
+  var box = $("results");
+  box.innerHTML = '<div class="empty">Searching…</div>';
+  Promise.all([ itunesSearch(term, state.addSeg), deezerSearch(term, state.addSeg) ]).then(function(both){
+    var seen = {}, out = [];
+    both[0].concat(both[1]).forEach(function(r){
+      var key = (r.title + "|" + r.artist).toLowerCase();
+      if(seen[key]) return; seen[key] = 1;
+      if(r.title) out.push(r);
+    });
+    if(!out.length){ box.innerHTML = '<div class="empty">Nothing found — try the manual add below.</div>'; return; }
+    box.innerHTML = "";
+    out.slice(0,10).forEach(function(r){
+      var d = document.createElement("div"); d.className = "res";
+      d.innerHTML = (r.cover_url ? '<img src="'+esc(r.cover_url)+'" alt="">' : '<img alt="">') +
+        '<div class="r-main"><div class="r-title">'+esc(r.title)+'</div>' +
+        (r.artist ? '<div class="r-artist">'+esc(r.artist)+(r.year ? " · "+r.year : "")+(r.album ? " · "+esc(r.album) : "")+'</div>' : '') +
+        '</div><div class="r-plus">+</div>';
+      d.addEventListener("click", function(){
+        var row = { section: state.addSeg, title: r.title, artist: r.artist || null, album: r.album || null, year: r.year || null, cover_url: r.cover_url || "" };
+        saveAdd(state.addSeg, row);
+        box.innerHTML = "";
+      });
+      box.appendChild(d);
+    });
+  });
+}
+$("searchBtn").addEventListener("click", doSearch);
+$("searchBox").addEventListener("keydown", function(e){ if(e.key==="Enter") doSearch(); });
+$("manualBtn").addEventListener("click", function(){
+  var seg = state.addSeg;
+  var row = {
+    section: seg,
+    title: $("mTitle").value.trim(),
+    artist: seg==="artist" ? null : ($("mArtist").value.trim() || null),
+    album: seg==="song" ? ($("mAlbum").value.trim() || null) : null,
+    year: seg==="album" ? (parseInt($("mYear").value,10) || null) : null,
+    cover_url: $("mCover").value.trim()
+  };
+  if(!row.title){ toast("Give it a title first"); return; }
+  saveAdd(seg, row);
+  ["mTitle","mArtist","mAlbum","mYear","mCover"].forEach(function(id){ $(id).value = ""; });
+});
+
+/* ============ BOOT ============ */
+function bootItems(){
+  var demo = null;
+  try{ demo = JSON.parse(localStorage.getItem(LS_DEMO) || "null"); }catch(e){}
+  if(demo && demo.album && demo.song && demo.artist) return demo;
+  var copy = JSON.parse(JSON.stringify(SEED));
+  return copy;
+}
+state.items = bootItems();
+loadSession();
+render();
+fetchItems().then(function(items){
+  state.mode = "live"; state.items = items; render();
+}).catch(function(){
+  state.mode = "demo"; render();
+  var iv = setInterval(function(){
+    fetchItems().then(function(items){
+      state.mode = "live"; state.items = items; render(); clearInterval(iv);
+      toast("Rotation is LIVE 🎉");
+    }).catch(function(){});
+  }, 45000);
+});
+/* pick up edits made on another device (only when not editing) */
+setInterval(function(){
+  if(state.mode==="live" && !state.admin) fetchItems().then(function(items){ state.items = items; render(); }).catch(function(){});
+}, 90000);
+
+/* test hooks */
+window.__rotation = { state: state, SEED: SEED, moveItem: moveItem, makeTop: makeTop, removeItem: removeItem, saveAdd: saveAdd, render: render };
+})();
+</script>
 </body>
 </html>
