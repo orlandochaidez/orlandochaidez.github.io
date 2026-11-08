@@ -3,76 +3,97 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
 <title>TILT. — the marble maze</title>
 <style>
+  :root{
+    --bg0:#ffffff; --bg1:#f4f4f7; --bg2:#e8e8ed; --ink:#1c1c22; --logo:#23232a; --sub:#8a90a0; --link:#0b6bcb;
+    --pill-bg:#ffffff; --pill-bd:#e0e0e7; --pill-k:#9aa0b2; --pill-v:#23232a; --pill-sh:rgba(30,30,60,.06);
+    --bub-bd:#c9c9d4; --bub-bg:#fbfbfc; --bsh1:rgba(23,20,38,.20); --bsh2:rgba(23,20,38,.12);
+    --ov-bg:rgba(248,248,251,.88); --ov-title:#23232a; --ov-text:#3c4152;
+    --btn-bg:#ffffff; --btn-bd:#d5d5df; --btn-sh:#c2c2cf; --btn-ink:#3c4152;
+    --cell-bg:#ffffff; --cell-done:#eafaf3; --cell-hard:#fdeceb; --seg-on:#23232a; --seg-on-ink:#ffffff;
+    --hint:#7a8194; --stat:#3c4152; --stat-b:#23232a; --topspan:#9aa0b2;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg0:#23232b; --bg1:#141419; --bg2:#0a0a0d; --ink:#eceef4; --logo:#f4f4f8; --sub:#848aa0; --link:#6db9f7;
+      --pill-bg:#1e1e25; --pill-bd:#33333f; --pill-k:#7d8296; --pill-v:#f0f0f5; --pill-sh:rgba(0,0,0,.35);
+      --bub-bd:#3d3d4a; --bub-bg:#26262e; --bsh1:rgba(0,0,0,.55); --bsh2:rgba(0,0,0,.40);
+      --ov-bg:rgba(16,16,22,.90); --ov-title:#f4f4f8; --ov-text:#c9ccda;
+      --btn-bg:#26262e; --btn-bd:#3a3a46; --btn-sh:#0c0c10; --btn-ink:#d7dae6;
+      --cell-bg:#26262e; --cell-done:#0f2e22; --cell-hard:#3a1712; --seg-on:#f0f0f5; --seg-on-ink:#17171c;
+      --hint:#848aa0; --stat:#c9ccda; --stat-b:#f4f4f8; --topspan:#848aa0;
+    }
+  }
   *{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html,body{ overscroll-behavior:none; }
   body{
     font-family:'Arial Rounded MT Bold','Helvetica Rounded','Trebuchet MS',Arial,sans-serif;
-    background:radial-gradient(120% 90% at 50% 0%, #ffffff 0%, #f4f4f7 58%, #e8e8ed 100%);
-    color:#1c1c22; min-height:100vh; display:flex; flex-direction:column; align-items:center;
+    background:radial-gradient(120% 90% at 50% 0%, var(--bg0) 0%, var(--bg1) 58%, var(--bg2) 100%);
+    color:var(--ink); min-height:100vh; display:flex; flex-direction:column; align-items:center;
     padding:10px 10px 20px; touch-action:manipulation;
   }
   #topbar{ width:100%; max-width:520px; display:flex; justify-content:space-between; align-items:center; }
-  #topbar a{ color:#0b6bcb; text-decoration:none; font-size:14px; letter-spacing:.4px; }
-  #logo{ font-size:40px; font-weight:900; letter-spacing:2px; color:#23232a; margin-top:2px; }
+  #topbar a{ color:var(--link); text-decoration:none; font-size:14px; letter-spacing:.4px; }
+  #logo{ font-size:40px; font-weight:900; letter-spacing:2px; color:var(--logo); margin-top:2px; }
   #logo i{ font-style:normal; color:#0aa06e; }
-  #tagline{ font-size:12.5px; letter-spacing:2.2px; color:#8a90a0; font-weight:700; margin-bottom:8px; }
+  #tagline{ font-size:12.5px; letter-spacing:2.2px; color:var(--sub); font-weight:700; margin-bottom:8px; }
   #hud{ width:min(94vw,520px); display:flex; gap:8px; align-items:stretch; margin-bottom:8px; }
-  .pill{ flex:1; background:#fff; border:1px solid #e0e0e7; border-radius:12px; padding:6px 4px; text-align:center;
-    box-shadow:0 2px 6px rgba(30,30,60,.06); }
-  .pill .k{ font-size:9.5px; letter-spacing:1.8px; color:#9aa0b2; font-weight:700; }
-  .pill .v{ font-size:16px; font-weight:900; color:#23232a; font-variant-numeric:tabular-nums; }
+  .pill{ flex:1; background:var(--pill-bg); border:1px solid var(--pill-bd); border-radius:12px; padding:6px 4px; text-align:center;
+    box-shadow:0 2px 6px var(--pill-sh); }
+  .pill .k{ font-size:9.5px; letter-spacing:1.8px; color:var(--pill-k); font-weight:700; }
+  .pill .v{ font-size:16px; font-weight:900; color:var(--pill-v); font-variant-numeric:tabular-nums; }
   #bubblePill{ flex:0 0 64px; display:flex; align-items:center; justify-content:center; }
-  #bubbleBox{ position:relative; width:34px; height:34px; border-radius:50%; border:2px solid #c9c9d4; background:#fbfbfc; }
+  #bubbleBox{ position:relative; width:34px; height:34px; border-radius:50%; border:2px solid var(--bub-bd); background:var(--bub-bg); }
   #bubbleDot{ position:absolute; left:50%; top:50%; width:11px; height:11px; margin:-5.5px 0 0 -5.5px; border-radius:50%;
     background:radial-gradient(circle at 35% 30%, #fff, #9fb4c8 55%, #5d748c); box-shadow:0 1px 2px rgba(0,0,0,.3); }
   #boardWrap{ position:relative; width:min(94vw,520px); aspect-ratio:1/1; }
-  #boardShadow{ position:absolute; inset:0; border-radius:26px; box-shadow:0 24px 38px rgba(23,20,38,.20), 0 6px 14px rgba(23,20,38,.12); }
+  #boardShadow{ position:absolute; inset:0; border-radius:26px; box-shadow:0 24px 38px var(--bsh1), 0 6px 14px var(--bsh2); }
   canvas{ position:absolute; inset:0; width:100%; height:100%; border-radius:26px; display:block; touch-action:none; }
-  .ov{ position:absolute; inset:0; z-index:5; border-radius:26px; background:rgba(248,248,251,.88); backdrop-filter:blur(3px);
+  .ov{ position:absolute; inset:0; z-index:5; border-radius:26px; background:var(--ov-bg); backdrop-filter:blur(3px);
     display:flex; flex-direction:column; align-items:center; justify-content:flex-start; gap:10px; text-align:center; padding:18px;
     overflow-y:auto; -webkit-overflow-scrolling:touch; }
   .ov > *:first-child{ margin-top:auto; }
   .ov > *:last-child{ margin-bottom:auto; }
   .ov.hidden{ display:none; }
-  .ovTitle{ font-size:30px; font-weight:900; letter-spacing:1.5px; color:#23232a; }
+  .ovTitle{ font-size:30px; font-weight:900; letter-spacing:1.5px; color:var(--ov-title); }
   .ovTitle i{ font-style:normal; color:#0aa06e; }
-  .ovText{ font-size:14.5px; line-height:1.5; color:#3c4152; max-width:320px; }
+  .ovText{ font-size:14.5px; line-height:1.5; color:var(--ov-text); max-width:320px; }
   .ovText b{ color:#0a7d57; }
   .bigBtn{ font-family:inherit; font-size:18px; font-weight:900; letter-spacing:1.6px; color:#fff; border:none; cursor:pointer;
     padding:13px 34px; border-radius:16px; background:linear-gradient(180deg,#2fce8e,#0aa06e);
     box-shadow:0 5px 0 #087a53, 0 10px 18px rgba(10,140,95,.32), inset 0 1px 0 rgba(255,255,255,.45); }
   .bigBtn:active{ transform:translateY(3px); box-shadow:0 2px 0 #087a53; }
-  .ghostBtn{ font-family:inherit; font-size:13.5px; font-weight:800; letter-spacing:1.2px; color:#3c4152; cursor:pointer;
-    padding:9px 18px; border-radius:12px; background:#fff; border:1.5px solid #d5d5df;
-    box-shadow:0 3px 0 #c2c2cf; }
-  .ghostBtn:active{ transform:translateY(2px); box-shadow:0 1px 0 #c2c2cf; }
+  .ghostBtn{ font-family:inherit; font-size:13.5px; font-weight:800; letter-spacing:1.2px; color:var(--btn-ink); cursor:pointer;
+    padding:9px 18px; border-radius:12px; background:var(--btn-bg); border:1.5px solid var(--btn-bd);
+    box-shadow:0 3px 0 var(--btn-sh); }
+  .ghostBtn:active{ transform:translateY(2px); box-shadow:0 1px 0 var(--btn-sh); }
   #lvlGrid{ display:grid; grid-template-columns:repeat(5,1fr); gap:8px; width:min(300px,80vw); }
-  .lvlCell{ font-family:inherit; aspect-ratio:1/1; border-radius:13px; border:1.5px solid #d5d5df; background:#fff;
-    font-size:17px; font-weight:900; color:#23232a; cursor:pointer; box-shadow:0 3px 0 #c2c2cf;
+  .lvlCell{ font-family:inherit; aspect-ratio:1/1; border-radius:13px; border:1.5px solid var(--btn-bd); background:var(--cell-bg);
+    font-size:17px; font-weight:900; color:var(--ov-title); cursor:pointer; box-shadow:0 3px 0 var(--btn-sh);
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; }
-  .lvlCell:active{ transform:translateY(2px); box-shadow:0 1px 0 #c2c2cf; }
-  .lvlCell .bt{ font-size:8.5px; font-weight:700; color:#9aa0b2; letter-spacing:.4px; }
-  .lvlCell.done{ border-color:#0aa06e; background:#eafaf3; }
-  .lvlCell.harddone{ border-color:#d43a2f; background:#fdeceb; }
-  #modeSeg{ display:flex; gap:0; border:1.5px solid #d5d5df; border-radius:13px; overflow:hidden; box-shadow:0 3px 0 #c2c2cf; }
-  #modeSeg button{ font-family:inherit; border:none; background:#fff; color:#3c4152; font-size:13.5px; font-weight:900;
+  .lvlCell:active{ transform:translateY(2px); box-shadow:0 1px 0 var(--btn-sh); }
+  .lvlCell .bt{ font-size:8.5px; font-weight:700; color:var(--pill-k); letter-spacing:.4px; }
+  .lvlCell.done{ border-color:#0aa06e; background:var(--cell-done); }
+  .lvlCell.harddone{ border-color:#d43a2f; background:var(--cell-hard); }
+  #modeSeg{ display:flex; gap:0; border:1.5px solid var(--btn-bd); border-radius:13px; overflow:hidden; box-shadow:0 3px 0 var(--btn-sh); }
+  #modeSeg button{ font-family:inherit; border:none; background:var(--cell-bg); color:var(--btn-ink); font-size:13.5px; font-weight:900;
     letter-spacing:1.2px; padding:9px 18px; cursor:pointer; }
-  #modeSeg button.on{ background:#23232a; color:#fff; }
-  #modeSeg button.on.hard{ background:#d43a2f; }
+  #modeSeg button.on{ background:var(--seg-on); color:var(--seg-on-ink); }
+  #modeSeg button.on.hard{ background:#d43a2f; color:#fff; }
   #calWarn{ display:none; font-size:13.5px; font-weight:800; color:#d43a2f; letter-spacing:.4px; }
   #calWarn.show{ display:block; }
   .lvlCell.locked{ opacity:.38; cursor:default; box-shadow:none; }
   #ctrlRow{ width:min(94vw,520px); display:flex; gap:8px; margin-top:10px; }
-  .mini{ flex:1; font-family:inherit; background:#fff; border:1.5px solid #dcdce4; border-radius:12px; padding:9px 4px;
-    font-size:12.5px; font-weight:800; letter-spacing:1px; color:#3c4152; cursor:pointer; box-shadow:0 3px 0 #c9c9d4; }
-  .mini:active{ transform:translateY(2px); box-shadow:0 1px 0 #c9c9d4; }
-  #hint{ padding:10px 14px 4px; font-size:12.5px; line-height:1.55; color:#7a8194; text-align:center; max-width:480px; }
-  #statLine{ font-size:14px; color:#3c4152; line-height:1.6; }
-  #statLine b{ color:#23232a; }
-  #deadLine{ font-size:14px; color:#3c4152; line-height:1.6; }
-  #deadLine b{ color:#23232a; }
+  .mini{ flex:1; font-family:inherit; background:var(--btn-bg); border:1.5px solid var(--btn-bd); border-radius:12px; padding:9px 4px;
+    font-size:12.5px; font-weight:800; letter-spacing:1px; color:var(--btn-ink); cursor:pointer; box-shadow:0 3px 0 var(--btn-sh); }
+  .mini:active{ transform:translateY(2px); box-shadow:0 1px 0 var(--btn-sh); }
+  #hint{ padding:10px 14px 4px; font-size:12.5px; line-height:1.55; color:var(--hint); text-align:center; max-width:480px; }
+  #statLine{ font-size:14px; color:var(--stat); line-height:1.6; }
+  #statLine b{ color:var(--stat-b); }
+  #deadLine{ font-size:14px; color:var(--stat); line-height:1.6; }
+  #deadLine b{ color:var(--stat-b); }
   @media (max-height:700px){ #logo{ font-size:33px; } #tagline{ margin-bottom:4px; }
     .ov{ gap:7px; padding:12px 14px; } .ovTitle{ font-size:25px; } .ovText{ font-size:13.5px; line-height:1.42; }
     #lvlGrid{ gap:6px; } .lvlCell{ font-size:15px; } #modeSeg button{ padding:7px 15px; font-size:12.5px; }
@@ -82,13 +103,13 @@
 <body>
   <div id="topbar">
     <a href="../index.html">← All games</a>
-    <span style="font-size:12.5px; letter-spacing:1.6px; color:#9aa0b2; font-weight:700;">📱 MOBILE ONLY</span>
+    <span style="font-size:12.5px; letter-spacing:1.6px; color:var(--topspan); font-weight:700;">📱 MOBILE ONLY</span>
   </div>
   <div id="logo">TILT<i>.</i></div>
   <div id="tagline">BALANCE THE BALL · FIND THE HOLE</div>
 
   <div id="hud">
-    <div class="pill"><div class="k">LEVEL</div><div class="v" id="hudLevel">1 / 10</div></div>
+    <div class="pill"><div class="k">LEVEL</div><div class="v" id="hudLevel">1 / 20</div></div>
     <div class="pill"><div class="k">TIME</div><div class="v" id="hudTime">0:00.0</div></div>
     <div class="pill"><div class="k">FALLS</div><div class="v" id="hudFalls">0</div></div>
     <div class="pill" id="bubblePill"><div id="bubbleBox"><div id="bubbleDot"></div></div></div>
@@ -171,6 +192,26 @@ const LEVELS=[
    walls:[[0,2.4,9,0.6],[3,4.8,9,0.6],[0,7.2,9,0.6],[3,9.6,9,0.6]] },
  { name:"King's Maze", start:[1.4,10.7], hole:[11,1.2], pits:[[6,1.6],[10.6,4.7],[1.5,7.5],[6.2,7.55],[10.6,10.7]],
    walls:[[0,3,8.6,0.7],[3.4,6,8.6,0.7],[0,9,8.6,0.7]] },
+ { name:'Switchbacks', start:[1.4,11], hole:[10.6,1.2], pits:[[6,4.05]],
+   walls:[[0,3,9,0.65],[3,6,9,0.65],[0,9,9,0.65]] },
+ { name:'The Funnel', start:[6,11.2], hole:[6,1.1], pits:[[6,4.4]],
+   walls:[[1.5,2.8,3.4,0.7],[7.1,2.8,3.4,0.7],[3,5.8,6,0.7],[0,8.6,4.6,0.7],[7.4,8.6,4.6,0.7]] },
+ { name:'Clover', start:[6,11.3], hole:[6,1.1], pits:[[6,6]],
+   walls:[[2.2,2.2,2.2,2.2],[7.6,2.2,2.2,2.2],[2.2,7.6,2.2,2.2],[7.6,7.6,2.2,2.2]] },
+ { name:'Narrow Halls', start:[1.2,1.2], hole:[10.8,10.8], pits:[[4.05,6.2],[7.3,10.5]],
+   walls:[[2.4,0,0.65,8.6],[5.7,3.4,0.65,8.6],[9,0,0.65,8.6]] },
+ { name:'Tight Bands', start:[1.4,11], hole:[10.6,1.3], pits:[[10.6,6.75],[1.4,6.75]],
+   walls:[[0,2.7,9.3,0.65],[2.7,5.4,9.3,0.65],[0,8.1,9.3,0.65]] },
+ { name:'The Plus', start:[1.2,1.2], hole:[10.8,10.8], pits:[[3,3],[9,3],[3,9],[9,9]],
+   walls:[[5.675,1.5,0.65,9],[1.5,5.675,9,0.65]] },
+ { name:'The Drain', start:[6,11.3], hole:[1.8,1.2], pits:[[10.6,4.05]],
+   walls:[[0,2.5,8.5,0.65],[3.5,5,8.5,0.65],[0,7.5,8.5,0.65],[3.5,10,5,0.65]] },
+ { name:'Minefield', start:[1.3,10.7], hole:[10.7,1.3], pits:[[3,3],[6,2],[9,3.4],[2.5,6],[5.5,5.5],[8.8,6.4],[3.6,9],[7,9.3]],
+   walls:[] },
+ { name:'Slot Machine', start:[6,11.2], hole:[6,1.1], pits:[[6,4.5],[6,7.7]],
+   walls:[[0,2.6,5.4,0.65],[6.6,2.6,5.4,0.65],[0,6,3.8,0.65],[8.2,6,3.8,0.65],[0,9.4,5.4,0.65],[6.6,9.4,5.4,0.65]] },
+ { name:"King's Gauntlet", start:[1.4,11], hole:[11,1.2], pits:[[10.6,3.8],[1.5,6.2],[10.6,8.8],[6,1.3],[4.5,11]],
+   walls:[[0,2.5,9,0.65],[3,5,9,0.65],[0,7.5,9,0.65],[5.35,10.2,1.3,1.2]] },
 ];
 
 /* ---------------- save ---------------- */
@@ -317,6 +358,9 @@ function levelDone(){
 }
 
 /* ---------------- drawing ---------------- */
+let DARK=false;
+try{ const mq=window.matchMedia('(prefers-color-scheme: dark)'); DARK=!!mq.matches;
+  if(mq.addEventListener) mq.addEventListener('change', e=>{ DARK=!!e.matches; }); }catch(e){}
 function rr(x,y,w,h,r){
   ctx.beginPath();
   ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
@@ -327,13 +371,14 @@ function draw(){
   ctx.clearRect(0,0,cv.width,cv.height);
   // board surface
   const bg=ctx.createLinearGradient(0,0,0,cv.height);
-  bg.addColorStop(0,'#f4f2ec'); bg.addColorStop(1,'#e7e4db');
+  if(DARK){ bg.addColorStop(0,'#26262d'); bg.addColorStop(1,'#16161b'); }
+  else { bg.addColorStop(0,'#f4f2ec'); bg.addColorStop(1,'#e7e4db'); }
   ctx.fillStyle=bg; rr(0,0,cv.width,cv.height,26*(cv.width/520>1?1:cv.width/520)); ctx.fill();
   // faint dot grid
-  ctx.fillStyle='rgba(60,60,80,.07)';
+  ctx.fillStyle=DARK?'rgba(255,255,255,.055)':'rgba(60,60,80,.07)';
   for(let i=1;i<U;i++) for(let j=1;j<U;j++){ ctx.beginPath(); ctx.arc(i*u,j*u,Math.max(1.4,u*0.035),0,7); ctx.fill(); }
   // start pad
-  ctx.strokeStyle='rgba(40,40,60,.30)'; ctx.lineWidth=Math.max(1.5,u*0.05); ctx.setLineDash([u*0.22,u*0.16]);
+  ctx.strokeStyle=DARK?'rgba(255,255,255,.32)':'rgba(40,40,60,.30)'; ctx.lineWidth=Math.max(1.5,u*0.05); ctx.setLineDash([u*0.22,u*0.16]);
   ctx.beginPath(); ctx.arc(L.start[0]*u,L.start[1]*u,BALL_R*u*1.45,0,7); ctx.stroke(); ctx.setLineDash([]);
   // pits
   for(const p of L.pits){
@@ -348,14 +393,15 @@ function draw(){
   const hg=ctx.createRadialGradient(L.hole[0]*u,L.hole[1]*u,HOLE_R*u*0.08,L.hole[0]*u,L.hole[1]*u,HOLE_R*u);
   hg.addColorStop(0,'#000'); hg.addColorStop(0.8,'#0a0f0c'); hg.addColorStop(0.95,'#233028'); hg.addColorStop(1,'rgba(0,0,0,0)');
   ctx.fillStyle=hg; ctx.beginPath(); ctx.arc(L.hole[0]*u,L.hole[1]*u,HOLE_R*u,0,7); ctx.fill();
-  // walls — graphite blocks with soft shadow
+  // walls — graphite blocks with soft shadow (lighter blocks on the dark board)
   for(const w of L.walls){
-    ctx.fillStyle='rgba(30,28,45,.20)';
+    ctx.fillStyle=DARK?'rgba(0,0,0,.55)':'rgba(30,28,45,.20)';
     rr(w[0]*u+u*0.05, w[1]*u+u*0.09, w[2]*u, w[3]*u, u*0.14); ctx.fill();
     const wg=ctx.createLinearGradient(w[0]*u,w[1]*u,w[0]*u,(w[1]+w[3])*u);
-    wg.addColorStop(0,'#3d3d47'); wg.addColorStop(0.5,'#2c2c34'); wg.addColorStop(1,'#1d1d23');
+    if(DARK){ wg.addColorStop(0,'#5d5d6c'); wg.addColorStop(0.5,'#454552'); wg.addColorStop(1,'#2f2f39'); }
+    else { wg.addColorStop(0,'#3d3d47'); wg.addColorStop(0.5,'#2c2c34'); wg.addColorStop(1,'#1d1d23'); }
     ctx.fillStyle=wg; rr(w[0]*u, w[1]*u, w[2]*u, w[3]*u, u*0.14); ctx.fill();
-    ctx.fillStyle='rgba(255,255,255,.13)'; rr(w[0]*u+u*0.05, w[1]*u+u*0.04, w[2]*u-u*0.1, Math.min(u*0.14,w[3]*u*0.3), u*0.07); ctx.fill();
+    ctx.fillStyle=DARK?'rgba(255,255,255,.16)':'rgba(255,255,255,.13)'; rr(w[0]*u+u*0.05, w[1]*u+u*0.04, w[2]*u-u*0.1, Math.min(u*0.14,w[3]*u*0.3), u*0.07); ctx.fill();
   }
   // the marble
   const b=S.ball;
