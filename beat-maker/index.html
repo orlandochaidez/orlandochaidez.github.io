@@ -110,6 +110,11 @@
   #rollBtn { background:linear-gradient(180deg,#22409a,#162c6e); font-size:12px; }
 
   /* ===== sequencer ===== */
+  .seq-tools { display:flex; gap:8px; align-items:center; padding:0 2px 10px; flex-wrap:wrap; }
+  .seq-tools span { color:#c9c9d1; font-size:10.5px; font-weight:800; letter-spacing:.22em; }
+  .len-btn { background:#3d3d45; color:#e8e8ea; border:none; border-radius:6px; font-family:inherit; font-weight:800; font-size:11px; padding:6px 12px; cursor:pointer; letter-spacing:.06em; }
+  .len-btn.on { background:#f26722; color:#fff; }
+  .step.bar { border-left:3px solid #6d6d78; }
   .seq-wrap { margin-top:20px; background:#2a2b30; border-radius:12px; padding:13px 13px 10px; box-shadow: inset 0 2px 8px rgba(0,0,0,.8), 0 1px 1px rgba(255,255,255,.5); overflow-x:auto; }
   .seq-head { display:flex; justify-content:space-between; align-items:center; padding:0 2px 9px; }
   .seq-head span { color:#c9c9d1; font-size:10.5px; font-weight:800; letter-spacing:.22em; }
@@ -191,6 +196,7 @@
   </div>
 
   <div class="seq-wrap">
+    <div class="seq-tools"><span>PATTERN LENGTH:</span><button class="len-btn on" data-len="16">16 · 1 BAR</button><button class="len-btn" data-len="32">32 · 2 BARS</button><button class="len-btn" data-len="64">64 · 4 BARS</button></div>
     <div class="seq-head"><span>STEP SEQUENCER — TAP THE SQUARES, OR ARM REC AND PLAY THE PADS LIVE</span><span class="btns"><button id="addRowBtn">+ ADD ROW</button><button id="clearLiveBtn">CLEAR LIVE LAYER</button></span></div>
     <div class="seq" id="seq"></div>
   </div>
@@ -271,15 +277,19 @@ const KEYLABEL = {12:"1",13:"2",14:"3",15:"4", 8:"Q",9:"W",10:"E",11:"R", 4:"A",
 let kitKey = "boombap", kit = KITS.boombap;
 let bpm = kit.bpm, swing = kit.swing, volume = 0.85;
 let playing = false, recArmed = false, currentStep = 0, barCount = 1, nextTime = 0, timerID = null;
+let plen = 16;
 let pattern = {}; SEQ_ROWS.forEach(r => pattern[r.key] = new Array(16).fill(false));
 let extraRows = [];
 let savedState = null;
 try { savedState = JSON.parse(localStorage.getItem("beatlab-state") || "null"); } catch (e) {}
-if (savedState && savedState.pattern) SEQ_ROWS.forEach(r => { if (Array.isArray(savedState.pattern[r.key])) pattern[r.key] = savedState.pattern[r.key].slice(0, 16).concat(new Array(16).fill(false)).slice(0, 16); });
+if (savedState && [16, 32, 64].includes(savedState.plen)) plen = savedState.plen;
+if (savedState && savedState.pattern) SEQ_ROWS.forEach(r => { if (Array.isArray(savedState.pattern[r.key])) pattern[r.key] = savedState.pattern[r.key].slice(0, plen).concat(new Array(plen).fill(false)).slice(0, plen); });
+else if (plen !== 16) SEQ_ROWS.forEach(r => { pattern[r.key] = pattern[r.key].concat(new Array(plen).fill(false)).slice(0, plen); });
 let extraRowsData = (savedState && Array.isArray(savedState.extraRows)) ? savedState.extraRows.filter(e => e && typeof e.slot === "number" && Array.isArray(e.pattern)) : [];
-function saveState() { try { localStorage.setItem("beatlab-state", JSON.stringify({ pattern, live, extraRows: extraRows.map(e => ({ slot: e.slot, pattern: e.pattern })) })); } catch (e) {} }
-let live = {}; for (let i = 0; i < 16; i++) live[i] = [];
-if (savedState && savedState.live) for (let i = 0; i < 16; i++) if (Array.isArray(savedState.live[i])) live[i] = savedState.live[i].filter(s => typeof s === "number");
+function saveState() { try { localStorage.setItem("beatlab-state", JSON.stringify({ pattern, live, plen, extraRows: extraRows.map(e => ({ slot: e.slot, pattern: e.pattern })) })); } catch (e) {} }
+function normPat(a) { return (a || []).slice(0, plen).concat(new Array(plen).fill(false)).slice(0, plen); }
+let live = {}; for (let i = 0; i < 64; i++) live[i] = [];
+if (savedState && savedState.live) for (let i = 0; i < 64; i++) if (Array.isArray(savedState.live[i])) live[i] = savedState.live[i].filter(s => typeof s === "number");
 let crackleOn = false, clickOn = false;
 
 /* ============================== AUDIO ============================== */
@@ -449,9 +459,9 @@ function makeSeqRow(cfg) {
   lab.addEventListener("pointerdown", () => { audio(); trigger(cfg.slot, AC.currentTime + 0.01); flashPad(cfg.slot); });
   row.appendChild(lab);
   const els = [];
-  for (let s = 0; s < 16; s++) {
+  for (let s = 0; s < plen; s++) {
     const st = document.createElement("button");
-    st.className = "step" + (s % 4 === 0 ? " grp" : "") + (cfg.pattern[s] ? " on" : "");
+    st.className = "step" + (s % 4 === 0 ? " grp" : "") + (s > 0 && s % 16 === 0 ? " bar" : "") + (cfg.pattern[s] ? " on" : "");
     st.addEventListener("click", () => { cfg.pattern[s] = !cfg.pattern[s]; st.classList.toggle("on", cfg.pattern[s]); saveState(); if (cfg.pattern[s]) { audio(); trigger(cfg.slot, AC.currentTime + 0.01); } });
     row.appendChild(st); els.push(st);
   }
@@ -460,9 +470,10 @@ function makeSeqRow(cfg) {
   $("seq").appendChild(row);
   return { rowEl: row, labEl: lab, stepEls: els };
 }
-SEQ_ROWS.forEach(r => { const ui = makeSeqRow({ slot: r.slot, label: () => r.label, pattern: pattern[r.key] }); stepEls[r.key] = ui.stepEls; });
+function buildDefaultRows() { SEQ_ROWS.forEach(r => { const ui = makeSeqRow({ slot: r.slot, label: () => r.label, pattern: pattern[r.key] }); stepEls[r.key] = ui.stepEls; }); }
+buildDefaultRows();
 function addExtraRow(slot, pat) {
-  const er = { slot, pattern: (pat || new Array(16).fill(false)).slice(0, 16).concat(new Array(16).fill(false)).slice(0, 16) };
+  const er = { slot, pattern: normPat(pat) };
   er.ui = makeSeqRow({ slot, label: () => padLabel(slot), pattern: er.pattern, onRemove: () => { extraRows = extraRows.filter(e => e !== er); er.ui.rowEl.remove(); saveState(); lcdHit("ROW REMOVED: " + padLabel(slot)); } });
   extraRows.push(er);
   return er;
@@ -482,8 +493,26 @@ function setPendingAdd(on) {
   $("addRowBtn").textContent = on ? "TAP A PAD…" : "+ ADD ROW";
   $("addRowBtn").classList.toggle("on", on);
 }
-function refreshSeq() { SEQ_ROWS.forEach(r => { for (let s = 0; s < 16; s++) stepEls[r.key][s].classList.toggle("on", pattern[r.key][s]); }); extraRows.forEach(e => { for (let s = 0; s < 16; s++) e.ui.stepEls[s].classList.toggle("on", e.pattern[s]); }); }
+function refreshSeq() { SEQ_ROWS.forEach(r => { for (let s = 0; s < plen; s++) stepEls[r.key][s].classList.toggle("on", pattern[r.key][s]); }); extraRows.forEach(e => { for (let s = 0; s < plen; s++) e.ui.stepEls[s].classList.toggle("on", e.pattern[s]); }); }
 $("addRowBtn").addEventListener("click", () => { setPendingAdd(!pendingAdd); lcdHit(pendingAdd ? "ADD ROW: TAP ANY PAD UP TOP AND IT GETS ITS OWN SEQUENCER ROW" : "ADD ROW CANCELLED"); });
+function stylePlen() { document.querySelectorAll(".len-btn").forEach(b => b.classList.toggle("on", +b.dataset.len === plen)); $("seq").style.minWidth = plen === 16 ? "" : (150 + plen * 30) + "px"; }
+function setPlen(n) {
+  if (n === plen) return;
+  const defs = extraRows.map(e => ({ slot: e.slot, pattern: e.pattern }));
+  plen = n;
+  SEQ_ROWS.forEach(r => { pattern[r.key] = normPat(pattern[r.key]); });
+  defs.forEach(d => { d.pattern = normPat(d.pattern); });
+  $("seq").innerHTML = "";
+  buildDefaultRows();
+  extraRows = [];
+  defs.forEach(d => addExtraRow(d.slot, d.pattern));
+  currentStep = 0;
+  stylePlen();
+  saveState();
+  lcdHit("PATTERN LENGTH: " + n + " STEPS = " + (n / 16) + (n === 16 ? " BAR" : " BARS") + " — YOUR STEPS CARRIED OVER");
+}
+document.querySelectorAll(".len-btn").forEach(b => b.addEventListener("click", () => setPlen(+b.dataset.len)));
+stylePlen();
 function flashPad(slot) { const el = padEls[slot]; if (!el) return; el.classList.add("hit"); setTimeout(() => el.classList.remove("hit"), 130); }
 function lcdHit(txt) { $("lcdHit").textContent = txt; }
 function hitPad(slot, el) {
@@ -518,7 +547,7 @@ $("metroBtn").addEventListener("click", () => { clickOn = !clickOn; $("metroBtn"
 /* ============================== TRANSPORT / SEQUENCER ============================== */
 function loadPreset() {
   audio();
-  SEQ_ROWS.forEach(r => { for (let s = 0; s < 16; s++) pattern[r.key][s] = kit.preset[r.key].includes(s); });
+  SEQ_ROWS.forEach(r => { for (let s = 0; s < plen; s++) pattern[r.key][s] = kit.preset[r.key].includes(s); });
   for (let i = 0; i < 16; i++) live[i] = (kit.preset.live && kit.preset.live[i]) ? kit.preset.live[i].slice() : [];
   refreshSeq();
   saveState();
@@ -532,7 +561,7 @@ function clearAll() {
 }
 $("presetBtn").addEventListener("click", loadPreset);
 $("clearBtn").addEventListener("click", clearAll);
-$("clearLiveBtn").addEventListener("click", () => { for (let i = 0; i < 16; i++) live[i] = []; saveState(); lcdHit("LIVE LAYER CLEARED (STEP PATTERN KEPT)"); });
+$("clearLiveBtn").addEventListener("click", () => { for (const k in live) live[k] = []; saveState(); lcdHit("LIVE LAYER CLEARED (STEP PATTERN KEPT)"); });
 $("recBtn").addEventListener("click", () => { recArmed = !recArmed; $("recBtn").classList.toggle("armed", recArmed); $("lcdStatus").classList.toggle("rec", recArmed); $("lcdStatus").textContent = recArmed ? "● REC ARMED" : (playing ? "PLAYING" : "READY"); });
 
 let rollTimer = null;
@@ -543,7 +572,7 @@ $("rollBtn").addEventListener("pointerdown", startRoll);
 
 function scheduleStep(step, t) {
   SEQ_ROWS.forEach(r => { if (pattern[r.key][step]) { trigger(r.slot, t, r.key === "chat" ? 0.75 : 1); drawQueue.push({ step, slot: r.slot, time: t }); } });
-  live[step].forEach(slot => { trigger(slot, t); drawQueue.push({ step, slot, time: t }); });
+  (live[step] || []).forEach(slot => { trigger(slot, t); drawQueue.push({ step, slot, time: t }); });
   extraRows.forEach(e => { if (e.pattern[step]) { trigger(e.slot, t); drawQueue.push({ step, slot: e.slot, time: t }); } });
   if (clickOn && step % 4 === 0) { const o = osc("square", step === 0 ? 1560 : 1040, t); out(o, t, 0.12, 0.03); o.stop(t + 0.04); }
 }
@@ -556,7 +585,7 @@ function scheduler() {
     scheduleStep(currentStep, t);
     drawQueue.push({ step: currentStep, slot: -1, time: t });
     nextTime += stepDur;
-    currentStep = (currentStep + 1) % 16;
+    currentStep = (currentStep + 1) % plen;
     if (currentStep === 0) barCount++;
   }
 }
