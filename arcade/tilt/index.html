@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>TILT. — the marble maze</title>
+<style>
+  *{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ overscroll-behavior:none; }
+  body{
+    font-family:'Arial Rounded MT Bold','Helvetica Rounded','Trebuchet MS',Arial,sans-serif;
+    background:radial-gradient(120% 90% at 50% 0%, #ffffff 0%, #f4f4f7 58%, #e8e8ed 100%);
+    color:#1c1c22; min-height:100vh; display:flex; flex-direction:column; align-items:center;
+    padding:10px 10px 20px; touch-action:manipulation;
+  }
+  #topbar{ width:100%; max-width:520px; display:flex; justify-content:space-between; align-items:center; }
+  #topbar a{ color:#0b6bcb; text-decoration:none; font-size:14px; letter-spacing:.4px; }
+  #logo{ font-size:40px; font-weight:900; letter-spacing:2px; color:#23232a; margin-top:2px; }
+  #logo i{ font-style:normal; color:#0aa06e; }
+  #tagline{ font-size:12.5px; letter-spacing:2.2px; color:#8a90a0; font-weight:700; margin-bottom:8px; }
+  #hud{ width:min(94vw,520px); display:flex; gap:8px; align-items:stretch; margin-bottom:8px; }
+  .pill{ flex:1; background:#fff; border:1px solid #e0e0e7; border-radius:12px; padding:6px 4px; text-align:center;
+    box-shadow:0 2px 6px rgba(30,30,60,.06); }
+  .pill .k{ font-size:9.5px; letter-spacing:1.8px; color:#9aa0b2; font-weight:700; }
+  .pill .v{ font-size:16px; font-weight:900; color:#23232a; font-variant-numeric:tabular-nums; }
+  #bubblePill{ flex:0 0 64px; display:flex; align-items:center; justify-content:center; }
+  #bubbleBox{ position:relative; width:34px; height:34px; border-radius:50%; border:2px solid #c9c9d4; background:#fbfbfc; }
+  #bubbleDot{ position:absolute; left:50%; top:50%; width:11px; height:11px; margin:-5.5px 0 0 -5.5px; border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #fff, #9fb4c8 55%, #5d748c); box-shadow:0 1px 2px rgba(0,0,0,.3); }
+  #boardWrap{ position:relative; width:min(94vw,520px); aspect-ratio:1/1; }
+  #boardShadow{ position:absolute; inset:0; border-radius:26px; box-shadow:0 24px 38px rgba(23,20,38,.20), 0 6px 14px rgba(23,20,38,.12); }
+  canvas{ position:absolute; inset:0; width:100%; height:100%; border-radius:26px; display:block; touch-action:none; }
+  .ov{ position:absolute; inset:0; z-index:5; border-radius:26px; background:rgba(248,248,251,.88); backdrop-filter:blur(3px);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; text-align:center; padding:18px; }
+  .ov.hidden{ display:none; }
+  .ovTitle{ font-size:30px; font-weight:900; letter-spacing:1.5px; color:#23232a; }
+  .ovTitle i{ font-style:normal; color:#0aa06e; }
+  .ovText{ font-size:14.5px; line-height:1.5; color:#3c4152; max-width:320px; }
+  .ovText b{ color:#0a7d57; }
+  .bigBtn{ font-family:inherit; font-size:18px; font-weight:900; letter-spacing:1.6px; color:#fff; border:none; cursor:pointer;
+    padding:13px 34px; border-radius:16px; background:linear-gradient(180deg,#2fce8e,#0aa06e);
+    box-shadow:0 5px 0 #087a53, 0 10px 18px rgba(10,140,95,.32), inset 0 1px 0 rgba(255,255,255,.45); }
+  .bigBtn:active{ transform:translateY(3px); box-shadow:0 2px 0 #087a53; }
+  .ghostBtn{ font-family:inherit; font-size:13.5px; font-weight:800; letter-spacing:1.2px; color:#3c4152; cursor:pointer;
+    padding:9px 18px; border-radius:12px; background:#fff; border:1.5px solid #d5d5df;
+    box-shadow:0 3px 0 #c2c2cf; }
+  .ghostBtn:active{ transform:translateY(2px); box-shadow:0 1px 0 #c2c2cf; }
+  #lvlGrid{ display:grid; grid-template-columns:repeat(5,1fr); gap:8px; width:min(300px,80vw); }
+  .lvlCell{ font-family:inherit; aspect-ratio:1/1; border-radius:13px; border:1.5px solid #d5d5df; background:#fff;
+    font-size:17px; font-weight:900; color:#23232a; cursor:pointer; box-shadow:0 3px 0 #c2c2cf;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; }
+  .lvlCell:active{ transform:translateY(2px); box-shadow:0 1px 0 #c2c2cf; }
+  .lvlCell .bt{ font-size:8.5px; font-weight:700; color:#9aa0b2; letter-spacing:.4px; }
+  .lvlCell.done{ border-color:#0aa06e; background:#eafaf3; }
+  .lvlCell.locked{ opacity:.38; cursor:default; box-shadow:none; }
+  #ctrlRow{ width:min(94vw,520px); display:flex; gap:8px; margin-top:10px; }
+  .mini{ flex:1; font-family:inherit; background:#fff; border:1.5px solid #dcdce4; border-radius:12px; padding:9px 4px;
+    font-size:12.5px; font-weight:800; letter-spacing:1px; color:#3c4152; cursor:pointer; box-shadow:0 3px 0 #c9c9d4; }
+  .mini:active{ transform:translateY(2px); box-shadow:0 1px 0 #c9c9d4; }
+  #hint{ padding:10px 14px 4px; font-size:12.5px; line-height:1.55; color:#7a8194; text-align:center; max-width:480px; }
+  #statLine{ font-size:14px; color:#3c4152; line-height:1.6; }
+  #statLine b{ color:#23232a; }
+  @media (max-height:700px){ #logo{ font-size:33px; } #tagline{ margin-bottom:4px; } }
+</style>
+</head>
+<body>
+  <div id="topbar">
+    <a href="../index.html">← All games</a>
+    <span style="font-size:12.5px; letter-spacing:1.6px; color:#9aa0b2; font-weight:700;">📱 MOBILE ONLY</span>
+  </div>
+  <div id="logo">TILT<i>.</i></div>
+  <div id="tagline">BALANCE THE BALL · FIND THE HOLE</div>
+
+  <div id="hud">
+    <div class="pill"><div class="k">LEVEL</div><div class="v" id="hudLevel">1 / 10</div></div>
+    <div class="pill"><div class="k">TIME</div><div class="v" id="hudTime">0:00.0</div></div>
+    <div class="pill"><div class="k">FALLS</div><div class="v" id="hudFalls">0</div></div>
+    <div class="pill" id="bubblePill"><div id="bubbleBox"><div id="bubbleDot"></div></div></div>
+  </div>
+
+  <div id="boardWrap">
+    <div id="boardShadow"></div>
+    <canvas id="cv"></canvas>
+
+    <div class="ov" id="menuOv">
+      <div class="ovTitle">TILT<i>.</i></div>
+      <div class="ovText">Hold your phone <b>face up</b> and tilt it like a tray — the marble rolls with your balance. Drop it in the <b>green-ringed hole</b>. Mind the black pits.</div>
+      <div id="lvlGrid"></div>
+      <div class="ovText" id="menuNote" style="font-size:12.5px; color:#8a90a0;">Pick a level to start</div>
+    </div>
+
+    <div class="ov hidden" id="calOv">
+      <div class="ovTitle" id="calTitle">LEVEL 1</div>
+      <div class="ovText">Hold your phone however's comfy — that's your <b>level</b>. Tap start and tilt gently. Small tilts, smooth hands.</div>
+      <button class="bigBtn" id="calBtn">▶ START</button>
+      <button class="ghostBtn" id="calBack">← LEVELS</button>
+    </div>
+
+    <div class="ov hidden" id="doneOv">
+      <div class="ovTitle" id="doneTitle">IN THE HOLE! 🎉</div>
+      <div id="statLine"></div>
+      <button class="bigBtn" id="nextBtn">NEXT LEVEL ▶</button>
+      <button class="ghostBtn" id="doneLevels">← LEVELS</button>
+    </div>
+
+    <div class="ov hidden" id="noSensorOv">
+      <div class="ovTitle">📱 PHONE TIME</div>
+      <div class="ovText">TILT. needs a phone's tilt sensors — there's no keyboard or mouse mode, that's the whole game. Open <b>orlandochaidez.com/arcade/tilt/</b> on your phone and roll.</div>
+    </div>
+  </div>
+
+  <div id="ctrlRow">
+    <button class="mini" id="btnLevels">☰ LEVELS</button>
+    <button class="mini" id="btnCal">◎ RE-CENTER</button>
+    <button class="mini" id="btnRestart">↺ RESTART</button>
+  </div>
+
+  <div id="hint">Tilt like you're balancing a tray of drinks. <b>◎ RE-CENTER</b> re-zeros the tilt to however you're holding the phone. Black pits send the ball back to the start.</div>
+
+<script>
+(()=>{ 'use strict';
+/* ================= TILT. — a marble maze you steer with your phone ================= */
+const U=12, BALL_R=0.36, HOLE_R=0.56, PIT_R=0.5;
+const ACCEL=15, DAMP=0.85, MAXV=9.5, REST=0.3;
+const STEP=1/120;
+
+/* level data — walls are [x,y,w,h] in board units (12x12). Board edges are walls. */
+const LEVELS=[
+ { name:'First Roll', start:[1.6,10.6], hole:[10.4,1.6], pits:[],
+   walls:[[0,3.2,7.5,0.7],[4.5,7.8,7.5,0.7]] },
+ { name:'S-Curve', start:[1.6,1.6], hole:[10.4,10.4], pits:[],
+   walls:[[3.2,0,0.7,7.5],[7.8,4.5,0.7,7.5]] },
+ { name:'The Chute', start:[6,11], hole:[6,1.2], pits:[],
+   walls:[[0,2.6,5,0.7],[7,2.6,5,0.7],[0,6,3.4,0.7],[8.6,6,3.4,0.7],[0,9.4,5,0.7],[7,9.4,5,0.7]] },
+ { name:'Four Posts', start:[6,10.8], hole:[6,1.2], pits:[],
+   walls:[[2.4,2.4,2,2],[7.6,2.4,2,2],[2.4,7.6,2,2],[7.6,7.6,2,2],[5.3,5.3,1.4,1.4]] },
+ { name:'Slalom', start:[1.3,10.6], hole:[10.7,1.4], pits:[],
+   walls:[[2.6,0,0.7,5],[5.6,7,0.7,5],[8.6,0,0.7,5]] },
+ { name:'The Bands', start:[1.5,10.7], hole:[1.6,1.5], pits:[],
+   walls:[[0,3,9.2,0.7],[2.8,6,9.2,0.7],[0,9,9.2,0.7]] },
+ { name:'Pits Begin', start:[1.6,10.6], hole:[10.4,1.6], pits:[[6,6.35],[10.5,10.4]],
+   walls:[[0,4,8,0.7],[4,8,8,0.7]] },
+ { name:'Crossfire', start:[1.5,10.6], hole:[10.5,1.5], pits:[[1.5,5.6],[6.15,10.4],[10.4,6.2],[6.15,1.9]],
+   walls:[[3,0,0.7,8],[8.3,4,0.7,8]] },
+ { name:'The Gauntlet', start:[1.3,11], hole:[6,1.2], pits:[[10.8,3.6],[1.2,6],[10.8,8.4]],
+   walls:[[0,2.4,9,0.6],[3,4.8,9,0.6],[0,7.2,9,0.6],[3,9.6,9,0.6]] },
+ { name:"King's Maze", start:[1.4,10.7], hole:[11,1.2], pits:[[6,1.6],[10.6,4.7],[1.5,7.5],[6.2,7.55],[10.6,10.7]],
+   walls:[[0,3,8.6,0.7],[3.4,6,8.6,0.7],[0,9,8.6,0.7]] },
+];
+
+/* ---------------- save ---------------- */
+const LS='tilt-v1';
+let save={ unlocked:1, best:{} };
+try{ const s=JSON.parse(localStorage.getItem(LS)); if(s&&s.unlocked) save=s; }catch(e){}
+function persist(){ try{ localStorage.setItem(LS, JSON.stringify(save)); }catch(e){} }
+function fmtTime(ms){ if(ms==null) return '—'; const t=ms/1000, m=Math.floor(t/60), s=t-m*60;
+  return m+':'+(s<10?'0':'')+s.toFixed(1); }
+
+/* ---------------- dom ---------------- */
+const $=id=>document.getElementById(id);
+const cv=$('cv'), ctx=cv.getContext('2d');
+const hudLevel=$('hudLevel'), hudTime=$('hudTime'), hudFalls=$('hudFalls'), bubbleDot=$('bubbleDot');
+const menuOv=$('menuOv'), calOv=$('calOv'), doneOv=$('doneOv'), noSensorOv=$('noSensorOv');
+const lvlGrid=$('lvlGrid');
+let PX=29; // pixels per unit, set on resize
+function resize(){
+  const r=cv.parentElement.getBoundingClientRect();
+  const dpr=Math.min(2, window.devicePixelRatio||1);
+  cv.width=Math.round(r.width*dpr); cv.height=Math.round(r.height*dpr);
+  PX=cv.width/U;
+}
+window.addEventListener('resize', resize);
+
+/* ---------------- state ---------------- */
+const S={ mode:'menu', level:0, ball:{x:0,y:0,vx:0,vy:0}, tilt:{x:0,y:0},
+          raw:{beta:0,gamma:0}, zero:{beta:0,gamma:0}, hasSensor:false, permAsked:false,
+          t0:0, elapsed:0, falls:0, sinkT:-1, sinkKind:null, thudCd:0 };
+function loadLevel(i){
+  S.level=i; const L=LEVELS[i];
+  S.ball.x=L.start[0]; S.ball.y=L.start[1]; S.ball.vx=0; S.ball.vy=0;
+  S.falls=0; S.elapsed=0; S.sinkT=-1; S.sinkKind=null;
+  hudLevel.textContent=(i+1)+' / '+LEVELS.length;
+  hudTime.textContent='0:00.0'; hudFalls.textContent='0';
+}
+function buzz(p){ try{ if(navigator.vibrate) navigator.vibrate(p); }catch(e){} }
+
+/* ---------------- tilt input ---------------- */
+function onOrient(e){
+  if(e.beta==null||e.gamma==null) return;
+  S.hasSensor=true; S.raw.beta=e.beta; S.raw.gamma=e.gamma;
+  S.tilt.x=Math.max(-1,Math.min(1,(e.gamma-S.zero.gamma)/24));
+  S.tilt.y=Math.max(-1,Math.min(1,(e.beta -S.zero.beta )/24));
+  bubbleDot.style.transform='translate('+(S.tilt.x*11)+'px,'+(S.tilt.y*11)+'px)';
+}
+function calibrate(){ S.zero.beta=S.raw.beta; S.zero.gamma=S.raw.gamma; S.tilt.x=0; S.tilt.y=0;
+  bubbleDot.style.transform='translate(0px,0px)'; }
+function requestTilt(){
+  const DOE=window.DeviceOrientationEvent;
+  if(DOE && typeof DOE.requestPermission==='function'){
+    DOE.requestPermission().then(r=>{ if(r==='granted') window.addEventListener('deviceorientation', onOrient); }).catch(()=>{});
+  } else if(DOE){
+    window.addEventListener('deviceorientation', onOrient);
+  }
+}
+
+/* ---------------- physics ---------------- */
+function physStep(dt){
+  const b=S.ball, L=LEVELS[S.level];
+  if(S.sinkT>=0){
+    S.sinkT+=dt;
+    if(S.sinkT>0.38){
+      const kind=S.sinkKind; S.sinkT=-1; S.sinkKind=null;
+      if(kind==='goal'){ levelDone(); }
+      else { b.x=L.start[0]; b.y=L.start[1]; b.vx=0; b.vy=0; S.falls++; hudFalls.textContent=S.falls; }
+    }
+    return;
+  }
+  b.vx+=S.tilt.x*ACCEL*dt; b.vy+=S.tilt.y*ACCEL*dt;
+  const damp=Math.exp(-DAMP*dt); b.vx*=damp; b.vy*=damp;
+  const sp=Math.hypot(b.vx,b.vy); if(sp>MAXV){ b.vx*=MAXV/sp; b.vy*=MAXV/sp; }
+  b.x+=b.vx*dt; b.y+=b.vy*dt;
+  // borders
+  if(b.x<BALL_R){ b.x=BALL_R; if(b.vx<0){ b.vx=-b.vx*REST; thud(); } }
+  if(b.x>U-BALL_R){ b.x=U-BALL_R; if(b.vx>0){ b.vx=-b.vx*REST; thud(); } }
+  if(b.y<BALL_R){ b.y=BALL_R; if(b.vy<0){ b.vy=-b.vy*REST; thud(); } }
+  if(b.y>U-BALL_R){ b.y=U-BALL_R; if(b.vy>0){ b.vy=-b.vy*REST; thud(); } }
+  // walls: closest-point push-out along the contact normal, so the ball rolls
+  // AROUND corners instead of pinning on them (two relaxation passes)
+  for(let pass=0; pass<2; pass++){
+    for(const w of L.walls){
+      const nx=Math.max(w[0], Math.min(b.x, w[0]+w[2]));
+      const ny=Math.max(w[1], Math.min(b.y, w[1]+w[3]));
+      let dx=b.x-nx, dy=b.y-ny;
+      const d2=dx*dx+dy*dy;
+      if(d2>=BALL_R*BALL_R) continue;
+      const d=Math.sqrt(d2);
+      if(d<1e-6){ // center inside the rect (rare): exit by the nearest face
+        const exits=[[b.x-w[0],'l'],[w[0]+w[2]-b.x,'r'],[b.y-w[1],'t'],[w[1]+w[3]-b.y,'b']].sort((a,c)=>a[0]-c[0]);
+        const dir=exits[0][1];
+        if(dir==='l'){ b.x=w[0]-BALL_R; if(b.vx>0) b.vx=-b.vx*REST; }
+        if(dir==='r'){ b.x=w[0]+w[2]+BALL_R; if(b.vx<0) b.vx=-b.vx*REST; }
+        if(dir==='t'){ b.y=w[1]-BALL_R; if(b.vy>0) b.vy=-b.vy*REST; }
+        if(dir==='b'){ b.y=w[1]+w[3]+BALL_R; if(b.vy<0) b.vy=-b.vy*REST; }
+        thud(); continue;
+      }
+      dx/=d; dy/=d;
+      b.x=nx+dx*BALL_R; b.y=ny+dy*BALL_R;
+      const vn=b.vx*dx+b.vy*dy;
+      if(vn<0){ b.vx-=(1+REST)*vn*dx; b.vy-=(1+REST)*vn*dy; thud(); }
+    }
+  }
+  // goal + pits
+  const dh=Math.hypot(b.x-L.hole[0], b.y-L.hole[1]);
+  if(dh<HOLE_R*0.62){ startSink('goal', L.hole); return; }
+  for(const p of L.pits){
+    if(Math.hypot(b.x-p[0], b.y-p[1])<PIT_R*0.6){ startSink('pit', p); return; }
+  }
+  S.elapsed+=dt*1000;
+}
+function thud(){ const n=performance.now(); if(n-S.thudCd>110){ S.thudCd=n; buzz(6); } }
+function startSink(kind, at){
+  S.sinkT=0; S.sinkKind=kind; S.sinkAt=at;
+  S.ball.x=at[0]; S.ball.y=at[1]; S.ball.vx=0; S.ball.vy=0;
+  buzz(kind==='goal'?[25,40,25]:60);
+}
+function levelDone(){
+  S.mode='done';
+  const t=Math.round(S.elapsed);
+  const prev=save.best[S.level];
+  if(prev==null||t<prev){ save.best[S.level]=t; }
+  if(S.level+1<LEVELS.length && save.unlocked<S.level+2) save.unlocked=S.level+2;
+  persist();
+  $('doneTitle').textContent = S.level===LEVELS.length-1 ? 'YOU BEAT TILT. 👑' : 'IN THE HOLE! 🎉';
+  $('statLine').innerHTML='Level <b>'+(S.level+1)+' — '+LEVELS[S.level].name+'</b><br>Time <b>'+fmtTime(t)+
+    '</b> · Best <b>'+fmtTime(save.best[S.level])+'</b> · Falls <b>'+S.falls+'</b>';
+  $('nextBtn').textContent = S.level===LEVELS.length-1 ? '↺ PLAY AGAIN' : 'NEXT LEVEL ▶';
+  doneOv.classList.remove('hidden');
+}
+
+/* ---------------- drawing ---------------- */
+function rr(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+}
+function draw(){
+  const L=LEVELS[S.level], u=PX;
+  ctx.clearRect(0,0,cv.width,cv.height);
+  // board surface
+  const bg=ctx.createLinearGradient(0,0,0,cv.height);
+  bg.addColorStop(0,'#f4f2ec'); bg.addColorStop(1,'#e7e4db');
+  ctx.fillStyle=bg; rr(0,0,cv.width,cv.height,26*(cv.width/520>1?1:cv.width/520)); ctx.fill();
+  // faint dot grid
+  ctx.fillStyle='rgba(60,60,80,.07)';
+  for(let i=1;i<U;i++) for(let j=1;j<U;j++){ ctx.beginPath(); ctx.arc(i*u,j*u,Math.max(1.4,u*0.035),0,7); ctx.fill(); }
+  // start pad
+  ctx.strokeStyle='rgba(40,40,60,.30)'; ctx.lineWidth=Math.max(1.5,u*0.05); ctx.setLineDash([u*0.22,u*0.16]);
+  ctx.beginPath(); ctx.arc(L.start[0]*u,L.start[1]*u,BALL_R*u*1.45,0,7); ctx.stroke(); ctx.setLineDash([]);
+  // pits
+  for(const p of L.pits){
+    const g=ctx.createRadialGradient(p[0]*u,p[1]*u,PIT_R*u*0.1,p[0]*u,p[1]*u,PIT_R*u);
+    g.addColorStop(0,'#000'); g.addColorStop(0.75,'#060607'); g.addColorStop(0.93,'#1b1b1f'); g.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(p[0]*u,p[1]*u,PIT_R*u,0,7); ctx.fill();
+  }
+  // goal hole (pulsing emerald ring)
+  const pulse=0.5+0.22*Math.sin(performance.now()/280);
+  ctx.strokeStyle='rgba(10,160,110,'+pulse+')'; ctx.lineWidth=Math.max(2.5,u*0.11);
+  ctx.beginPath(); ctx.arc(L.hole[0]*u,L.hole[1]*u,HOLE_R*u*1.12,0,7); ctx.stroke();
+  const hg=ctx.createRadialGradient(L.hole[0]*u,L.hole[1]*u,HOLE_R*u*0.08,L.hole[0]*u,L.hole[1]*u,HOLE_R*u);
+  hg.addColorStop(0,'#000'); hg.addColorStop(0.8,'#0a0f0c'); hg.addColorStop(0.95,'#233028'); hg.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=hg; ctx.beginPath(); ctx.arc(L.hole[0]*u,L.hole[1]*u,HOLE_R*u,0,7); ctx.fill();
+  // walls — graphite blocks with soft shadow
+  for(const w of L.walls){
+    ctx.fillStyle='rgba(30,28,45,.20)';
+    rr(w[0]*u+u*0.05, w[1]*u+u*0.09, w[2]*u, w[3]*u, u*0.14); ctx.fill();
+    const wg=ctx.createLinearGradient(w[0]*u,w[1]*u,w[0]*u,(w[1]+w[3])*u);
+    wg.addColorStop(0,'#3d3d47'); wg.addColorStop(0.5,'#2c2c34'); wg.addColorStop(1,'#1d1d23');
+    ctx.fillStyle=wg; rr(w[0]*u, w[1]*u, w[2]*u, w[3]*u, u*0.14); ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.13)'; rr(w[0]*u+u*0.05, w[1]*u+u*0.04, w[2]*u-u*0.1, Math.min(u*0.14,w[3]*u*0.3), u*0.07); ctx.fill();
+  }
+  // the marble
+  const b=S.ball;
+  let scale=1, alpha=1;
+  if(S.sinkT>=0){ const k=Math.min(1,S.sinkT/0.38); scale=1-k*0.92; alpha=1-k*0.4; }
+  const bx=b.x*u, by=b.y*u, br=BALL_R*u*scale;
+  ctx.fillStyle='rgba(25,22,40,'+(0.30*alpha)+')';
+  ctx.beginPath(); ctx.ellipse(bx+br*0.18, by+br*0.30, br*0.95, br*0.42, 0, 0, 7); ctx.fill();
+  const mg=ctx.createRadialGradient(bx-br*0.38, by-br*0.42, br*0.08, bx, by, br*1.05);
+  mg.addColorStop(0,'#ffffff'); mg.addColorStop(0.28,'#e9eef4'); mg.addColorStop(0.55,'#aebccb');
+  mg.addColorStop(0.8,'#5f7185'); mg.addColorStop(0.95,'#33404e'); mg.addColorStop(1,'#1c242e');
+  ctx.globalAlpha=alpha; ctx.fillStyle=mg;
+  ctx.beginPath(); ctx.arc(bx,by,br,0,7); ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.92)';
+  ctx.beginPath(); ctx.ellipse(bx-br*0.38, by-br*0.46, br*0.20, br*0.12, -0.6, 0, 7); ctx.fill();
+  ctx.globalAlpha=1;
+}
+
+/* ---------------- loop: fixed-step physics, rAF render ---------------- */
+let lastT=0, acc=0;
+function loop(ts){
+  requestAnimationFrame(loop);
+  if(!lastT) lastT=ts;
+  let dt=(ts-lastT)/1000; lastT=ts;
+  if(dt>0.25) dt=0.25;
+  if(S.mode==='play'){
+    acc+=dt;
+    while(acc>=STEP){ physStep(STEP); acc-=STEP; if(S.mode!=='play'){ acc=0; break; } }
+    hudTime.textContent=fmtTime(S.elapsed);
+  }
+  draw();
+}
+if(!window.__TILT_MANUAL__) requestAnimationFrame(loop);
+
+/* ---------------- flow / UI ---------------- */
+function showOv(el){ for(const o of [menuOv,calOv,doneOv,noSensorOv]) o.classList.add('hidden'); if(el) el.classList.remove('hidden'); }
+function buildGrid(){
+  lvlGrid.innerHTML='';
+  LEVELS.forEach((L,i)=>{
+    const c=document.createElement('button');
+    c.className='lvlCell'+(save.best[i]!=null?' done':'')+(i<save.unlocked?'':' locked');
+    c.innerHTML=(i+1)+'<span class="bt">'+(i<save.unlocked?fmtTime(save.best[i]):'🔒')+'</span>';
+    if(i<save.unlocked) c.addEventListener('click', ()=>pickLevel(i));
+    lvlGrid.appendChild(c);
+  });
+}
+function pickLevel(i){
+  loadLevel(i);
+  if(!('DeviceOrientationEvent' in window)){ S.mode='menu'; showOv(noSensorOv); return; }
+  S.mode='cal';
+  $('calTitle').textContent='LEVEL '+(i+1)+' — '+LEVELS[i].name.toUpperCase();
+  showOv(calOv);
+}
+$('calBtn').addEventListener('click', ()=>{
+  requestTilt(); calibrate();
+  setTimeout(()=>{ calibrate(); S.mode='play'; S.elapsed=0; showOv(null); }, 60);
+});
+$('calBack').addEventListener('click', ()=>{ S.mode='menu'; buildGrid(); showOv(menuOv); });
+$('nextBtn').addEventListener('click', ()=>{
+  const n = S.level===LEVELS.length-1 ? 0 : S.level+1;
+  loadLevel(n); S.mode='cal';
+  $('calTitle').textContent='LEVEL '+(n+1)+' — '+LEVELS[n].name.toUpperCase();
+  showOv(calOv);
+});
+$('doneLevels').addEventListener('click', ()=>{ S.mode='menu'; buildGrid(); showOv(menuOv); });
+$('btnLevels').addEventListener('click', ()=>{ S.mode='menu'; buildGrid(); showOv(menuOv); });
+$('btnRestart').addEventListener('click', ()=>{ if(S.mode==='play'||S.mode==='done'){ loadLevel(S.level); S.mode='play'; showOv(null); } });
+$('btnCal').addEventListener('click', ()=>{ calibrate(); });
+
+loadLevel(0); buildGrid(); resize(); draw();
+if(!('DeviceOrientationEvent' in window)) showOv(noSensorOv);
+
+/* test hooks */
+window.__tilt={ S, LEVELS, physStep, loadLevel,
+  setTilt:(x,y)=>{ S.tilt.x=x; S.tilt.y=y; },
+  startPlay:(i)=>{ loadLevel(i); S.mode='play'; showOv(null); },
+  setPX:(p)=>{ PX=p; } };
+})();
+</script>
+</body>
+</html>
