@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>On Rotation — Orlando</title>
+<meta name="description" content="What Orlando's been jamming to: top albums, songs and artists, hand-picked.">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:"Arial Rounded MT Bold","Arial Black",Arial,system-ui,sans-serif;
+    color:#f5ead6;
+    background:
+      radial-gradient(1100px 500px at 50% -120px, #3a2413 0%, rgba(58,36,19,0) 60%),
+      radial-gradient(800px 400px at 85% 110%, #241407 0%, rgba(36,20,7,0) 55%),
+      #161009;
+    min-height:100vh;
+  }
+  .wrap{max-width:680px;margin:0 auto;padding:28px 18px 40px}
+  .kick{text-align:center;color:#ffa726;letter-spacing:5px;font-size:12.5px;margin:6px 0 2px}
+  h1{
+    text-align:center;margin:0;font-size:clamp(44px,11vw,68px);line-height:.98;font-style:italic;text-transform:uppercase;color:#ffb03a;
+    text-shadow:3px 3px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 8px 26px rgba(0,0,0,.7);
+  }
+  .tagline{text-align:center;color:#cdbb96;font-family:system-ui,sans-serif;font-weight:600;font-size:14.5px;margin:10px 0 26px}
+  h2.sect{
+    font-size:24px;font-style:italic;text-transform:uppercase;color:#ffb03a;margin:30px 0 14px;
+    text-shadow:2px 2px 0 #000;letter-spacing:.5px;
+  }
+  h2.sect .dot{color:#f5ead6}
+  /* NOW SPINNING hero */
+  .hero{
+    position:relative;display:flex;gap:18px;align-items:center;
+    background:linear-gradient(160deg,#2a1c10,#1d130a);
+    border:1px solid #4a3319;border-radius:18px;padding:18px;
+    box-shadow:0 14px 34px rgba(0,0,0,.5);overflow:hidden;
+  }
+  .discwrap{position:relative;flex:none;width:44%;max-width:250px}
+  .disc{
+    position:absolute;top:50%;left:56%;transform:translateY(-50%);
+    width:92%;aspect-ratio:1;border-radius:50%;
+    background:repeating-radial-gradient(circle at center,#0c0c0c 0 2px,#1b1b1b 2px 4px);
+    box-shadow:0 6px 22px rgba(0,0,0,.6);
+    animation:spin 16s linear infinite;
+  }
+  .disc::after{
+    content:"";position:absolute;inset:31%;border-radius:50%;
+    background:radial-gradient(circle,#ffb03a 0 58%,#e07f13 59% 100%);
+    box-shadow:inset 0 0 0 3px rgba(0,0,0,.25);
+  }
+  .disc::before{content:"";position:absolute;inset:47.5%;border-radius:50%;background:#161009;z-index:1}
+  @keyframes spin{from{transform:translateY(-50%) rotate(0)}to{transform:translateY(-50%) rotate(360deg)}}
+  @media (prefers-reduced-motion: reduce){ .disc{animation:none} }
+  .hero img.cover{
+    position:relative;z-index:1;width:82%;aspect-ratio:1;object-fit:cover;border-radius:10px;
+    box-shadow:0 10px 26px rgba(0,0,0,.65);display:block;background:#2c1e10;
+  }
+  .herotxt{flex:1;min-width:0;position:relative;z-index:1}
+  .nowtag{display:inline-block;background:#ffb03a;color:#1c1206;font-size:11.5px;letter-spacing:2.5px;padding:4px 10px;border-radius:999px;font-family:system-ui,sans-serif;font-weight:800}
+  .herotxt .album{font-size:clamp(24px,5.6vw,34px);line-height:1.08;margin:12px 0 4px;text-transform:uppercase}
+  .herotxt .artist{color:#ffa726;font-size:clamp(16px,4vw,20px)}
+  .herotxt .yr{color:#b8a888;font-family:system-ui,sans-serif;font-weight:600;font-size:13.5px;margin-top:8px}
+  /* shelf */
+  .shelf{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:16px 14px}
+  .alb{position:relative}
+  .alb img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;display:block;background:#2c1e10;box-shadow:0 6px 18px rgba(0,0,0,.5)}
+  .rank{
+    position:absolute;top:8px;left:8px;background:rgba(10,6,2,.82);color:#ffb03a;border:1.5px solid #ffb03a;
+    font-size:12.5px;padding:2px 8px;border-radius:999px;letter-spacing:.5px;
+  }
+  .alb .a-artist{color:#ffa726;font-size:12px;letter-spacing:1.2px;text-transform:uppercase;margin-top:9px}
+  .alb .a-title{font-size:15.5px;line-height:1.2;margin-top:2px}
+  .alb .a-year{color:#a08c66;font-family:system-ui,sans-serif;font-size:12.5px;font-weight:600;margin-top:2px}
+  a.alb{text-decoration:none;color:inherit}
+  /* songs */
+  .songs{background:linear-gradient(180deg,#211709,#1a1208);border:1px solid #3d2a14;border-radius:16px;padding:6px 14px;box-shadow:0 10px 24px rgba(0,0,0,.45)}
+  .song{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,176,58,.13)}
+  .song:last-child{border-bottom:0}
+  .song .n{flex:none;width:22px;text-align:center;color:#ffb03a;font-size:16px}
+  .song img{flex:none;width:52px;height:52px;border-radius:8px;object-fit:cover;background:#2c1e10}
+  .song .s-main{flex:1;min-width:0}
+  .song .s-title{font-size:16px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .song .s-artist{color:#ffa726;font-family:system-ui,sans-serif;font-size:13.5px;font-weight:600;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .song .s-alb{flex:none;color:#a08c66;font-family:system-ui,sans-serif;font-size:12px;font-weight:600;text-align:right;max-width:32%}
+  /* artists */
+  .artists{display:flex;flex-wrap:wrap;gap:18px 10px;justify-content:space-between}
+  .art{flex:1 1 21%;min-width:120px;text-align:center}
+  .art img{width:104px;height:104px;border-radius:50%;object-fit:cover;border:3px solid #ffb03a;box-shadow:0 8px 20px rgba(0,0,0,.55);background:#2c1e10}
+  .art .ar-name{margin-top:9px;font-size:15px;line-height:1.2}
+  .foot{text-align:center;color:#8a764f;font-family:system-ui,sans-serif;font-size:12.5px;margin-top:36px;line-height:1.55}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="kick">ORLANDO'S</p>
+  <h1>On Rotation</h1>
+  <p class="tagline">What I been jamming to — hand-picked, no algorithm.</p>
+
+  <div class="hero">
+    <div class="discwrap">
+      <div class="disc"></div>
+      <img class="cover" src="https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/9e/82/85/9e8285d0-3b13-d828-5b97-055efe8bbb1f/196589338778.jpg/600x600bb.jpg" alt="De Todas las Flores album cover">
+    </div>
+    <div class="herotxt">
+      <span class="nowtag">NOW SPINNING · #1</span>
+      <div class="album">De Todas las Flores</div>
+      <div class="artist">Natalia Lafourcade</div>
+      <div class="yr">2022</div>
+    </div>
+  </div>
+
+  <h2 class="sect">Top Albums <span class="dot">·</span> The Shelf</h2>
+  <div class="shelf">
+    <a class="alb" href="https://music.apple.com/us/album/cancionera/1801618079" target="_blank" rel="noopener">
+      <img src="https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/e7/08/27/e708271d-69f4-338c-720b-c9f7b758a85c/196872955699.jpg/600x600bb.jpg" alt="Cancionera album cover" loading="lazy">
+      <span class="rank">#2</span>
+      <div class="a-artist">Natalia Lafourcade</div><div class="a-title">Cancionera</div><div class="a-year">2025</div>
+    </a>
+    <div class="alb">
+      <img src="https://upload.wikimedia.org/wikipedia/en/7/73/Black_Bastard_%28KMD_album_-_cover_art%29.jpg" alt="Black Bastards album cover" loading="lazy">
+      <span class="rank">#3</span>
+      <div class="a-artist">KMD</div><div class="a-title">Black Bastards</div><div class="a-year">2000</div>
+    </div>
+    <div class="alb">
+      <img src="https://upload.wikimedia.org/wikipedia/en/2/25/Joey-Badass-Summer-Knights.jpg" alt="Summer Knights album cover" loading="lazy">
+      <span class="rank">#4</span>
+      <div class="a-artist">Joey Bada$$</div><div class="a-title">Summer Knights</div><div class="a-year">2013</div>
+    </div>
+    <div class="alb">
+      <img src="https://upload.wikimedia.org/wikipedia/en/5/56/1999_Joey_Badass.jpg" alt="1999 album cover" loading="lazy">
+      <span class="rank">#5</span>
+      <div class="a-artist">Joey Bada$$</div><div class="a-title">1999</div><div class="a-year">2012</div>
+    </div>
+    <a class="alb" href="https://music.apple.com/us/album/magical-mystery-tour/1441163490" target="_blank" rel="noopener">
+      <img src="https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/43/0e/37/430e3790-75d5-c96a-1380-f9d9803aa700/18UMGIM31245.rgb.jpg/600x600bb.jpg" alt="Magical Mystery Tour album cover" loading="lazy">
+      <span class="rank">#6</span>
+      <div class="a-artist">The Beatles</div><div class="a-title">Magical Mystery Tour</div><div class="a-year">1967</div>
+    </a>
+    <div class="alb">
+      <img src="https://is1-ssl.mzstatic.com/image/thumb/Music128/v4/32/75/0f/32750f44-3ee4-119e-ad0a-ca1d81119921/00602547748966.rgb.jpg/600x600bb.jpg" alt="Super Ape album cover" loading="lazy">
+      <span class="rank">#7</span>
+      <div class="a-artist">Lee "Scratch" Perry &amp; The Upsetters</div><div class="a-title">Super Ape</div><div class="a-year">1976</div>
+    </div>
+    <a class="alb" href="https://music.apple.com/us/album/life-is-beautiful/1795525610" target="_blank" rel="noopener">
+      <img src="https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/d8/73/79/d8737963-50ac-d4e7-32f2-7bdbedfb228e/197342973236_cover.jpg/600x600bb.jpg" alt="Life Is Beautiful album cover" loading="lazy">
+      <span class="rank">#8</span>
+      <div class="a-artist">Larry June, 2 Chainz &amp; The Alchemist</div><div class="a-title">Life Is Beautiful</div><div class="a-year">2025</div>
+    </a>
+    <div class="alb">
+      <img src="https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/af/70/1d/af701d68-5dec-42d6-33ef-bc99533a8be1/56047.jpg/600x600bb.jpg" alt="Special Herbs Vol. 7 and 8 album cover" loading="lazy">
+      <span class="rank">#9</span>
+      <div class="a-artist">Metal Fingers</div><div class="a-title">Special Herbs, Vol. 7 &amp; 8</div><div class="a-year">2004</div>
+    </div>
+    <a class="alb" href="https://music.apple.com/us/album/some-other-ones/6789795541" target="_blank" rel="noopener">
+      <img src="https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/45/4c/40/454c4083-b701-e87f-42d3-f55f733d8474/cover.jpg/600x600bb.jpg" alt="Some Other Ones album cover" loading="lazy">
+      <span class="rank">#10</span>
+      <div class="a-artist">Mac DeMarco</div><div class="a-title">Some Other Ones</div><div class="a-year">2015</div>
+    </a>
+  </div>
+
+  <h2 class="sect">Top Songs</h2>
+  <div class="songs">
+    <div class="song">
+      <span class="n">1</span>
+      <img src="https://is1-ssl.mzstatic.com/image/thumb/Music123/v4/b9/ec/9f/b9ec9f4a-c4f1-5136-7587-86826e28d67b/06UMGIM34964.rgb.jpg/300x300bb.jpg" alt="" loading="lazy">
+      <div class="s-main"><div class="s-title">Natty Dread</div><div class="s-artist">Bob Marley &amp; The Wailers</div></div>
+      <div class="s-alb">Natty Dread</div>
+    </div>
+    <div class="song">
+      <span class="n">2</span>
+      <img src="https://upload.wikimedia.org/wikipedia/en/6/6c/Playboi_Carti_-_Whole_Lotta_Red.png" alt="" loading="lazy">
+      <div class="s-main"><div class="s-title">Slay3r</div><div class="s-artist">Playboi Carti</div></div>
+      <div class="s-alb">Whole Lotta Red</div>
+    </div>
+    <div class="song">
+      <span class="n">3</span>
+      <img src="https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/e7/08/27/e708271d-69f4-338c-720b-c9f7b758a85c/196872955699.jpg/300x300bb.jpg" alt="" loading="lazy">
+      <div class="s-main"><div class="s-title">Cocos en la Playa</div><div class="s-artist">Natalia Lafourcade</div></div>
+      <div class="s-alb">Cancionera</div>
+    </div>
+    <div class="song">
+      <span class="n">4</span>
+      <img src="https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/00/67/45/006745f5-95d5-5a06-35ed-d515e9cfd7d8/dj.tbwlxwoh.jpg/300x300bb.jpg" alt="" loading="lazy">
+      <div class="s-main"><div class="s-title">Third Stone from the Sun</div><div class="s-artist">The Jimi Hendrix Experience</div></div>
+      <div class="s-alb">Are You Experienced</div>
+    </div>
+    <div class="song">
+      <span class="n">5</span>
+      <img src="https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/45/4c/40/454c4083-b701-e87f-42d3-f55f733d8474/cover.jpg/300x300bb.jpg" alt="" loading="lazy">
+      <div class="s-main"><div class="s-title">PETERS PICKLES</div><div class="s-artist">Mac DeMarco</div></div>
+      <div class="s-alb">Some Other Ones</div>
+    </div>
+    <div class="song">
+      <span class="n">6</span>
+      <img src="https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/df/6f/d3/df6fd3a2-be2b-ed7c-bf2b-ca6229aec3e0/4050538719277.jpg/300x300bb.jpg" alt="" loading="lazy">
+      <div class="s-main"><div class="s-title">JU$T (feat. Pharrell Williams &amp; Zack de la Rocha)</div><div class="s-artist">Run The Jewels</div></div>
+      <div class="s-alb">RTJ4</div>
+    </div>
+  </div>
+
+  <h2 class="sect">Top Artists</h2>
+  <div class="artists">
+    <div class="art">
+      <img src="https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/9e/82/85/9e8285d0-3b13-d828-5b97-055efe8bbb1f/196589338778.jpg/300x300bb.jpg" alt="Natalia Lafourcade" loading="lazy">
+      <div class="ar-name">Natalia Lafourcade</div>
+    </div>
+    <div class="art">
+      <img src="https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/45/4c/40/454c4083-b701-e87f-42d3-f55f733d8474/cover.jpg/300x300bb.jpg" alt="Mac DeMarco" loading="lazy">
+      <div class="ar-name">Mac DeMarco</div>
+    </div>
+    <div class="art">
+      <img src="https://upload.wikimedia.org/wikipedia/en/6/6c/Playboi_Carti_-_Whole_Lotta_Red.png" alt="Playboi Carti" loading="lazy">
+      <div class="ar-name">Playboi Carti</div>
+    </div>
+    <div class="art">
+      <img src="https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/d8/73/79/d8737963-50ac-d4e7-32f2-7bdbedfb228e/197342973236_cover.jpg/300x300bb.jpg" alt="Larry June" loading="lazy">
+      <div class="ar-name">Larry June</div>
+    </div>
+  </div>
+
+  <p class="foot">Updated November 2026 · All downloaded, no streaming — the rotation lives on the iPhone.<br>Rotation changes? Tell Future Overlord.</p>
+</div>
+</body>
+</html>
