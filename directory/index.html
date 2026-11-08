@@ -64,6 +64,19 @@
     border-radius:999px;padding:4px 11px;box-shadow:0 2px 8px rgba(0,0,0,.25);
   }
 
+
+  /* ---------- floating On Rotation button ---------- */
+  .rotfab{
+    position:fixed;right:16px;bottom:16px;z-index:60;
+    width:52px;height:52px;border-radius:50%;
+    background:#2b1d10;
+    display:flex;align-items:center;justify-content:center;
+    font-size:24px;line-height:1;text-decoration:none;
+    box-shadow:0 4px 14px rgba(0,0,0,.28);
+    transition:transform .12s ease, box-shadow .12s ease;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .rotfab:active{transform:scale(.92)}
 </style>
 </head>
 <body>
@@ -364,27 +377,6 @@
     <span class="txt"><span class="name">Missions</span><div class="sub">The San Andreas-style board. To-dos &amp; ideas.</div></span>
   </a>
 
-  <!-- ON ROTATION -->
-  <a class="card" href="/rotation/">
-    <svg class="art" viewBox="0 0 400 160" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-      <defs><linearGradient id="g-rot" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b1d10"/><stop offset="1" stop-color="#17100a"/></linearGradient></defs>
-      <rect width="400" height="160" fill="url(#g-rot)"/>
-      <g>
-        <circle cx="318" cy="80" r="66" fill="#0d0d0d"/>
-        <circle cx="318" cy="80" r="66" fill="none" stroke="#262626" stroke-width="1.5"/>
-        <circle cx="318" cy="80" r="54" fill="none" stroke="#232323" stroke-width="1.5"/>
-        <circle cx="318" cy="80" r="42" fill="none" stroke="#202020" stroke-width="1.5"/>
-        <circle cx="318" cy="80" r="21" fill="#ffb03a"/>
-        <circle cx="318" cy="80" r="4.5" fill="#17100a"/>
-        <rect x="18" y="34" width="52" height="52" rx="6" fill="#9e8285"/>
-        <rect x="78" y="34" width="52" height="52" rx="6" fill="#7d8c5c"/>
-        <rect x="18" y="94" width="52" height="52" rx="6" fill="#54687f"/>
-        <rect x="78" y="94" width="52" height="52" rx="6" fill="#8f6d3f"/>
-      </g>
-    </svg>
-    <span class="txt"><span class="name">On Rotation</span><div class="sub">What I been jamming to — top albums, songs &amp; artists.</div></span>
-  </a>
-
   <a class="card" href="/beat-maker/">
     <svg class="art" viewBox="0 0 400 160" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
       <defs><linearGradient id="g-beat" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9d9d4"/><stop offset="1" stop-color="#a9a9a3"/></linearGradient></defs>
@@ -421,5 +413,6 @@
 
 
 </div>
+<a class="rotfab" href="/rotation/" aria-label="On Rotation">🎶</a>
 </body>
 </html>
