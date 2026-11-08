@@ -19,12 +19,13 @@
   .ticker{background:#26230f;color:#fde68a;border-radius:12px;padding:10px 12px;font-size:13.5px;font-variant-numeric:tabular-nums}
   .ticker .px{font-weight:900}
   .ticker .up{color:#4ade80}.ticker .down{color:#f87171}
-  #tickRow{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
-  @media(max-width:480px){#tickRow{grid-template-columns:repeat(2,1fr)}}
+  #tickRow,#tickRow2{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  @media(max-width:480px){#tickRow,#tickRow2{grid-template-columns:repeat(2,1fr)}}
   .chip{background:rgba(255,255,255,.06);border:1px solid rgba(253,230,138,.25);border-radius:9px;padding:5px 6px 6px;text-align:center;white-space:nowrap;overflow:hidden}
   .chip .ct{font-size:9.5px;letter-spacing:1.2px;color:#d6c98a;font-weight:800}
   .chip .cv{font-size:13px;margin-top:1px}
   .newsbar{background:#26230f;border-radius:10px;padding:9px 12px;display:flex;gap:8px;align-items:flex-start;min-height:38px;margin-bottom:10px;font-variant-numeric:tabular-nums}
+  .ticker.fx{margin-bottom:10px}
   .newsTag{font-size:10px;font-weight:900;letter-spacing:1px;color:#26230f;background:#fde68a;border-radius:5px;padding:2px 6px;white-space:nowrap;margin-top:1px}
   .newsbar .news{color:#fef3c7;font-size:12.5px;line-height:1.45;flex:1}
   h2{font-size:15px;letter-spacing:1.5px;margin:20px 0 8px;color:#713f12}
@@ -103,12 +104,13 @@
   <div class="qrow" id="qrow"></div>
 
   <h2>📈 FUTURES — CHICAGO SQUEEZE EXCHANGE</h2>
+  <div class="ticker fx"><div id="tickRow2"></div></div>
   <div class="newsbar"><span class="newsTag">🗞️ WIRE</span><span class="news" id="news">Markets quiet. Squeeze on.</span></div>
   <div class="panel">
     <div id="futCards"></div>
   </div>
 
-  <div class="foot"><button id="resetBtn">Liquidate everything (start over)</button></div>
+  <div class="foot"><button id="resetBtn">🔄 Restart the whole empire from scratch</button></div>
   <p class="note">Tap a division to run a batch by hand — or hire its manager and let it print on its own.<br>The Empire saves itself automatically, and keeps earning (a little slower) while you're away.</p>
 </div>
 <script>
@@ -194,7 +196,9 @@
     for(let i=0;i<QUALITY.length;i++) $('qbtn'+i).onclick=()=>buyQuality(i);
   }
   function buildMarket(){
-    $('tickRow').innerHTML=COMMODS.map(c=>'<div class="chip"><div class="ct">'+c.icon+' '+c.name.toUpperCase()+'</div><div class="cv"><span class="px" id="tkp-'+c.id+'"></span> <span id="tkd-'+c.id+'"></span></div></div>').join('');
+    const chips=sfx=>COMMODS.map(c=>'<div class="chip"><div class="ct">'+c.icon+' '+c.name.toUpperCase()+'</div><div class="cv"><span class="px" id="tkp'+sfx+'-'+c.id+'"></span> <span id="tkd'+sfx+'-'+c.id+'"></span></div></div>').join('');
+    $('tickRow').innerHTML=chips('');
+    $('tickRow2').innerHTML=chips('2');
     $('futCards').innerHTML=COMMODS.map(c=>
       '<div class="fcard">'+
         '<div class="row"><span>'+c.icon+' '+c.name.toUpperCase()+' — contract ('+c.per+')</span><b id="fp-'+c.id+'"></b></div>'+
@@ -213,8 +217,10 @@
     $('cash').textContent=fmt(S.cash);
     $('perSec').textContent=fmt(perSec())+' / sec'+(S.tiers.some(t=>t.n>0&&!t.mgr)?' (managed divisions)':'');
     for(const c of COMMODS){ const m=S.mkt[c.id];
-      const tp=$('tkp-'+c.id); if(tp) tp.textContent=fmtC(m.px)+'¢/'+c.unit;
-      const td=$('tkd-'+c.id); if(td){ td.textContent=m.dir>=0?'▲':'▼'; td.className=m.dir>=0?'up':'down'; }
+      for(const sfx of ['','2']){
+        const tp=$('tkp'+sfx+'-'+c.id); if(tp) tp.textContent=fmtC(m.px)+'¢/'+c.unit;
+        const td=$('tkd'+sfx+'-'+c.id); if(td){ td.textContent=m.dir>=0?'▲':'▼'; td.className=m.dir>=0?'up':'down'; }
+      }
     }
     for(let i=0;i<TIERS.length;i++){
       const t=S.tiers[i], e=tierEls[i]; if(!e) continue;
@@ -296,7 +302,7 @@
   // ================= wire up =================
   document.querySelectorAll('[data-qty]').forEach(b=>{ b.onclick=()=>{ buyQty=Number(b.dataset.qty);
     document.querySelectorAll('[data-qty]').forEach(x=>x.classList.toggle('on',x===b)); render(); }; });
-  $('resetBtn').onclick=()=>{ if(confirm('Liquidate the whole lemonade empire and start over from one stand?')){ try{localStorage.removeItem('lemonade-enterprise-v1');}catch(e){} S=fresh(); if(!S.qOwned) S.qOwned=[true,false,false,false]; render(); } };
+  $('resetBtn').onclick=()=>{ if(confirm('Restart the whole empire from scratch? This wipes your saved game — divisions, cash, futures, everything — and starts you back at one little stand.')){ try{localStorage.removeItem('lemonade-enterprise-v1');}catch(e){} S=fresh(); if(!S.qOwned) S.qOwned=[true,false,false,false]; render(); } };
 
   S=load()||fresh();
   if(!S.mkt){ // migrate a pre-multi-market save: the old lemon book becomes the lemon position
