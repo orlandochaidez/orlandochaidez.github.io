@@ -56,6 +56,8 @@
   .card .sub{font-size:14px;opacity:.92;margin-top:2px;text-shadow:0 1px 6px rgba(0,0,0,.35)}
   .card.dark .txt{color:#422006}
   .card.dark .name,.card.dark .sub{text-shadow:none}
+  .card.boop .txt{color:#9fd3ff}
+  .card.boop .name,.card.boop .sub{text-shadow:0 2px 10px rgba(0,0,0,.5)}
   .badge{
     position:absolute;top:12px;right:14px;z-index:2;
     background:#fff;color:#b91c1c;font-weight:900;font-size:15px;
@@ -72,17 +74,9 @@
   </div>
   <div class="tagline"><span class="star">&#10022;</span> games &amp; stuff <span class="star">&#10022;</span></div>
 
-  <!-- PONG -->
-  <a class="card" href="/arcade/pong/index.html">
-    <svg class="art" viewBox="0 0 400 160" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-      <defs><linearGradient id="g-pong" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#111827"/><stop offset="1" stop-color="#1f2937"/></linearGradient></defs>
-      <rect width="400" height="160" fill="url(#g-pong)"/>
-      <line x1="292" y1="8" x2="292" y2="152" stroke="#ffffff" stroke-opacity=".35" stroke-width="4" stroke-dasharray="10 12"/>
-      <rect x="216" y="42" width="12" height="76" rx="5" fill="#fff"/>
-      <rect x="362" y="42" width="12" height="76" rx="5" fill="#fff"/>
-      <circle cx="302" cy="66" r="10" fill="#fff"/>
-    </svg>
-    <span class="txt"><span class="name">Pong</span><div class="sub">The classic. First to 7 wins.</div></span>
+  <a class="card" href="/arcade/tilt/index.html">
+    <svg class="art" viewBox="0 0 400 160" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Tilt marble maze artwork"><rect width="400" height="160" fill="#efede7"/><rect x="70" y="18" width="260" height="124" rx="16" fill="#f7f5f0" stroke="#d8d5cc" stroke-width="2"/><rect x="92" y="40" width="120" height="14" rx="7" fill="#2c2c34"/><rect x="188" y="76" width="120" height="14" rx="7" fill="#2c2c34"/><rect x="92" y="106" width="90" height="14" rx="7" fill="#2c2c34"/><circle cx="282" cy="47" r="13" fill="#101013"/><circle cx="282" cy="47" r="18" fill="none" stroke="#0aa06e" stroke-width="4"/><circle cx="120" cy="122" r="12" fill="#0a0a0c"/><defs><radialGradient id="tmBall" cx="0.35" cy="0.3" r="0.9"><stop offset="0" stop-color="#ffffff"/><stop offset="0.4" stop-color="#c3cedb"/><stop offset="0.8" stop-color="#5f7185"/><stop offset="1" stop-color="#1c242e"/></radialGradient></defs><circle cx="160" cy="66" r="14" fill="url(#tmBall)"/><circle cx="155" cy="61" r="4" fill="#ffffff" opacity="0.9"/></svg>
+    <span class="txt"><span class="name">TILT.</span><div class="sub">Balance the marble. Find the hole. Phone only — tilt to play.</div></span>
   </a>
 
   <!-- SNAKE -->
@@ -101,36 +95,24 @@
     <span class="txt"><span class="name">Snake</span><div class="sub">Eat, grow, don't bite yourself.</div></span>
   </a>
 
-  <!-- BRICK BREAKER -->
-  <a class="card" href="/arcade/brick-breaker/index.html">
+    <!-- POCKET PUTT -->
+  <a class="card" href="/arcade/mini-golf/index.html">
     <svg class="art" viewBox="0 0 400 160" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-      <defs><linearGradient id="g-brick" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ea580c"/><stop offset="1" stop-color="#f59e0b"/></linearGradient></defs>
-      <rect width="400" height="160" fill="url(#g-brick)"/>
-      <g rx="4">
-        <rect x="216" y="20" width="52" height="18" rx="4" fill="#fff" fill-opacity=".9"/><rect x="274" y="20" width="52" height="18" rx="4" fill="#7c2d12" fill-opacity=".45"/><rect x="332" y="20" width="52" height="18" rx="4" fill="#fff" fill-opacity=".9"/>
-        <rect x="216" y="44" width="52" height="18" rx="4" fill="#7c2d12" fill-opacity=".45"/><rect x="274" y="44" width="52" height="18" rx="4" fill="#fff" fill-opacity=".9"/><rect x="332" y="44" width="52" height="18" rx="4" fill="#7c2d12" fill-opacity=".45"/>
-      </g>
-      <rect x="286" y="128" width="86" height="12" rx="6" fill="#fff"/>
-      <circle cx="316" cy="102" r="9" fill="#fff"/>
+      <defs><linearGradient id="g-golf" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22c55e"/><stop offset="1" stop-color="#15803d"/></linearGradient></defs>
+      <rect width="400" height="160" fill="url(#g-golf)"/>
+      <ellipse cx="316" cy="86" rx="88" ry="52" fill="#4ade80"/>
+      <ellipse cx="316" cy="86" rx="88" ry="52" fill="none" stroke="#bbf7d0" stroke-width="3" stroke-opacity=".55"/>
+      <ellipse cx="240" cy="28" rx="34" ry="12" fill="#fde68a" opacity=".92"/>
+      <circle cx="330" cy="82" r="10" fill="#14532d"/>
+      <line x1="330" y1="82" x2="330" y2="30" stroke="#f8fafc" stroke-width="5" stroke-linecap="round"/>
+      <path d="M330 30 L368 41 L330 52 Z" fill="#ef4444"/>
+      <path d="M250 112 Q286 94 316 86" stroke="#fff" stroke-width="3.5" stroke-dasharray="1 10" stroke-linecap="round" fill="none" opacity=".9"/>
+      <circle cx="240" cy="116" r="9" fill="#fff"/>
     </svg>
-    <span class="txt"><span class="name">Brick Breaker</span><div class="sub">Smash every last brick.</div></span>
+    <span class="txt"><span class="name">Pocket Putt</span><div class="sub">Mini golf by Hank. Pull back, aim, sink it.</div></span>
   </a>
 
-  <!-- BLOCK DROP -->
-  <a class="card" href="/arcade/block-drop/index.html">
-    <svg class="art" viewBox="0 0 400 160" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-      <defs><linearGradient id="g-drop" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6d28d9"/><stop offset="1" stop-color="#3b82f6"/></linearGradient></defs>
-      <rect width="400" height="160" fill="url(#g-drop)"/>
-      <g>
-        <rect x="252" y="26" width="30" height="30" rx="5" fill="#facc15"/><rect x="282" y="26" width="30" height="30" rx="5" fill="#facc15"/><rect x="267" y="56" width="30" height="30" rx="5" fill="#facc15"/>
-        <rect x="330" y="66" width="30" height="30" rx="5" fill="#22d3ee"/><rect x="330" y="96" width="30" height="30" rx="5" fill="#22d3ee"/><rect x="330" y="126" width="30" height="30" rx="5" fill="#22d3ee"/><rect x="300" y="126" width="30" height="30" rx="5" fill="#22d3ee"/>
-        <rect x="222" y="126" width="30" height="30" rx="5" fill="#f472b6"/><rect x="252" y="126" width="30" height="30" rx="5" fill="#f472b6"/>
-      </g>
-    </svg>
-    <span class="txt"><span class="name">Block Drop</span><div class="sub">Tetris-style falling blocks.</div></span>
-  </a>
-
-  <!-- LEMONADE STAND -->
+<!-- LEMONADE STAND -->
   <a class="card dark" href="/arcade/lemonade-stand/index.html">
     <svg class="art" viewBox="0 0 400 160" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
       <defs><linearGradient id="g-lem" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fde047"/><stop offset="1" stop-color="#fb923c"/></linearGradient></defs>
@@ -144,6 +126,39 @@
       </g>
     </svg>
     <span class="txt"><span class="name">Lemonade Enterprise</span><div class="sub">The stand grew up. Run the empire.</div></span>
+  </a>
+
+  <!-- BOOP IT -->
+  <a class="card boop" href="/arcade/boop-it/index.html">
+    <svg class="art" viewBox="0 0 400 160" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs><linearGradient id="g-boop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a3550"/><stop offset="1" stop-color="#17141f"/></linearGradient>
+      <radialGradient id="g-boopbtn" cx=".38" cy=".3" r=".9"><stop offset="0" stop-color="#ffb59d"/><stop offset=".45" stop-color="#ff6a3d"/><stop offset="1" stop-color="#c22408"/></radialGradient>
+      <radialGradient id="g-boopknob" cx=".38" cy=".3" r=".9"><stop offset="0" stop-color="#fff6bf"/><stop offset=".55" stop-color="#ffd21f"/><stop offset="1" stop-color="#d98e00"/></radialGradient></defs>
+      <rect width="400" height="160" fill="url(#g-boop)"/>
+      <g>
+        <rect x="118" y="26" width="164" height="122" rx="46" fill="#2c2440" stroke="#574a7a" stroke-width="3"/>
+        <circle cx="200" cy="30" r="21" fill="url(#g-boopknob)" stroke="#a86e00" stroke-width="3"/>
+        <circle cx="200" cy="88" r="31" fill="url(#g-boopbtn)" stroke="#7e1304" stroke-width="4"/>
+        <rect x="133" y="66" width="13" height="34" rx="6.5" fill="#8fe33a" stroke="#3f8a08" stroke-width="2.5"/>
+        <rect x="188" y="126" width="24" height="18" rx="9" fill="#17a8cf" stroke="#084c66" stroke-width="2.5"/>
+        <circle cx="146" cy="126" r="3.4" fill="#0d0b14"/><circle cx="162" cy="126" r="3.4" fill="#0d0b14"/><circle cx="238" cy="126" r="3.4" fill="#0d0b14"/><circle cx="254" cy="126" r="3.4" fill="#0d0b14"/>
+        <circle cx="146" cy="44" r="3.4" fill="#0d0b14"/><circle cx="254" cy="44" r="3.4" fill="#0d0b14"/>
+      </g>
+    </svg>
+    <span class="txt"><span class="name">Boop It!</span><div class="sub">Boop it. Twist it. Pull it. Don't think, react.</div></span>
+  </a>
+
+  <!-- PONG -->
+  <a class="card" href="/arcade/pong/index.html">
+    <svg class="art" viewBox="0 0 400 160" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs><linearGradient id="g-pong" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#111827"/><stop offset="1" stop-color="#1f2937"/></linearGradient></defs>
+      <rect width="400" height="160" fill="url(#g-pong)"/>
+      <line x1="292" y1="8" x2="292" y2="152" stroke="#ffffff" stroke-opacity=".35" stroke-width="4" stroke-dasharray="10 12"/>
+      <rect x="216" y="42" width="12" height="76" rx="5" fill="#fff"/>
+      <rect x="362" y="42" width="12" height="76" rx="5" fill="#fff"/>
+      <circle cx="302" cy="66" r="10" fill="#fff"/>
+    </svg>
+    <span class="txt"><span class="name">Pong</span><div class="sub">The classic. First to 7 wins.</div></span>
   </a>
 
   <!-- HOIST LIFE -->
@@ -173,29 +188,33 @@
     <span class="txt"><span class="name">Hoist Life</span><div class="sub">Run the cage, work the site, stack the tips.</div></span>
   </a>
 
-  <!-- BOOP IT -->
-  <a class="card dark" href="/arcade/boop-it/index.html">
+  <!-- BRICK BREAKER -->
+  <a class="card" href="/arcade/brick-breaker/index.html">
     <svg class="art" viewBox="0 0 400 160" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-      <defs><linearGradient id="g-boop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a3550"/><stop offset="1" stop-color="#17141f"/></linearGradient>
-      <radialGradient id="g-boopbtn" cx=".38" cy=".3" r=".9"><stop offset="0" stop-color="#ffb59d"/><stop offset=".45" stop-color="#ff6a3d"/><stop offset="1" stop-color="#c22408"/></radialGradient>
-      <radialGradient id="g-boopknob" cx=".38" cy=".3" r=".9"><stop offset="0" stop-color="#fff6bf"/><stop offset=".55" stop-color="#ffd21f"/><stop offset="1" stop-color="#d98e00"/></radialGradient></defs>
-      <rect width="400" height="160" fill="url(#g-boop)"/>
-      <g>
-        <rect x="118" y="26" width="164" height="122" rx="46" fill="#2c2440" stroke="#574a7a" stroke-width="3"/>
-        <circle cx="200" cy="30" r="21" fill="url(#g-boopknob)" stroke="#a86e00" stroke-width="3"/>
-        <circle cx="200" cy="88" r="31" fill="url(#g-boopbtn)" stroke="#7e1304" stroke-width="4"/>
-        <rect x="133" y="66" width="13" height="34" rx="6.5" fill="#8fe33a" stroke="#3f8a08" stroke-width="2.5"/>
-        <rect x="188" y="126" width="24" height="18" rx="9" fill="#17a8cf" stroke="#084c66" stroke-width="2.5"/>
-        <circle cx="146" cy="126" r="3.4" fill="#0d0b14"/><circle cx="162" cy="126" r="3.4" fill="#0d0b14"/><circle cx="238" cy="126" r="3.4" fill="#0d0b14"/><circle cx="254" cy="126" r="3.4" fill="#0d0b14"/>
-        <circle cx="146" cy="44" r="3.4" fill="#0d0b14"/><circle cx="254" cy="44" r="3.4" fill="#0d0b14"/>
+      <defs><linearGradient id="g-brick" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ea580c"/><stop offset="1" stop-color="#f59e0b"/></linearGradient></defs>
+      <rect width="400" height="160" fill="url(#g-brick)"/>
+      <g rx="4">
+        <rect x="216" y="20" width="52" height="18" rx="4" fill="#fff" fill-opacity=".9"/><rect x="274" y="20" width="52" height="18" rx="4" fill="#7c2d12" fill-opacity=".45"/><rect x="332" y="20" width="52" height="18" rx="4" fill="#fff" fill-opacity=".9"/>
+        <rect x="216" y="44" width="52" height="18" rx="4" fill="#7c2d12" fill-opacity=".45"/><rect x="274" y="44" width="52" height="18" rx="4" fill="#fff" fill-opacity=".9"/><rect x="332" y="44" width="52" height="18" rx="4" fill="#7c2d12" fill-opacity=".45"/>
       </g>
+      <rect x="286" y="128" width="86" height="12" rx="6" fill="#fff"/>
+      <circle cx="316" cy="102" r="9" fill="#fff"/>
     </svg>
-    <span class="txt"><span class="name">Boop It!</span><div class="sub">Boop it. Twist it. Pull it. Don't think, react.</div></span>
+    <span class="txt"><span class="name">Brick Breaker</span><div class="sub">Smash every last brick.</div></span>
   </a>
 
-  <a class="card" href="/arcade/tilt/index.html">
-    <svg class="art" viewBox="0 0 400 160" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Tilt marble maze artwork"><rect width="400" height="160" fill="#efede7"/><rect x="70" y="18" width="260" height="124" rx="16" fill="#f7f5f0" stroke="#d8d5cc" stroke-width="2"/><rect x="92" y="40" width="120" height="14" rx="7" fill="#2c2c34"/><rect x="188" y="76" width="120" height="14" rx="7" fill="#2c2c34"/><rect x="92" y="106" width="90" height="14" rx="7" fill="#2c2c34"/><circle cx="282" cy="47" r="13" fill="#101013"/><circle cx="282" cy="47" r="18" fill="none" stroke="#0aa06e" stroke-width="4"/><circle cx="120" cy="122" r="12" fill="#0a0a0c"/><defs><radialGradient id="tmBall" cx="0.35" cy="0.3" r="0.9"><stop offset="0" stop-color="#ffffff"/><stop offset="0.4" stop-color="#c3cedb"/><stop offset="0.8" stop-color="#5f7185"/><stop offset="1" stop-color="#1c242e"/></radialGradient></defs><circle cx="160" cy="66" r="14" fill="url(#tmBall)"/><circle cx="155" cy="61" r="4" fill="#ffffff" opacity="0.9"/></svg>
-    <span class="txt"><span class="name">TILT.</span><div class="sub">Balance the marble. Find the hole. Phone only — tilt to play.</div></span>
+  <!-- BLOCK DROP -->
+  <a class="card" href="/arcade/block-drop/index.html">
+    <svg class="art" viewBox="0 0 400 160" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs><linearGradient id="g-drop" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6d28d9"/><stop offset="1" stop-color="#3b82f6"/></linearGradient></defs>
+      <rect width="400" height="160" fill="url(#g-drop)"/>
+      <g>
+        <rect x="252" y="26" width="30" height="30" rx="5" fill="#facc15"/><rect x="282" y="26" width="30" height="30" rx="5" fill="#facc15"/><rect x="267" y="56" width="30" height="30" rx="5" fill="#facc15"/>
+        <rect x="330" y="66" width="30" height="30" rx="5" fill="#22d3ee"/><rect x="330" y="96" width="30" height="30" rx="5" fill="#22d3ee"/><rect x="330" y="126" width="30" height="30" rx="5" fill="#22d3ee"/><rect x="300" y="126" width="30" height="30" rx="5" fill="#22d3ee"/>
+        <rect x="222" y="126" width="30" height="30" rx="5" fill="#f472b6"/><rect x="252" y="126" width="30" height="30" rx="5" fill="#f472b6"/>
+      </g>
+    </svg>
+    <span class="txt"><span class="name">Block Drop</span><div class="sub">Tetris-style falling blocks.</div></span>
   </a>
 
   <!-- FRACTALS -->
@@ -230,22 +249,7 @@
   <a class="card" href="https://orlandochaidez.com/muscle-anatomy-3d/">
     <svg class="art" viewBox="0 0 400 160" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
       <defs><linearGradient id="g-mus" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7f1d1d"/><stop offset="1" stop-color="#b91c1c"/></linearGradient></defs>
-      <rect width="400" height="160" fill="url(#g-mus)"/>
-      <g transform="translate(228,-16) scale(0.98)">
-        <circle cx="100" cy="24" r="12" fill="#d43a2f"/>
-        <path d="M88 38 L62 50 L52 102 L50 114 L58 116 L68 106 L74 76 L78 120 L76 152 L74 188 L86 188 L90 142 L100 134 L110 142 L114 188 L126 188 L124 152 L122 120 L126 76 L132 106 L142 116 L150 114 L148 102 L138 50 L112 38 Q100 44 88 38 Z" fill="#d43a2f"/>
-        <g stroke="#7f1d1d" stroke-width="2.4" fill="none" stroke-linecap="round">
-          <path d="M80 62 Q90 56 98 62"/><path d="M102 62 Q110 56 120 62"/>
-          <path d="M84 84 L116 84"/><path d="M86 98 L114 98"/><path d="M88 112 L112 112"/>
-          <path d="M100 66 L100 116"/>
-          <path d="M82 140 L88 168"/><path d="M118 140 L112 168"/>
-          <path d="M62 60 L56 92"/><path d="M138 60 L144 92"/>
-        </g>
-        <g stroke="#f0766a" stroke-width="2" fill="none" stroke-linecap="round" opacity=".8">
-          <path d="M80 58 Q90 52 98 58"/><path d="M102 58 Q110 52 120 58"/>
-        </g>
-      </g>
-    </svg>
+      <rect width="400" height="160" fill="url(#g-mus)"/><image href="data:image/webp;base64,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" x="0" y="0" width="400" height="160" preserveAspectRatio="xMidYMid slice"/></svg>
     <span class="badge">3D</span>
     <span class="txt"><span class="name">Muscle Anatomy 3D</span><div class="sub">Spin the body, tap a muscle, get the moves.</div></span>
   </a>
@@ -360,7 +364,6 @@
     <span class="txt"><span class="name">Missions</span><div class="sub">The San Andreas-style board. To-dos &amp; ideas.</div></span>
   </a>
 
-  <!-- ODC PARTNERS -->
   <!-- ON ROTATION -->
   <a class="card" href="/rotation/">
     <svg class="art" viewBox="0 0 400 160" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
