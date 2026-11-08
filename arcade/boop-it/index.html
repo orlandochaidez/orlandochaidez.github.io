@@ -19,6 +19,7 @@
   #topbar{ width:100%; max-width:520px; display:flex; align-items:center; justify-content:space-between; padding:10px 14px 2px; }
   #topbar a{ color:#9fd8ff; text-decoration:none; font-size:14px; letter-spacing:.4px; }
   #best{ font-size:13px; color:#ffd76a; letter-spacing:1.2px; text-shadow:0 1px 0 #000; }
+  #worldBest{ font-size:13px; color:#7ef0c9; letter-spacing:1.2px; text-shadow:0 1px 0 #000; }
   #muteBtn{ background:linear-gradient(180deg,#4a4e5c,#2c2e38); color:#fff; border:1px solid #12131a;
     border-radius:10px; font-size:16px; padding:4px 10px; cursor:pointer;
     box-shadow:0 2px 0 #101116, inset 0 1px 0 rgba(255,255,255,.25); }
@@ -128,23 +129,15 @@
   #grille{ width:74px; height:92px; border-radius:14px; opacity:.9;
     background-image:radial-gradient(circle, rgba(0,0,0,.75) 2.1px, rgba(255,255,255,.10) 2.6px, transparent 3.1px);
     background-size:13px 13px; background-position:center; }
-  /* BOOP button */
+  /* BOOP button — a fisheye pup whose snoot IS the button */
   #boopWrap{ display:flex; flex-direction:column; align-items:center; }
-  #boopBtn{ width:132px; height:132px; border-radius:50%; border:none; cursor:pointer; touch-action:none;
-    font-family:inherit; position:relative;
-    background:
-      radial-gradient(circle at 36% 26%, #ffb59d, #ff6a3d 38%, #f03a17 68%, #b81f08);
-    box-shadow:
-      inset 0 -14px 22px rgba(120,10,0,.55),
-      inset 0 8px 14px rgba(255,255,255,.5),
-      0 12px 0 #7e1304, 0 20px 26px rgba(0,0,0,.6);
-    color:#fff; }
-  #boopBtn span{ font-size:31px; font-weight:900; letter-spacing:1.5px;
-    text-shadow:0 2px 0 rgba(120,10,0,.8), 0 4px 8px rgba(0,0,0,.35); }
-  #boopBtn::after{ content:''; position:absolute; left:20px; top:12px; width:52px; height:30px; border-radius:50%;
-    background:linear-gradient(180deg, rgba(255,255,255,.75), rgba(255,255,255,0)); transform:rotate(-18deg); }
-  #boopBtn.pressed{ transform:translateY(9px);
-    box-shadow:inset 0 -6px 14px rgba(120,10,0,.55), inset 0 5px 10px rgba(255,255,255,.45), 0 3px 0 #7e1304, 0 8px 14px rgba(0,0,0,.55); }
+  #boopBtn{ width:150px; height:150px; border-radius:50%; border:none; cursor:pointer; touch-action:none;
+    background:none; padding:0; position:relative; }
+  #dogFace{ width:100%; height:100%; display:block; filter:drop-shadow(0 12px 14px rgba(0,0,0,.55)); }
+  #noseG{ transform-origin:center; transform-box:fill-box; transition:transform .06s ease-out; }
+  #boopBtn.pressed #noseG{ transform:scale(.78); }
+  #boopBtn.pressed #dogFace{ transform:scale(.965); }
+  #dogFace{ transition:transform .06s ease-out; }
   /* ---------- PULL handle ---------- */
   #pullWrap{ position:relative; z-index:2; margin:14px auto 2px; width:150px; display:flex; flex-direction:column; align-items:center; }
   #pullTrack{ width:34px; height:96px; border-radius:17px; position:relative;
@@ -169,6 +162,17 @@
     text-shadow:0 2px 0 #e07b00, 0 4px 0 #b35c00, 0 7px 14px rgba(0,0,0,.7); transform:rotate(-2deg); }
   #ovText{ font-size:15.5px; line-height:1.45; color:#e8e6f2; max-width:270px; text-shadow:0 1px 2px #000; }
   #ovText b{ color:#ffd76a; }
+  /* worldwide board (anonymous — scores only, no names) */
+  #board{ width:100%; max-width:272px; margin-top:2px; padding:8px 12px 9px; border-radius:10px;
+    background:linear-gradient(180deg,#1d2419,#2a331f);
+    box-shadow:inset 0 2px 7px rgba(0,0,0,.8), 0 1px 0 rgba(255,255,255,.12);
+    color:#b7ff7e; font-family:'Courier New',monospace; font-weight:700; font-size:13.5px; letter-spacing:1px;
+    text-shadow:0 0 6px rgba(140,255,90,.5); display:none; }
+  #board.show{ display:block; }
+  #board .bHead{ color:#7ef0c9; font-size:12px; letter-spacing:2px; margin-bottom:4px; text-shadow:0 0 6px rgba(110,240,200,.5); }
+  #board .bRow{ display:flex; justify-content:space-between; padding:1px 0; }
+  #board .bRow.me{ color:#ffd76a; text-shadow:0 0 6px rgba(255,205,60,.6); }
+  #board .bFoot{ margin-top:5px; font-size:11.5px; color:#8fd98a; letter-spacing:.6px; }
   #startBtn{ margin-top:6px; font-family:inherit; font-size:20px; font-weight:900; letter-spacing:1.5px; color:#233;
     padding:13px 34px; border:none; border-radius:30px; cursor:pointer;
     background:radial-gradient(120% 100% at 50% 0%, #eaffb0, #8fe33a 55%, #57b312);
@@ -183,7 +187,7 @@
   #hint b{ color:#cfd6e4; }
   @media (max-height:700px){
     #logo{ font-size:36px; } #cmdWrap{ height:72px; } #cmd{ font-size:33px; }
-    #boopBtn{ width:116px; height:116px; } #twist{ width:104px; height:104px; } #twistWrap{ top:-32px; }
+    #boopBtn{ width:132px; height:132px; } #twist{ width:104px; height:104px; } #twistWrap{ top:-32px; }
   }
 </style>
 </head>
@@ -191,6 +195,7 @@
   <div id="topbar">
     <a href="../index.html">← All games</a>
     <div id="best">BEST 0</div>
+    <div id="worldBest">🌍 …</div>
     <button id="muteBtn" aria-label="toggle sound">🔊</button>
   </div>
 
@@ -219,7 +224,41 @@
             <div class="ctlLabel">FLICK <em>IT</em></div>
           </div>
           <div id="boopWrap">
-            <button id="boopBtn"><span>BOOP</span></button>
+            <button id="boopBtn" aria-label="Boop the snoot">
+              <svg id="dogFace" viewBox="0 0 200 200" aria-hidden="true">
+                <defs>
+                  <radialGradient id="fur" cx=".5" cy=".4" r=".78">
+                    <stop offset="0" stop-color="#ffecc7"/><stop offset=".55" stop-color="#f3c37e"/><stop offset="1" stop-color="#d99a4e"/>
+                  </radialGradient>
+                  <radialGradient id="noseGrad" cx=".38" cy=".28" r=".9">
+                    <stop offset="0" stop-color="#707684"/><stop offset=".45" stop-color="#2c2e35"/><stop offset="1" stop-color="#0a0b0e"/>
+                  </radialGradient>
+                  <radialGradient id="muzzleGrad" cx=".5" cy=".45" r=".6">
+                    <stop offset="0" stop-color="#fff7e2"/><stop offset="1" stop-color="#ffe0a8"/>
+                  </radialGradient>
+                </defs>
+                <ellipse cx="16" cy="98" rx="19" ry="46" fill="#a5672c" transform="rotate(15 16 98)"/>
+                <ellipse cx="184" cy="98" rx="19" ry="46" fill="#a5672c" transform="rotate(-15 184 98)"/>
+                <circle cx="100" cy="100" r="89" fill="url(#fur)"/>
+                <circle cx="100" cy="100" r="89" fill="none" stroke="rgba(120,66,10,.35)" stroke-width="3"/>
+                <ellipse cx="100" cy="27" rx="30" ry="13" fill="#eab76e" opacity=".75"/>
+                <circle cx="61" cy="79" r="13.5" fill="#241708"/>
+                <circle cx="139" cy="79" r="13.5" fill="#241708"/>
+                <circle cx="65.5" cy="74" r="4.8" fill="#fff"/>
+                <circle cx="143.5" cy="74" r="4.8" fill="#fff"/>
+                <circle cx="57" cy="85" r="2.3" fill="#fff" opacity=".85"/>
+                <circle cx="135" cy="85" r="2.3" fill="#fff" opacity=".85"/>
+                <ellipse cx="100" cy="129" rx="47" ry="35" fill="url(#muzzleGrad)"/>
+                <ellipse cx="100" cy="157" rx="11" ry="8.5" fill="#ff8fa3"/>
+                <path d="M100 138 Q99 147 87 149 M100 138 Q101 147 113 149" stroke="#8a5a28" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+                <g id="noseG">
+                  <ellipse cx="100" cy="113" rx="35" ry="27" fill="url(#noseGrad)"/>
+                  <ellipse cx="87" cy="104" rx="9.5" ry="6" fill="#fff" opacity=".38" transform="rotate(-18 87 104)"/>
+                  <circle cx="85" cy="117" r="4.6" fill="#000" opacity=".6"/>
+                  <circle cx="115" cy="117" r="4.6" fill="#000" opacity=".6"/>
+                </g>
+              </svg>
+            </button>
             <div class="ctlLabel">BOOP <em>IT</em></div>
           </div>
           <div id="grille" aria-hidden="true"></div>
@@ -233,6 +272,7 @@
         <div id="overlay">
           <div id="ovTitle">BOOP IT!</div>
           <div id="ovText">The toy shouts a command — <b>boop</b>, <b>twist</b>, <b>pull</b>, <b>flick</b> or <b>shake</b> it before the bar runs out. It only gets faster. Don't mess up.</div>
+          <div id="board"></div>
           <button id="startBtn">▶ START</button>
         </div>
       </div>
@@ -240,7 +280,7 @@
   </div>
 
   <div id="hint">
-    <b>How to play:</b> tap the big button to <b>BOOP</b> · drag the yellow knob in a circle to <b>TWIST</b> ·
+    <b>How to play:</b> boop the pup's snoot to <b>BOOP</b> · drag the yellow knob in a circle to <b>TWIST</b> ·
     drag the blue handle down to <b>PULL</b> · swipe the green switch to <b>FLICK</b> ·
     for <b>SHAKE</b>, shake your phone — or grab the toy's body and wiggle it.<br>
     Desktop keys: <b>Space</b> boop · <b>←/→</b> twist · <b>↓</b> pull · <b>↑</b> flick · <b>S</b> shake
@@ -256,11 +296,11 @@ const toy=$('toy'), cmdEl=$('cmd'), fill=$('timerFill'), lcdScore=$('lcdScore'),
       pullHandle=$('pullHandle'), pullShaft=$('pullShaft'), muteBtn=$('muteBtn');
 
 const COMMANDS=[
-  {id:'boop',  label:'BOOP IT!',  color:'#ff6a3d'},
-  {id:'twist', label:'TWIST IT!', color:'#ffd21f'},
-  {id:'pull',  label:'PULL IT!',  color:'#59d6f2'},
-  {id:'flick', label:'FLICK IT!', color:'#8fe33a'},
-  {id:'shake', label:'SHAKE IT!', color:'#ff5da2'}
+  {id:'boop',  label:'BOOP IT!',  say:'Boop it!',  color:'#ff6a3d'},
+  {id:'twist', label:'TWIST IT!', say:'Twist it!', color:'#ffd21f'},
+  {id:'pull',  label:'PULL IT!',  say:'Pull it!',  color:'#59d6f2'},
+  {id:'flick', label:'FLICK IT!', say:'Flick it!', color:'#8fe33a'},
+  {id:'shake', label:'SHAKE IT!', say:'Shake it!', color:'#ff5da2'}
 ];
 const LS_KEY='boop-it-v1';
 let saved={}; try{ saved=JSON.parse(localStorage.getItem(LS_KEY)||'{}'); }catch(e){ saved={}; }
@@ -272,6 +312,57 @@ function showBest(){ bestEl.textContent='BEST '+best; lcdMsg.textContent='HI '+b
 function showScore(){ lcdScore.textContent='SCORE '+S.score; }
 muteBtn.textContent = muted?'🔇':'🔊';
 showBest(); showScore();
+
+/* ---------------- worldwide board (Supabase, anonymous — scores only) ---------------- */
+const SB_URL='https://qewxxfmdkichcmhyxqjo.supabase.co';
+const SB_KEY='sb_publishable_-siKrI5IZ3TjXC_TWcRbDw_9cbY6NaB';
+const sbHeaders={'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json'};
+const world={ live:false, top:[], plays:null, myRank:null };
+const boardEl=$('board'), worldBestEl=$('worldBest');
+function sbFetch(path, opts){
+  return fetch(SB_URL+'/rest/v1/'+path, Object.assign({headers:sbHeaders}, opts||{})).then(r=>{
+    if(!r.ok) throw new Error('sb '+r.status);
+    return r;
+  });
+}
+function worldLoad(){
+  if(typeof fetch!=='function'){ world.live=false; worldBestEl.textContent='🌍 local'; return Promise.resolve(); }
+  return sbFetch('boop_scores?select=score,created_at&order=score.desc,created_at.asc&limit=10')
+    .then(r=>r.json())
+    .then(rows=>{
+      world.live=true; world.top=rows||[];
+      worldBestEl.textContent='🌍 '+(world.top.length?world.top[0].score:'—');
+      return sbFetch('boop_scores?select=score&limit=1',{headers:Object.assign({},sbHeaders,{Prefer:'count=exact'})});
+    })
+    .then(r=>{ const cr=r.headers.get('content-range'); if(cr) world.plays=parseInt(cr.split('/')[1],10); })
+    .catch(()=>{ world.live=false; worldBestEl.textContent='🌍 local'; });
+}
+function fmtDate(iso){
+  try{ const d=new Date(iso); return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}); }catch(e){ return ''; }
+}
+function renderBoard(myScore){
+  if(!world.live){ boardEl.classList.remove('show'); return; }
+  let h='<div class="bHead">🌍 WORLD TOP SCORES</div>';
+  const rows=world.top.slice(0,5);
+  rows.forEach((r,i)=>{
+    const mine = (myScore!=null && r.score===myScore && world.myRank===i+1);
+    h+='<div class="bRow'+(mine?' me':'')+'"><span>'+(i+1)+'. '+r.score+'</span><span>'+fmtDate(r.created_at)+'</span></div>';
+  });
+  if(myScore!=null && world.myRank) h+='<div class="bFoot">Your '+myScore+' ranks #'+world.myRank+' worldwide'+(world.plays!=null?' · '+world.plays+' games played':'')+'</div>';
+  else if(world.plays!=null) h+='<div class="bFoot">'+world.plays+' games played worldwide</div>';
+  boardEl.innerHTML=h; boardEl.classList.add('show');
+}
+function worldSubmit(score){
+  if(score<=0) return;
+  sbFetch('boop_scores',{method:'POST', headers:Object.assign({},sbHeaders,{Prefer:'return=minimal'}), body:JSON.stringify({score:score})})
+    .then(()=>sbFetch('boop_scores?select=score&score=gt.'+score+'&limit=1',{headers:Object.assign({},sbHeaders,{Prefer:'count=exact'})}))
+    .then(r=>{ const cr=r.headers.get('content-range'); if(cr) world.myRank=parseInt(cr.split('/')[1],10)+1; })
+    .then(()=>worldLoad())
+    .then(()=>renderBoard(score))
+    .catch(()=>{ world.live=false; });
+}
+worldLoad();
+setInterval(()=>{ if(!S.playing) worldLoad().then(()=>{ if(S.over) renderBoard(null); }); }, 45000);
 
 /* ---------------- audio (all synthesized, no files) ---------------- */
 let AC=null, master=null;
@@ -333,7 +424,7 @@ function nextCommand(now){
   cmdEl.innerHTML=c.label; cmdEl.style.color=c.color;
   cmdEl.classList.remove('pop'); void cmdEl.offsetWidth; cmdEl.classList.add('pop');
   fill.style.width='100%'; fill.classList.remove('low');
-  speak(c.label);
+  speak(c.say);
 }
 function start(){
   S.playing=true; S.over=false; S.score=0; S.cmd=null;
@@ -359,6 +450,9 @@ function gameOver(reason, now){
     'You scored <b>'+S.score+'</b>'+(S.score>=best&&S.score>0?' — new best! 🏆':'')+'<br>Best: <b>'+best+'</b>';
   startBtn.textContent='↻ BOOP AGAIN';
   overlay.classList.remove('hidden');
+  world.myRank=null;
+  if(world.live) renderBoard(null);
+  worldSubmit(S.score);
   try{ speechSynthesis.cancel(); }catch(e){}
 }
 function act(id, now){
@@ -547,6 +641,8 @@ window.__boop={
   state:()=>({ playing:S.playing, over:S.over, score:S.score, cmd:S.cmd?S.cmd.id:null,
                windowMs:S.windowMs, deadline:S.deadline, best:best }),
   setDeadline:(t)=>{ S.deadline=t; },
+  world:()=>({ live:world.live, top:world.top, plays:world.plays, myRank:world.myRank }),
+  worldLoad,
   els:{ boopBtn, twistEl, flickSlot, flickSwitch, pullHandle, toy }
 };
 })();
