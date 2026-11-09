@@ -11,11 +11,82 @@
   body{
     font-family:"Arial Rounded MT Bold","Arial Black",Arial,system-ui,sans-serif;
     color:#f5ead6;
+    /* backdrop outside the device: dark warm charcoal, device floats on it */
+    background:radial-gradient(900px 620px at 50% 32%, #231a10 0%, #100b06 72%);
+    min-height:100vh;min-height:100dvh;
+    display:flex;align-items:center;justify-content:center;
+    padding:14px 10px;overflow:hidden;
+  }
+  /* ============ iPod Touch device frame (pure CSS, no images) ============ */
+  .device{
+    position:relative;flex:none;
+    width:min(430px,96vw);
+    height:min(880px,calc(100vh - 28px));height:min(880px,calc(100dvh - 28px));
+    display:flex;flex-direction:column;
+    background:linear-gradient(160deg,#2e2e30,#101012 55%,#1b1b1d);
+    border-radius:48px;
+    padding:0 11px;
+    /* silver chrome rim ring + glass edge + float shadow */
+    box-shadow:
+      0 0 0 2px #0a0a0a,
+      0 0 0 4px #c8c9cc,
+      0 0 0 5.5px #f4f4f6,
+      0 0 0 7px #83868b,
+      inset 0 0 0 1.5px rgba(255,255,255,.14),
+      0 34px 70px rgba(0,0,0,.75),0 10px 26px rgba(0,0,0,.6);
+  }
+  .bezel-top{flex:none;height:44px;display:flex;align-items:center;justify-content:center}
+  .cam{
+    width:11px;height:11px;border-radius:50%;flex:none;
+    background:radial-gradient(circle at 38% 35%, #7d94c4 0 18%, #2c3a58 30%, #101623 62%, #000 100%);
+    box-shadow:inset 0 0 2px rgba(0,0,0,.9),0 0 0 2.5px #1d1d1f,0 0 0 3.5px rgba(255,255,255,.06);
+  }
+  .screenwrap{
+    position:relative;flex:1;min-height:0;
+    border-radius:6px;overflow:hidden;
+    box-shadow:0 0 0 2px #000, inset 0 0 0 1px rgba(255,255,255,.05);
+    /* the page's original warm backdrop now lives on the screen glass */
     background:
       radial-gradient(1100px 500px at 50% -120px, #3a2413 0%, rgba(58,36,19,0) 60%),
       radial-gradient(800px 400px at 85% 110%, #241407 0%, rgba(36,20,7,0) 55%),
       #161009;
-    min-height:100vh;
+  }
+  .screen{
+    position:absolute;inset:0;
+    overflow-y:auto;overflow-x:hidden;
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain;
+    scrollbar-width:thin;scrollbar-color:#4a3319 transparent;
+  }
+  .screen::-webkit-scrollbar{width:5px}
+  .screen::-webkit-scrollbar-thumb{background:#4a3319;border-radius:99px}
+  .bezel-bot{flex:none;height:72px;display:flex;align-items:center;justify-content:center}
+  .homebtn{
+    width:52px;height:52px;border-radius:50%;flex:none;
+    background:radial-gradient(circle at 50% 32%, #3a3a3d, #17171a 68%, #0c0c0e);
+    box-shadow:
+      inset 0 1.5px 2px rgba(255,255,255,.22),
+      inset 0 -3px 6px rgba(0,0,0,.75),
+      0 0 0 1px rgba(255,255,255,.07),
+      0 2px 6px rgba(0,0,0,.6);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .homebtn i{width:19px;height:19px;border:2.5px solid rgba(235,235,240,.75);border-radius:5.5px;display:block}
+  /* diagonal glass sheen over the device glass — decorative, never intercepts taps;
+     z 250: above all screen content, below the login modal (300) and toast (400) */
+  .sheen{
+    position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:250;
+    background:linear-gradient(118deg, rgba(255,255,255,.13) 0%, rgba(255,255,255,.045) 26%, rgba(255,255,255,0) 46%);
+    clip-path:polygon(0 0, 68% 0, 38% 100%, 0 100%);
+  }
+  /* phones: slim the chrome so the screen stays big and usable */
+  @media (max-width:520px){
+    body{padding:5px}
+    .device{width:calc(100vw - 10px);height:calc(100vh - 10px);height:calc(100dvh - 10px);border-radius:40px;padding:0 7px}
+    .bezel-top{height:32px}
+    .bezel-bot{height:58px}
+    .homebtn{width:44px;height:44px}
+    .homebtn i{width:16px;height:16px}
   }
   .wrap{max-width:680px;margin:0 auto;padding:28px 18px 40px}
   h1{
@@ -165,7 +236,7 @@
   .manual input{width:100%;background:#120b04;border:1.5px solid #4a3319;border-radius:11px;color:#f5ead6;font-family:system-ui,sans-serif;font-size:14px;padding:10px 12px;margin-bottom:8px;outline:none}
   .manual input:focus{border-color:#ffb03a}
   /* login modal */
-  .modalbk{display:none;position:fixed;inset:0;background:rgba(5,3,1,.78);z-index:300;align-items:center;justify-content:center;padding:20px}
+  .modalbk{display:none;position:absolute;inset:0;background:rgba(5,3,1,.78);z-index:300;align-items:center;justify-content:center;padding:20px}
   .modalbk.open{display:flex}
   .modal{background:#211709;border:1.5px solid #ffb03a;border-radius:18px;padding:22px 18px;width:100%;max-width:360px;box-shadow:0 24px 60px rgba(0,0,0,.7)}
   .modal h3{margin:0 0 4px;font-size:21px;font-style:italic;text-transform:uppercase;color:#ffb03a}
@@ -240,7 +311,7 @@
   .lib-songrow .chev{flex:none;color:#ffb03a;font-size:14px}
   /* toast */
   .toast{
-    position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(80px);z-index:400;
+    position:absolute;left:50%;bottom:20px;transform:translateX(-50%) translateY(80px);z-index:400;
     background:#ffb03a;color:#1c1206;font-family:system-ui,sans-serif;font-weight:800;font-size:14px;
     padding:11px 18px;border-radius:999px;box-shadow:0 12px 30px rgba(0,0,0,.6);opacity:0;transition:all .25s;max-width:88vw;text-align:center;
   }
@@ -248,6 +319,10 @@
 </style>
 </head>
 <body>
+<div class="device">
+  <div class="bezel-top"><span class="cam"></span></div>
+  <div class="screenwrap">
+    <div class="screen">
 <div class="wrap">
   <div class="topbar">
     <a class="backbtn" href="/directory/">← games & stuff</a>
@@ -305,6 +380,7 @@
 
   <p class="foot">Updated November 2026</p>
 </div>
+    </div><!-- /.screen -->
 
 <div class="modalbk" id="loginBk">
   <div class="modal">
@@ -321,6 +397,10 @@
 </div>
 
 <div class="toast" id="toast"></div>
+  </div><!-- /.screenwrap -->
+  <div class="bezel-bot"><span class="homebtn"><i></i></span></div>
+  <div class="sheen"></div>
+</div><!-- /.device -->
 <script>
 (function(){
 "use strict";
