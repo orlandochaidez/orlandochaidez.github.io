@@ -28,8 +28,10 @@
     text-shadow:2px 2px 0 #000;letter-spacing:.5px;
   }
   h2.sect .dot{color:#f5ead6}
-  /* top bar: admin */
-  .topbar{display:flex;justify-content:flex-end;align-items:center;margin-bottom:14px}
+  /* top bar: back + admin */
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px}
+  .backbtn{display:inline-flex;align-items:center;min-height:38px;font-family:system-ui,sans-serif;font-weight:800;font-size:12.5px;letter-spacing:.3px;padding:8px 14px;border-radius:999px;border:1.5px solid #4a3319;background:transparent;color:#cdbb96;text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .backbtn:active{background:rgba(255,176,58,.12)}
   .adminbtn{font-family:system-ui,sans-serif;font-weight:800;font-size:12.5px;letter-spacing:.5px;padding:7px 14px;border-radius:999px;border:1.5px solid #ffb03a;background:transparent;color:#ffb03a;cursor:pointer}
   .adminbtn.on{background:#ffb03a;color:#1c1206}
   /* NOW SPINNING hero */
@@ -248,6 +250,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
+    <a class="backbtn" href="/directory/">← games & stuff</a>
     <button class="adminbtn" id="adminBtn">🔒 Admin</button>
   </div>
   <h1>Orlando's iPod</h1>
