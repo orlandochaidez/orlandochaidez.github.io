@@ -336,22 +336,28 @@
   .cf-scroll{
     flex:1;min-height:0;overflow-x:auto;overflow-y:hidden;
     -webkit-overflow-scrolling:touch;scrollbar-width:none;
-    scroll-snap-type:x mandatory;overscroll-behavior:contain;
+    overscroll-behavior:contain; /* CF-V2: no CSS snap at all — the JS settle owns the resting position */
   }
   .cf-scroll::-webkit-scrollbar{display:none}
   .cf-track{
-    display:flex;align-items:flex-start;height:100%;
-    padding-top:4.5%;box-sizing:border-box;
-    perspective:520px;transform-style:preserve-3d;
+    display:flex;align-items:center;height:100%;
+    perspective:640px;transform-style:preserve-3d;
   }
+  /* CF-V2: real spacer slots (width set by JS = (W - step)/2) so the
+     first and last covers can reach exact center by ordinary scrolling */
+  .cf-sp{flex:none;height:1px}
   .cf-item{
-    flex:none;scroll-snap-align:center;position:relative;
+    /* CF-V2: a REAL layout slot, width = step (set by JS). Layout never
+       overlaps; the wider face overflows the slot visually and the 3D
+       fan is transforms only, so scroll geometry stays exact. */
+    flex:none;position:relative;height:100%;
+    display:flex;align-items:center;justify-content:center;
     transform-style:preserve-3d;will-change:transform;
-    -webkit-box-reflect:below 4px linear-gradient(transparent 58%, rgba(255,255,255,.22));
   }
   .cf-face{
-    width:100%;height:100%;border-radius:2px;overflow:hidden;background:#2c1e10;
+    flex:none;border-radius:2px;overflow:hidden;background:#2c1e10;
     box-shadow:0 10px 30px rgba(0,0,0,.8);cursor:pointer;
+    -webkit-box-reflect:below 4px linear-gradient(transparent 58%, rgba(255,255,255,.22));
   }
   .cf-face img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
   .cf-face .lib-ph .note{font-size:44px}
@@ -779,7 +785,6 @@ function render(){
    Mode ENTRY is pure CSS (the landscape media query hides .screen and
    shows this stage); JS only builds covers and, on scroll, computes
    each cover's 3D transform from its distance to the strip's center. */
-var cf = { albums: [], active: -1, raf: 0, clickGuard: 0 };
 function cfCoverHTML(a){
   if(a.cover_url) return '<img src="'+esc(a.cover_url)+'" alt="'+esc(a.title)+' album cover" draggable="false">';
   return '<div class="lib-ph"><div class="note">♪</div><div class="pht">'+esc(a.title)+'</div></div>';
@@ -807,101 +812,170 @@ function renderCoverFlow(){
   var albums = (state.items && state.items.album) ? state.items.album : [];
   cf.albums = albums;
   var sig = albums.map(function(a){ return a.title; }).join("");
-  if(track.getAttribute("data-sig") === sig && track.children.length === albums.length){ cfLayout(); return; }
+  if(track.getAttribute("data-sig") === sig && track.querySelectorAll(".cf-item").length === albums.length){ cfActivate(); return; }
   track.setAttribute("data-sig", sig);
-  track.innerHTML = albums.map(function(a, i){
+  track.innerHTML = '<div class="cf-sp"></div>' + albums.map(function(a, i){
     return '<div class="cf-item" data-cf="'+i+'"><div class="cf-face">'+cfCoverHTML(a)+'</div></div>';
-  }).join("");
+  }).join("") + '<div class="cf-sp"></div>';
   cf.active = -1;
-  cfLayout(true);
+  cfActivate();
 }
-/* geometry: cover size comes off the STRIP height (the stage only has
-   real dimensions while the landscape media query is active; in
-   portrait everything is 0 and this harmlessly no-ops). */
+/* COVER FLOW V2 — real slot geometry (the v1 scroll fix).
+   V1 ROOT CAUSE, in its own code: covers 2..n were laid out with
+   NEGATIVE margins (margin-left = step - S, about -0.54*S), so the
+   layout slots overlapped and the strip's scrollable width was not
+   pad + n*step + pad; the end spacer was the track's padding-right,
+   which does not extend the scrollable area once flex items overflow
+   the track box, so the far covers' snap targets sat outside the
+   reachable scroll range; scroll-snap-type:x mandatory then yanked
+   the strip back to a reachable snap point ("scrolls, then bounces
+   back"); and no code path ever set an initial scrollLeft while the
+   stage was visible — the only reset lived in the load-time layout,
+   which no-ops because the stage is display:none in portrait and the
+   geometry helper returns null — so the strip rested wherever
+   WebKit's snap settlement left it (album #8 centered, knob at the
+   right end, in Orlando's screenshot).
+   V2: every cover owns a REAL flex slot of width = step; the fan
+   overlap is visual only (the S-wide face overflows its narrower
+   slot; transforms never change layout). First/last slots are real
+   spacer elements of width (W - step)/2, so scrollWidth - W is
+   exactly (n-1)*step and EVERY cover can reach exact center.
+   Resting position is owned by a JS settle (no CSS snap): once
+   scrolling goes quiet it smooth-scrolls to the nearest cover's
+   target i*step — the same geometry the transforms use, so it can
+   never bounce back to a wrong home. */
+var cf = { albums: [], active: -1, raf: 0, clickGuard: 0, entered: false, settleT: 0, v: 2 };
+/* pure geometry — slot i's center sits at pad + i*step + step/2
+   = W/2 + i*step, so the scrollLeft that centers cover i is i*step,
+   and maxScroll = (pad + n*step + pad) - W = (n-1)*step exactly. */
+cf.geomFor = function(W, H, n){
+  if(!W || !H || !n) return null;
+  var S = Math.round(Math.min(H * 0.52, W * 0.34));
+  var step = Math.max(24, Math.round(S * 0.46));
+  var pad = Math.max(0, (W - step) / 2);
+  return { S: S, step: step, pad: pad, max: Math.max(0, (n - 1) * step) };
+};
+cf.targetFor = function(i, g){ return i * g.step; };
+cf.nearestFor = function(sl, g, n){
+  if(!n || n < 0) return -1;
+  var i = Math.round(sl / g.step);
+  return Math.max(0, Math.min(n - 1, i));
+};
+cf.settleFor = function(sl, g, n){
+  var i = cf.nearestFor(sl, g, n); if(i < 0) return null;
+  var t = cf.targetFor(i, g);
+  return Math.abs(sl - t) < 2 ? null : t;
+};
+/* first entry into the flow (per page load) starts on album #1;
+   later entries preserve wherever the user left the strip. */
+cf.enterScroll = function(sc){
+  if(!sc || cf.entered) return false;
+  cf.entered = true; sc.scrollLeft = 0; return true;
+};
+function cfItems(){
+  var t = $("cfTrack");
+  return t ? Array.prototype.slice.call(t.querySelectorAll(".cf-item")) : [];
+}
 function cfGeom(){
   var sc = $("cfScroll"); if(!sc) return null;
-  var H = sc.clientHeight, W = sc.clientWidth;
-  if(!H || !W) return null;
-  var S = Math.round(Math.min(H * 0.52, W * 0.34));
-  var step = Math.round(S * 0.46);
-  return { sc: sc, W: W, H: H, S: S, step: step, pad: Math.max(0, (W - S) / 2) };
+  var g = cf.geomFor(sc.clientWidth, sc.clientHeight, cf.albums.length);
+  if(!g) return null;
+  g.sc = sc; g.W = sc.clientWidth; g.H = sc.clientHeight;
+  return g;
 }
-function cfLayout(reset){
+function cfLayout(){
   var g = cfGeom(); if(!g) return;
   var track = $("cfTrack"); if(!track) return;
-  track.style.paddingLeft = g.pad + "px";
-  track.style.paddingRight = g.pad + "px";
-  for(var i = 0; i < track.children.length; i++){
-    var it = track.children[i];
-    it.style.width = g.S + "px"; it.style.height = g.S + "px";
-    it.style.marginLeft = (i === 0 ? 0 : (g.step - g.S)) + "px";
+  var sps = track.querySelectorAll(".cf-sp");
+  for(var s = 0; s < sps.length; s++) sps[s].style.width = g.pad + "px";
+  var items = cfItems();
+  for(var i = 0; i < items.length; i++){
+    items[i].style.width = g.step + "px";
+    var face = items[i].firstChild;
+    if(face){ face.style.width = g.S + "px"; face.style.height = g.S + "px"; }
   }
-  if(reset) g.sc.scrollLeft = 0;
   cfUpdate();
+}
+/* run whenever the stage may have become visible: size the strip,
+   and on the very first entry put album #1 in the center. */
+function cfActivate(){
+  var sc = $("cfScroll"); if(!sc) return;
+  cfLayout();
+  if(sc.clientWidth && cf.enterScroll(sc)) cfUpdate();
 }
 function cfUpdate(){
   var g = cfGeom(); if(!g) return;
-  var track = $("cfTrack"); if(!track || !track.children.length) return;
-  var center = g.sc.scrollLeft + g.W / 2;
-  var best = -1, bestD = Infinity;
-  for(var i = 0; i < track.children.length; i++){
-    var it = track.children[i];
-    var ic = it.offsetLeft + g.S / 2;
-    var d = (ic - center) / g.step;           /* signed distance, in cover steps */
+  var items = cfItems(); if(!items.length) return;
+  var sl = g.sc.scrollLeft;
+  var nearest = cf.nearestFor(sl, g, items.length);
+  for(var i = 0; i < items.length; i++){
+    var d = i - sl / g.step;               /* signed distance, in cover steps */
     var ad = Math.abs(d);
-    if(ad < bestD){ bestD = ad; best = i; }
     var rot = Math.max(-1, Math.min(1, d)) * -62;
-    var tx = d * (g.step - g.S) * 0.32;
-    var sc = Math.max(0.72, 1 - Math.min(ad, 3) * 0.09);
+    var scl = Math.max(0.72, 1 - Math.min(ad, 3) * 0.09);
     var zi = 100 - Math.round(Math.min(ad, 12) * 4) - (d < 0 ? 1 : 0);
-    it.style.transform = "translateX(" + tx.toFixed(1) + "px) rotateY(" + rot.toFixed(1) + "deg) scale(" + sc.toFixed(3) + ")";
-    it.style.zIndex = zi;
-    it.style.opacity = Math.max(0.35, 1 - Math.min(ad, 4) * 0.16).toFixed(2);
+    items[i].style.transform = "rotateY(" + rot.toFixed(1) + "deg) scale(" + scl.toFixed(3) + ")";
+    items[i].style.zIndex = zi;
+    items[i].style.opacity = Math.max(0.35, 1 - Math.min(ad, 4) * 0.16).toFixed(2);
   }
-  var max = g.sc.scrollWidth - g.W;
   var knob = $("cfKnob");
-  if(knob) knob.style.left = (max > 0 ? (g.sc.scrollLeft / max) * (g.W - 108) : 0) + "px";
-  if(best >= 0 && best !== cf.active){
-    cf.active = best;
-    var a = cf.albums[best];
+  if(knob && knob.parentNode){
+    var bw = knob.parentNode.clientWidth, kw = knob.offsetWidth || 44;
+    knob.style.left = (g.max > 0 && bw > kw) ? ((sl / g.max) * (bw - kw)) + "px" : "0px";
+  }
+  if(nearest >= 0 && nearest !== cf.active){
+    cf.active = nearest;
+    var a = cf.albums[nearest];
     if(a){
       $("cfTitle").textContent = a.title || "";
       $("cfArtist").textContent = a.artist || "";
     }
   }
 }
+function cfSettle(){
+  var sc = $("cfScroll"); if(!sc) return;
+  var g = cfGeom(); if(!g) return;
+  var t = cf.settleFor(sc.scrollLeft, g, cf.albums.length);
+  if(t === null) return;
+  try{ sc.scrollTo({ left: t, behavior: "smooth" }); }
+  catch(e){ sc.scrollLeft = t; }
+}
 function cfSetup(){
   var sc = $("cfScroll"); if(!sc || sc.getAttribute("data-cf-init")) return;
   sc.setAttribute("data-cf-init", "1");
   sc.addEventListener("scroll", function(){
     cf.clickGuard = Date.now();
-    if(cf.raf) return;
-    cf.raf = requestAnimationFrame(function(){ cf.raf = 0; cfUpdate(); });
+    if(!cf.raf) cf.raf = requestAnimationFrame(function(){ cf.raf = 0; cfUpdate(); });
+    if(cf.settleT) clearTimeout(cf.settleT);
+    cf.settleT = setTimeout(cfSettle, 150);
   }, { passive: true });
+  try{ sc.addEventListener("scrollend", cfSettle); }catch(e){}
   sc.addEventListener("click", function(e){
     if(Date.now() - cf.clickGuard < 80) return;   /* a moving flick is not a tap */
     var t = e.target, item = (t && t.closest) ? t.closest("[data-cf]") : null;
     if(!item) return;
     var idx = parseInt(item.getAttribute("data-cf"), 10);
+    var g = cfGeom(); if(!g) return;
     if(idx === cf.active){
       item.animate([{ transform: item.style.transform }, { transform: item.style.transform + " scale(1.04)" }, { transform: item.style.transform }], { duration: 220 });
       return;
     }
-    var g = cfGeom(); if(!g) return;
-    var target = item.offsetLeft + g.S / 2 - g.W / 2;
-    if(window.CSS && CSS.supports && CSS.supports("scroll-behavior", "smooth")) sc.scrollTo({ left: target, behavior: "smooth" });
-    else sc.scrollLeft = target;
+    var target = cf.targetFor(idx, g);
+    try{ sc.scrollTo({ left: target, behavior: "smooth" }); }
+    catch(err){ sc.scrollLeft = target; }
   });
   if(window.matchMedia){
     try{
       var mq = window.matchMedia("(orientation: landscape) and (max-height: 500px) and (max-width: 950px)");
-      var onMq = function(){ cfLayout(); setTimeout(cfLayout, 60); };
+      cf.mq = mq;
+      var onMq = function(){ if(mq.matches){ cfActivate(); setTimeout(cfActivate, 60); setTimeout(cfActivate, 320); } };
       if(mq.addEventListener) mq.addEventListener("change", onMq);
       else if(mq.addListener) mq.addListener(onMq);
+      if(mq.matches){ cfActivate(); setTimeout(cfActivate, 60); }   /* loaded already sideways */
     }catch(e){}
   }
-  window.addEventListener("resize", function(){ cfLayout(); });
-  window.addEventListener("orientationchange", function(){ setTimeout(cfLayout, 60); setTimeout(cfLayout, 320); });
+  window.addEventListener("resize", function(){ cfActivate(); });
+  window.addEventListener("orientationchange", function(){ setTimeout(cfActivate, 60); setTimeout(cfActivate, 320); });
 }
 cfSetup();
 
