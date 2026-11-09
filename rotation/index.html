@@ -70,7 +70,9 @@
       0 0 0 1px rgba(255,255,255,.07),
       0 2px 6px rgba(0,0,0,.6);
     display:flex;align-items:center;justify-content:center;
+    text-decoration:none;-webkit-tap-highlight-color:transparent;cursor:pointer;
   }
+  .homebtn:active{filter:brightness(1.5)}
   .homebtn i{width:19px;height:19px;border:2.5px solid rgba(235,235,240,.75);border-radius:5.5px;display:block}
   /* diagonal glass sheen over the device glass — decorative, never intercepts taps;
      z 250: above all screen content, below the login modal (300) and toast (400) */
@@ -316,6 +318,71 @@
     padding:11px 18px;border-radius:999px;box-shadow:0 12px 30px rgba(0,0,0,.6);opacity:0;transition:all .25s;max-width:88vw;text-align:center;
   }
   .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+
+  /* ============ COVER FLOW (landscape phones only) ============
+     The stage lives in .screenwrap next to .screen. It is display:none
+     everywhere EXCEPT the landscape-phone media query at the bottom of
+     this stylesheet, which hides .screen + the portrait bezels, turns
+     .device into a row (camera bezel LEFT, home-button bezel RIGHT —
+     a physically rotated iPod Touch) and shows the stage. Entry/exit is
+     100% CSS: JS only keeps the covers built + transforms current, so
+     rotating the phone can never strand the page in a broken state. */
+  .coverflow{display:none}
+  .coverflow{
+    position:absolute;inset:0;z-index:120;background:#000;overflow:hidden;
+    flex-direction:column;
+    font-family:system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  }
+  .cf-scroll{
+    flex:1;min-height:0;overflow-x:auto;overflow-y:hidden;
+    -webkit-overflow-scrolling:touch;scrollbar-width:none;
+    scroll-snap-type:x mandatory;overscroll-behavior:contain;
+  }
+  .cf-scroll::-webkit-scrollbar{display:none}
+  .cf-track{
+    display:flex;align-items:flex-start;height:100%;
+    padding-top:4.5%;box-sizing:border-box;
+    perspective:520px;transform-style:preserve-3d;
+  }
+  .cf-item{
+    flex:none;scroll-snap-align:center;position:relative;
+    transform-style:preserve-3d;will-change:transform;
+    -webkit-box-reflect:below 4px linear-gradient(transparent 58%, rgba(255,255,255,.22));
+  }
+  .cf-face{
+    width:100%;height:100%;border-radius:2px;overflow:hidden;background:#2c1e10;
+    box-shadow:0 10px 30px rgba(0,0,0,.8);cursor:pointer;
+  }
+  .cf-face img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+  .cf-face .lib-ph .note{font-size:44px}
+  .cf-face .lib-ph .pht{font-size:14px}
+  .cf-meta{flex:none;text-align:center;padding:2px 16px 0;min-height:44px}
+  .cf-title{color:#fff;font-size:17px;font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cf-artist{color:#b9b9be;font-size:13.5px;font-weight:500;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cf-empty{
+    margin:auto;text-align:center;color:#f5ead6;font-style:italic;text-transform:uppercase;
+    font-family:"Arial Rounded MT Bold","Arial Black",Arial,system-ui,sans-serif;
+    font-size:30px;letter-spacing:1px;text-shadow:2px 2px 0 #000;padding:0 20px;
+  }
+  .cf-bar{flex:none;position:relative;height:4px;margin:8px 32px 10px;background:rgba(255,255,255,.16);border-radius:99px}
+  .cf-knob{position:absolute;top:50%;left:0;width:44px;height:4px;margin-top:-2px;background:rgba(255,255,255,.85);border-radius:99px}
+
+  /* ===== LANDSCAPE PHONE: Cover Flow mode =====
+     Phone-sized viewport tipped sideways ONLY: height ≤500px keeps
+     desktops/tablets out; width ≤950px is the second lock. */
+  @media (orientation:landscape) and (max-height:500px) and (max-width:950px){
+    body{padding:5px}
+    .device{
+      flex-direction:row;width:calc(100vw - 10px);height:calc(100vh - 10px);height:calc(100dvh - 10px);
+      border-radius:40px;padding:7px 0;
+    }
+    .bezel-top{flex:none;width:34px;height:auto}
+    .bezel-bot{flex:none;width:60px;height:auto}
+    .homebtn{width:44px;height:44px}
+    .homebtn i{width:16px;height:16px}
+    .screen{display:none}
+    .coverflow{display:flex}
+  }
 </style>
 </head>
 <body>
@@ -397,8 +464,16 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<div class="coverflow" id="coverflow" aria-hidden="true">
+  <div class="cf-scroll" id="cfScroll">
+    <div class="cf-track" id="cfTrack"></div>
+  </div>
+  <div class="cf-meta"><div class="cf-title" id="cfTitle"></div><div class="cf-artist" id="cfArtist"></div></div>
+  <div class="cf-bar"><div class="cf-knob" id="cfKnob"></div></div>
+</div>
   </div><!-- /.screenwrap -->
-  <div class="bezel-bot"><span class="homebtn"><i></i></span></div>
+  <div class="bezel-bot"><a class="homebtn" href="/directory/" aria-label="Back to games &amp; stuff"><i></i></a></div>
   <div class="sheen"></div>
 </div><!-- /.device -->
 <script>
@@ -692,7 +767,143 @@ function render(){
     }).join("");
   }
   renderSectPanel();
+  renderCoverFlow();
 }
+
+/* ============ COVER FLOW (landscape-phone album view) ============
+   Covers are built from the SAME album list the hero/shelf render
+   (state.items.album — live rows in LIVE mode, demo seed otherwise),
+   in the same render() pass, so admin reorders/adds/removes show up
+   here too. If Top Albums is hidden for the current viewer
+   (visShown("albums") false), the stage renders the empty state.
+   Mode ENTRY is pure CSS (the landscape media query hides .screen and
+   shows this stage); JS only builds covers and, on scroll, computes
+   each cover's 3D transform from its distance to the strip's center. */
+var cf = { albums: [], active: -1, raf: 0, clickGuard: 0 };
+function cfCoverHTML(a){
+  if(a.cover_url) return '<img src="'+esc(a.cover_url)+'" alt="'+esc(a.title)+' album cover" draggable="false">';
+  return '<div class="lib-ph"><div class="note">♪</div><div class="pht">'+esc(a.title)+'</div></div>';
+}
+function renderCoverFlow(){
+  var stage = $("coverflow"), track = $("cfTrack");
+  if(!stage || !track) return;
+  if(!visShown("albums")){
+    cf.albums = []; cf.active = -1;
+    track.innerHTML = "";
+    var eb = $("cfScroll"); if(eb) eb.style.display = "none";
+    var em = document.querySelector(".cf-meta"); if(em) em.style.display = "none";
+    var ebar = document.querySelector(".cf-bar"); if(ebar) ebar.style.display = "none";
+    if(!stage.querySelector(".cf-empty")){
+      var d = document.createElement("div");
+      d.className = "cf-empty"; d.textContent = "Orlando's iPod";
+      stage.appendChild(d);
+    }
+    return;
+  }
+  var emp = stage.querySelector(".cf-empty"); if(emp) emp.parentNode.removeChild(emp);
+  var sb = $("cfScroll"); if(sb) sb.style.display = "";
+  var mm = document.querySelector(".cf-meta"); if(mm) mm.style.display = "";
+  var bb = document.querySelector(".cf-bar"); if(bb) bb.style.display = "";
+  var albums = (state.items && state.items.album) ? state.items.album : [];
+  cf.albums = albums;
+  var sig = albums.map(function(a){ return a.title; }).join("");
+  if(track.getAttribute("data-sig") === sig && track.children.length === albums.length){ cfLayout(); return; }
+  track.setAttribute("data-sig", sig);
+  track.innerHTML = albums.map(function(a, i){
+    return '<div class="cf-item" data-cf="'+i+'"><div class="cf-face">'+cfCoverHTML(a)+'</div></div>';
+  }).join("");
+  cf.active = -1;
+  cfLayout(true);
+}
+/* geometry: cover size comes off the STRIP height (the stage only has
+   real dimensions while the landscape media query is active; in
+   portrait everything is 0 and this harmlessly no-ops). */
+function cfGeom(){
+  var sc = $("cfScroll"); if(!sc) return null;
+  var H = sc.clientHeight, W = sc.clientWidth;
+  if(!H || !W) return null;
+  var S = Math.round(Math.min(H * 0.52, W * 0.34));
+  var step = Math.round(S * 0.46);
+  return { sc: sc, W: W, H: H, S: S, step: step, pad: Math.max(0, (W - S) / 2) };
+}
+function cfLayout(reset){
+  var g = cfGeom(); if(!g) return;
+  var track = $("cfTrack"); if(!track) return;
+  track.style.paddingLeft = g.pad + "px";
+  track.style.paddingRight = g.pad + "px";
+  for(var i = 0; i < track.children.length; i++){
+    var it = track.children[i];
+    it.style.width = g.S + "px"; it.style.height = g.S + "px";
+    it.style.marginLeft = (i === 0 ? 0 : (g.step - g.S)) + "px";
+  }
+  if(reset) g.sc.scrollLeft = 0;
+  cfUpdate();
+}
+function cfUpdate(){
+  var g = cfGeom(); if(!g) return;
+  var track = $("cfTrack"); if(!track || !track.children.length) return;
+  var center = g.sc.scrollLeft + g.W / 2;
+  var best = -1, bestD = Infinity;
+  for(var i = 0; i < track.children.length; i++){
+    var it = track.children[i];
+    var ic = it.offsetLeft + g.S / 2;
+    var d = (ic - center) / g.step;           /* signed distance, in cover steps */
+    var ad = Math.abs(d);
+    if(ad < bestD){ bestD = ad; best = i; }
+    var rot = Math.max(-1, Math.min(1, d)) * -62;
+    var tx = d * (g.step - g.S) * 0.32;
+    var sc = Math.max(0.72, 1 - Math.min(ad, 3) * 0.09);
+    var zi = 100 - Math.round(Math.min(ad, 12) * 4) - (d < 0 ? 1 : 0);
+    it.style.transform = "translateX(" + tx.toFixed(1) + "px) rotateY(" + rot.toFixed(1) + "deg) scale(" + sc.toFixed(3) + ")";
+    it.style.zIndex = zi;
+    it.style.opacity = Math.max(0.35, 1 - Math.min(ad, 4) * 0.16).toFixed(2);
+  }
+  var max = g.sc.scrollWidth - g.W;
+  var knob = $("cfKnob");
+  if(knob) knob.style.left = (max > 0 ? (g.sc.scrollLeft / max) * (g.W - 108) : 0) + "px";
+  if(best >= 0 && best !== cf.active){
+    cf.active = best;
+    var a = cf.albums[best];
+    if(a){
+      $("cfTitle").textContent = a.title || "";
+      $("cfArtist").textContent = a.artist || "";
+    }
+  }
+}
+function cfSetup(){
+  var sc = $("cfScroll"); if(!sc || sc.getAttribute("data-cf-init")) return;
+  sc.setAttribute("data-cf-init", "1");
+  sc.addEventListener("scroll", function(){
+    cf.clickGuard = Date.now();
+    if(cf.raf) return;
+    cf.raf = requestAnimationFrame(function(){ cf.raf = 0; cfUpdate(); });
+  }, { passive: true });
+  sc.addEventListener("click", function(e){
+    if(Date.now() - cf.clickGuard < 80) return;   /* a moving flick is not a tap */
+    var t = e.target, item = (t && t.closest) ? t.closest("[data-cf]") : null;
+    if(!item) return;
+    var idx = parseInt(item.getAttribute("data-cf"), 10);
+    if(idx === cf.active){
+      item.animate([{ transform: item.style.transform }, { transform: item.style.transform + " scale(1.04)" }, { transform: item.style.transform }], { duration: 220 });
+      return;
+    }
+    var g = cfGeom(); if(!g) return;
+    var target = item.offsetLeft + g.S / 2 - g.W / 2;
+    if(window.CSS && CSS.supports && CSS.supports("scroll-behavior", "smooth")) sc.scrollTo({ left: target, behavior: "smooth" });
+    else sc.scrollLeft = target;
+  });
+  if(window.matchMedia){
+    try{
+      var mq = window.matchMedia("(orientation: landscape) and (max-height: 500px) and (max-width: 950px)");
+      var onMq = function(){ cfLayout(); setTimeout(cfLayout, 60); };
+      if(mq.addEventListener) mq.addEventListener("change", onMq);
+      else if(mq.addListener) mq.addListener(onMq);
+    }catch(e){}
+  }
+  window.addEventListener("resize", function(){ cfLayout(); });
+  window.addEventListener("orientationchange", function(){ setTimeout(cfLayout, 60); setTimeout(cfLayout, 320); });
+}
+cfSetup();
 
 /* ============ PERSISTENCE OF EDITS ============ */
 function persistDemo(){
@@ -1255,7 +1466,7 @@ function bootLibrary(){
 bootLibrary();
 
 /* test hooks */
-window.__rotation = { state: state, SEED: SEED, moveItem: moveItem, makeTop: makeTop, removeItem: removeItem, saveAdd: saveAdd, render: render, startGripDrag: startGripDrag, lib: lib, renderLibrary: renderLibrary, libOpenArtist: libOpenArtist, applySettings: applySettings, renderSectPanel: renderSectPanel };
+window.__rotation = { state: state, SEED: SEED, moveItem: moveItem, makeTop: makeTop, removeItem: removeItem, saveAdd: saveAdd, render: render, startGripDrag: startGripDrag, lib: lib, renderLibrary: renderLibrary, libOpenArtist: libOpenArtist, applySettings: applySettings, renderSectPanel: renderSectPanel, renderCoverFlow: renderCoverFlow, cf: cf };
 })();
 </script>
 </body>
