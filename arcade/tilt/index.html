@@ -77,10 +77,10 @@
   .lvlCell .bt{ font-size:8.5px; font-weight:700; color:var(--pill-k); letter-spacing:.4px; }
   .lvlCell.done{ border-color:#0aa06e; background:var(--cell-done); }
   .lvlCell.harddone{ border-color:#d43a2f; background:var(--cell-hard); }
-  #modeSeg{ display:flex; flex:none; gap:0; border:1.5px solid var(--btn-bd); border-radius:13px; overflow:hidden; box-shadow:0 3px 0 var(--btn-sh); }
-  #modeSeg button{ font-family:inherit; border:none; background:var(--cell-bg); color:var(--btn-ink); font-size:13.5px; font-weight:900;
+  #modeSeg, #courseSeg{ display:flex; flex:none; gap:0; border:1.5px solid var(--btn-bd); border-radius:13px; overflow:hidden; box-shadow:0 3px 0 var(--btn-sh); }
+  #modeSeg button, #courseSeg button{ font-family:inherit; border:none; background:var(--cell-bg); color:var(--btn-ink); font-size:13.5px; font-weight:900;
     letter-spacing:1.2px; padding:9px 18px; cursor:pointer; }
-  #modeSeg button.on{ background:var(--seg-on); color:var(--seg-on-ink); }
+  #modeSeg button.on, #courseSeg button.on{ background:var(--seg-on); color:var(--seg-on-ink); }
   #modeSeg button.on.hard{ background:#d43a2f; color:#fff; }
   #calWarn{ display:none; font-size:13.5px; font-weight:800; color:#d43a2f; letter-spacing:.4px; }
   #calWarn.show{ display:block; }
@@ -97,7 +97,7 @@
   #deadLine b{ color:var(--stat-b); }
   @media (max-height:700px){ #logo{ font-size:33px; } #tagline{ margin-bottom:4px; }
     .ov{ gap:7px; padding:12px 14px; } .ovTitle{ font-size:25px; } .ovText{ font-size:13.5px; line-height:1.42; }
-    #lvlGrid{ gap:6px; } .lvlCell{ font-size:15px; } #modeSeg button{ padding:7px 15px; font-size:12.5px; }
+    #lvlGrid{ gap:6px; } .lvlCell{ font-size:15px; } #modeSeg button, #courseSeg button{ padding:7px 15px; font-size:12.5px; }
     .bigBtn{ padding:11px 28px; font-size:16px; } }
 </style>
 </head>
@@ -124,6 +124,7 @@
       <div class="ovTitle">TILT<i>.</i></div>
       <div class="ovText">Hold your phone <b>face up</b> and tilt it like a tray — the marble rolls with your balance. Drop it in the <b>green-ringed hole</b>. Mind the black pits.</div>
       <div id="modeSeg"><button id="segNormal" class="on">NORMAL</button><button id="segHard">💀 HARD</button></div>
+      <div id="courseSeg"><button id="segMaze" class="on">🧩 MAZE</button><button id="segClimb">🧗 CLIMB</button></div>
       <div id="lvlGrid"></div>
       <div class="ovText" id="menuNote" style="font-size:12.5px; color:#8a90a0;">Pick a level to start</div>
     </div>
@@ -163,7 +164,7 @@
     <button class="mini" id="btnMode">💀 HARD: OFF</button>
   </div>
 
-  <div id="hint">Tilt like you're balancing a tray of drinks. <b>◎ RE-CENTER</b> re-zeros the tilt to however you're holding the phone. Black pits send the ball back to the start. The <b>💀 HARD</b> button flips hard mode anytime — even mid-run (it restarts the level).</div>
+  <div id="hint">Tilt like you're balancing a tray of drinks. <b>◎ RE-CENTER</b> re-zeros the tilt to however you're holding the phone. Black pits send the ball back to the start. The <b>💀 HARD</b> button flips hard mode anytime — even mid-run (it restarts the level). <b>🧗 CLIMB</b> courses are long vertical climbs — start at the bottom, roll all the way up to the hole at the top.</div>
 
 <script>
 (()=>{ 'use strict';
@@ -216,13 +217,49 @@ const LEVELS=[
    walls:[[0,2.5,9,0.65],[3,5,9,0.65],[0,7.5,9,0.65],[5.35,10.2,1.3,1.2]] },
 ];
 
+
+/* CLIMB courses — tall vertical boards (width still 12 units, height = h).
+   Start at the bottom, goal hole at the top; the camera follows the ball up. */
+const CLIMB=[
+ { name:'First Climb', h:26, start:[6,24.6], hole:[6,1.2], pits:[],
+   walls:[[0,21,5,0.7],[7,21,5,0.7],[0,16.5,5,0.7],[7,16.5,5,0.7],[0,12,5,0.7],[7,12,5,0.7],[0,7.5,5,0.7],[7,7.5,5,0.7]] },
+ { name:'Switchback Summit', h:30, start:[1.4,28.6], hole:[10.6,1.3], pits:[],
+   walls:[[0,25,9,0.65],[3,20,9,0.65],[0,15,9,0.65],[3,10,9,0.65],[0,5,9,0.65]] },
+ { name:'Pit Alley', h:30, start:[6,28.6], hole:[6,1.2], pits:[[6,21],[6,15],[6,9],[6,3.4]],
+   walls:[[0,24,4.2,0.7],[7.8,24,4.2,0.7],[0,18,4.2,0.7],[7.8,18,4.2,0.7],[0,12,4.2,0.7],[7.8,12,4.2,0.7],[0,6,4.2,0.7],[7.8,6,4.2,0.7]] },
+ { name:'Post Climb', h:34, start:[6,32.6], hole:[6,1.2], pits:[[6,23.7],[6,17.2],[6,10.7]],
+   walls:[[1.8,27,2.2,2.2],[8,27,2.2,2.2],[1.8,20.5,2.2,2.2],[8,20.5,2.2,2.2],[1.8,14,2.2,2.2],[8,14,2.2,2.2],[1.8,7.5,2.2,2.2],[8,7.5,2.2,2.2]] },
+ { name:'Zigzag', h:34, start:[1.5,32.6], hole:[10.5,1.3], pits:[[9,26],[3,21.2],[9,16.7],[3,12.2],[9,7.7]],
+   walls:[[0,28,6,0.65],[6,23.5,6,0.65],[0,19,6,0.65],[6,14.5,6,0.65],[0,10,6,0.65],[6,5.5,6,0.65]] },
+ { name:'Funnel Up', h:36, start:[6,34.6], hole:[6,1.1], pits:[[2,22.8],[10,16.8],[2,10.8]],
+   walls:[[1.5,30,3.4,0.7],[7.1,30,3.4,0.7],[3,27,6,0.7],[1.5,24,3.4,0.7],[7.1,24,3.4,0.7],[3,21,6,0.7],[1.5,18,3.4,0.7],[7.1,18,3.4,0.7],[3,15,6,0.7],[1.5,12,3.4,0.7],[7.1,12,3.4,0.7],[3,9,6,0.7],[1.5,6,3.4,0.7],[7.1,6,3.4,0.7]] },
+ { name:'Minefield Climb', h:36, start:[1.3,34.7], hole:[10.7,1.3], pits:[[3,30],[9,30],[6,25],[2.5,20],[9.5,20],[6,15],[3,10],[9,10],[6,5]],
+   walls:[] },
+ { name:'Tight Bands Climb', h:38, start:[1.4,36.6], hole:[10.6,1.3], pits:[[1.4,29.2],[10.6,23.7],[1.4,18.2],[10.6,12.7],[6,7.2]],
+   walls:[[0,32,9.3,0.65],[2.7,26.5,9.3,0.65],[0,21,9.3,0.65],[2.7,15.5,9.3,0.65],[0,10,9.3,0.65],[2.7,4.5,9.3,0.65]] },
+ { name:'Drain Up', h:40, start:[6,38.6], hole:[1.8,1.2], pits:[[10.6,31],[1.4,25],[10.6,19],[1.4,13],[10.6,7.2]],
+   walls:[[0,34,8.5,0.65],[3.5,28,8.5,0.65],[0,22,8.5,0.65],[3.5,16,8.5,0.65],[0,10,8.5,0.65],[3.5,4.5,5,0.65]] },
+ { name:"King's Climb", h:44, start:[1.4,42.6], hole:[11,1.2], pits:[[10.6,35],[1.5,29],[6,21.7],[10.6,9],[6,1.3],[4.5,42.6]],
+   walls:[[0,38,9,0.65],[3,32,9,0.65],[2.2,24,2.2,2.2],[7.6,24,2.2,2.2],[4.9,18.5,2.2,2.2],[0,12,9,0.65],[3,6,9,0.65],[5.35,41,1.3,1.2]] },
+];
+
 /* ---------------- save ---------------- */
 const LS='tilt-v1';
-let save={ unlocked:1, best:{}, hardBest:{} };
-try{ const s=JSON.parse(localStorage.getItem(LS)); if(s&&s.unlocked){ save=s; if(!save.hardBest) save.hardBest={}; } }catch(e){}
+let save={ unlocked:1, best:{}, hardBest:{}, climbUnlocked:1, climbBest:{}, climbHardBest:{} };
+try{ const s=JSON.parse(localStorage.getItem(LS)); if(s&&s.unlocked){ save=s; if(!save.hardBest) save.hardBest={}; if(save.climbUnlocked==null){ save.climbUnlocked=1; save.climbBest={}; save.climbHardBest={}; } } }catch(e){}
 function persist(){ try{ localStorage.setItem(LS, JSON.stringify(save)); }catch(e){} }
 function fmtTime(ms){ if(ms==null) return '—'; const t=ms/1000, m=Math.floor(t/60), s=t-m*60;
   return m+':'+(s<10?'0':'')+s.toFixed(1); }
+
+/* ---------------- course helpers ---------------- */
+function SET(){ return S.course==='climb' ? CLIMB : LEVELS; }
+function LVL(){ return SET()[S.level]; }
+function LH(){ const L=LVL(); return L.h || U; }
+function BOOK(){ return S.course==='climb' ? (S.hard ? save.climbHardBest : save.climbBest) : (S.hard ? save.hardBest : save.best); }
+function UNL(){ return S.course==='climb' ? save.climbUnlocked : save.unlocked; }
+function setUNL(v){ if(S.course==='climb') save.climbUnlocked=v; else save.unlocked=v; }
+function snapCam(){ S.camY=Math.max(0, Math.min(LH()-U, LVL().start[1]-U/2)); }
+function lvlLabel(){ return (S.course==='climb' ? '🧗 CLIMB ' : 'LEVEL ')+(S.level+1)+' — '+LVL().name.toUpperCase()+(S.hard?' 💀':''); }
 
 /* ---------------- dom ---------------- */
 const $=id=>document.getElementById(id);
@@ -240,14 +277,15 @@ function resize(){
 window.addEventListener('resize', resize);
 
 /* ---------------- state ---------------- */
-const S={ mode:'menu', level:0, hard:false, contact:false, ball:{x:0,y:0,vx:0,vy:0}, tilt:{x:0,y:0},
+const S={ mode:'menu', course:'maze', camY:0, level:0, hard:false, contact:false, ball:{x:0,y:0,vx:0,vy:0}, tilt:{x:0,y:0},
           raw:{beta:0,gamma:0}, zero:{beta:0,gamma:0}, hasSensor:false, permAsked:false,
           t0:0, elapsed:0, falls:0, sinkT:-1, sinkKind:null, thudCd:0 };
 function loadLevel(i){
-  S.level=i; const L=LEVELS[i];
+  S.level=i; const L=LVL();
   S.ball.x=L.start[0]; S.ball.y=L.start[1]; S.ball.vx=0; S.ball.vy=0;
   S.falls=0; S.elapsed=0; S.sinkT=-1; S.sinkKind=null; S.contact=false;
-  hudLevel.textContent=(S.hard?'💀 ':'')+(i+1)+' / '+LEVELS.length;
+  snapCam();
+  hudLevel.textContent=(S.course==='climb'?'🧗 ':'')+(S.hard?'💀 ':'')+(i+1)+' / '+SET().length;
   hudTime.textContent='0:00.0'; hudFalls.textContent='0';
 }
 function buzz(p){ try{ if(navigator.vibrate) navigator.vibrate(p); }catch(e){} }
@@ -273,14 +311,14 @@ function requestTilt(){
 
 /* ---------------- physics ---------------- */
 function physStep(dt){
-  const b=S.ball, L=LEVELS[S.level];
+  const b=S.ball, L=LVL();
   if(S.sinkT>=0){
     S.sinkT+=dt;
     if(S.sinkT>0.38){
       const kind=S.sinkKind; S.sinkT=-1; S.sinkKind=null;
       if(kind==='goal'){ levelDone(); }
       else if(kind==='death'){ runDead(); }
-      else { b.x=L.start[0]; b.y=L.start[1]; b.vx=0; b.vy=0; S.falls++; hudFalls.textContent=S.falls; }
+      else { b.x=L.start[0]; b.y=L.start[1]; b.vx=0; b.vy=0; S.falls++; hudFalls.textContent=S.falls; snapCam(); }
     }
     return;
   }
@@ -293,7 +331,8 @@ function physStep(dt){
   if(b.x<BALL_R){ b.x=BALL_R; if(b.vx<0){ b.vx=-b.vx*REST; hit(); } }
   if(b.x>U-BALL_R){ b.x=U-BALL_R; if(b.vx>0){ b.vx=-b.vx*REST; hit(); } }
   if(b.y<BALL_R){ b.y=BALL_R; if(b.vy<0){ b.vy=-b.vy*REST; hit(); } }
-  if(b.y>U-BALL_R){ b.y=U-BALL_R; if(b.vy>0){ b.vy=-b.vy*REST; hit(); } }
+  const lh=LH();
+  if(b.y>lh-BALL_R){ b.y=lh-BALL_R; if(b.vy>0){ b.vy=-b.vy*REST; hit(); } }
   // walls: closest-point push-out along the contact normal, so the ball rolls
   // AROUND corners instead of pinning on them (two relaxation passes)
   for(let pass=0; pass<2; pass++){
@@ -334,8 +373,8 @@ function thud(){ const n=performance.now(); if(n-S.thudCd>110){ S.thudCd=n; buzz
 function hit(){ S.contact=true; thud(); }
 function runDead(){
   S.mode='dead';
-  $('deadLine').innerHTML='Level <b>'+(S.level+1)+' — '+LEVELS[S.level].name+'</b> 💀<br>Survived <b>'+fmtTime(S.elapsed)+
-    '</b>'+(save.hardBest[S.level]!=null?' · Hard best <b>'+fmtTime(save.hardBest[S.level])+'</b>':' · No hard clear yet')+
+  $('deadLine').innerHTML=(S.course==='climb'?'Climb ':'Level ')+'<b>'+(S.level+1)+' — '+LVL().name+'</b> 💀<br>Survived <b>'+fmtTime(S.elapsed)+
+    '</b>'+(BOOK()[S.level]!=null?' · Hard best <b>'+fmtTime(BOOK()[S.level])+'</b>':' · No hard clear yet')+
     '<br><span style="font-size:12.5px; color:#8a90a0;">One touch is all it takes. Breathe. Go again.</span>';
   showOv(deadOv);
 }
@@ -347,15 +386,16 @@ function startSink(kind, at){
 function levelDone(){
   S.mode='done';
   const t=Math.round(S.elapsed);
-  const book = S.hard ? save.hardBest : save.best;
+  const book = BOOK();
   if(book[S.level]==null||t<book[S.level]){ book[S.level]=t; }
-  if(S.level+1<LEVELS.length && save.unlocked<S.level+2) save.unlocked=S.level+2;
+  if(S.level+1<SET().length && UNL()<S.level+2) setUNL(S.level+2);
   persist();
-  $('doneTitle').textContent = S.hard ? (S.level===LEVELS.length-1 ? '💀👑 FLAWLESS. ALL 10.' : '💀 FLAWLESS!')
-    : (S.level===LEVELS.length-1 ? 'YOU BEAT TILT. 👑' : 'IN THE HOLE! 🎉');
-  $('statLine').innerHTML='Level <b>'+(S.level+1)+' — '+LEVELS[S.level].name+'</b>'+(S.hard?' 💀 HARD':'')+'<br>Time <b>'+fmtTime(t)+
+  const last = S.level===SET().length-1;
+  $('doneTitle').textContent = S.hard ? (last ? (S.course==='climb' ? '💀👑 FLAWLESS. SUMMITED.' : '💀👑 FLAWLESS. ALL 10.') : '💀 FLAWLESS!')
+    : (last ? (S.course==='climb' ? 'YOU SUMMITED! 👑🧗' : 'YOU BEAT TILT. 👑') : 'IN THE HOLE! 🎉');
+  $('statLine').innerHTML=(S.course==='climb'?'Climb ':'Level ')+'<b>'+(S.level+1)+' — '+LVL().name+'</b>'+(S.hard?' 💀 HARD':'')+'<br>Time <b>'+fmtTime(t)+
     '</b> · Best <b>'+fmtTime(book[S.level])+'</b>'+(S.hard?'':' · Falls <b>'+S.falls+'</b>');
-  $('nextBtn').textContent = S.level===LEVELS.length-1 ? '↺ PLAY AGAIN' : 'NEXT LEVEL ▶';
+  $('nextBtn').textContent = S.level===SET().length-1 ? '↺ PLAY AGAIN' : (S.course==='climb' ? 'NEXT CLIMB ▶' : 'NEXT LEVEL ▶');
   doneOv.classList.remove('hidden');
 }
 
@@ -369,7 +409,10 @@ function rr(x,y,w,h,r){
   ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
 }
 function draw(){
-  const L=LEVELS[S.level], u=PX;
+  const L=LVL(), u=PX, lh=LH();
+  const camT=Math.max(0, Math.min(lh-U, S.ball.y-U/2));
+  S.camY += (camT-S.camY)*0.16; if(Math.abs(camT-S.camY)<0.003) S.camY=camT;
+  const Y=y=>(y-S.camY)*u;
   ctx.clearRect(0,0,cv.width,cv.height);
   // board surface
   const bg=ctx.createLinearGradient(0,0,0,cv.height);
@@ -378,38 +421,39 @@ function draw(){
   ctx.fillStyle=bg; rr(0,0,cv.width,cv.height,26*(cv.width/520>1?1:cv.width/520)); ctx.fill();
   // faint dot grid
   ctx.fillStyle=DARK?'rgba(255,255,255,.055)':'rgba(60,60,80,.07)';
-  for(let i=1;i<U;i++) for(let j=1;j<U;j++){ ctx.beginPath(); ctx.arc(i*u,j*u,Math.max(1.4,u*0.035),0,7); ctx.fill(); }
+  const j0=Math.max(1,Math.floor(S.camY)), j1=Math.min(lh-1,Math.ceil(S.camY+U));
+  for(let i=1;i<U;i++) for(let j=j0;j<=j1;j++){ ctx.beginPath(); ctx.arc(i*u,Y(j),Math.max(1.4,u*0.035),0,7); ctx.fill(); }
   // start pad
   ctx.strokeStyle=DARK?'rgba(255,255,255,.32)':'rgba(40,40,60,.30)'; ctx.lineWidth=Math.max(1.5,u*0.05); ctx.setLineDash([u*0.22,u*0.16]);
-  ctx.beginPath(); ctx.arc(L.start[0]*u,L.start[1]*u,BALL_R*u*1.45,0,7); ctx.stroke(); ctx.setLineDash([]);
+  ctx.beginPath(); ctx.arc(L.start[0]*u,Y(L.start[1]),BALL_R*u*1.45,0,7); ctx.stroke(); ctx.setLineDash([]);
   // pits
   for(const p of L.pits){
-    const g=ctx.createRadialGradient(p[0]*u,p[1]*u,PIT_R*u*0.1,p[0]*u,p[1]*u,PIT_R*u);
+    const g=ctx.createRadialGradient(p[0]*u,Y(p[1]),PIT_R*u*0.1,p[0]*u,Y(p[1]),PIT_R*u);
     g.addColorStop(0,'#000'); g.addColorStop(0.75,'#060607'); g.addColorStop(0.93,'#1b1b1f'); g.addColorStop(1,'rgba(0,0,0,0)');
-    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(p[0]*u,p[1]*u,PIT_R*u,0,7); ctx.fill();
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(p[0]*u,Y(p[1]),PIT_R*u,0,7); ctx.fill();
   }
   // goal hole (pulsing emerald ring)
   const pulse=0.5+0.22*Math.sin(performance.now()/280);
   ctx.strokeStyle='rgba(10,160,110,'+pulse+')'; ctx.lineWidth=Math.max(2.5,u*0.11);
-  ctx.beginPath(); ctx.arc(L.hole[0]*u,L.hole[1]*u,HOLE_R*u*1.12,0,7); ctx.stroke();
-  const hg=ctx.createRadialGradient(L.hole[0]*u,L.hole[1]*u,HOLE_R*u*0.08,L.hole[0]*u,L.hole[1]*u,HOLE_R*u);
+  ctx.beginPath(); ctx.arc(L.hole[0]*u,Y(L.hole[1]),HOLE_R*u*1.12,0,7); ctx.stroke();
+  const hg=ctx.createRadialGradient(L.hole[0]*u,Y(L.hole[1]),HOLE_R*u*0.08,L.hole[0]*u,Y(L.hole[1]),HOLE_R*u);
   hg.addColorStop(0,'#000'); hg.addColorStop(0.8,'#0a0f0c'); hg.addColorStop(0.95,'#233028'); hg.addColorStop(1,'rgba(0,0,0,0)');
-  ctx.fillStyle=hg; ctx.beginPath(); ctx.arc(L.hole[0]*u,L.hole[1]*u,HOLE_R*u,0,7); ctx.fill();
+  ctx.fillStyle=hg; ctx.beginPath(); ctx.arc(L.hole[0]*u,Y(L.hole[1]),HOLE_R*u,0,7); ctx.fill();
   // walls — graphite blocks with soft shadow (lighter blocks on the dark board)
   for(const w of L.walls){
     ctx.fillStyle=DARK?'rgba(0,0,0,.55)':'rgba(30,28,45,.20)';
-    rr(w[0]*u+u*0.05, w[1]*u+u*0.09, w[2]*u, w[3]*u, u*0.14); ctx.fill();
-    const wg=ctx.createLinearGradient(w[0]*u,w[1]*u,w[0]*u,(w[1]+w[3])*u);
+    rr(w[0]*u+u*0.05, Y(w[1])+u*0.09, w[2]*u, w[3]*u, u*0.14); ctx.fill();
+    const wg=ctx.createLinearGradient(w[0]*u,Y(w[1]),w[0]*u,Y(w[1]+w[3]));
     if(DARK){ wg.addColorStop(0,'#5d5d6c'); wg.addColorStop(0.5,'#454552'); wg.addColorStop(1,'#2f2f39'); }
     else { wg.addColorStop(0,'#3d3d47'); wg.addColorStop(0.5,'#2c2c34'); wg.addColorStop(1,'#1d1d23'); }
-    ctx.fillStyle=wg; rr(w[0]*u, w[1]*u, w[2]*u, w[3]*u, u*0.14); ctx.fill();
-    ctx.fillStyle=DARK?'rgba(255,255,255,.16)':'rgba(255,255,255,.13)'; rr(w[0]*u+u*0.05, w[1]*u+u*0.04, w[2]*u-u*0.1, Math.min(u*0.14,w[3]*u*0.3), u*0.07); ctx.fill();
+    ctx.fillStyle=wg; rr(w[0]*u, Y(w[1]), w[2]*u, w[3]*u, u*0.14); ctx.fill();
+    ctx.fillStyle=DARK?'rgba(255,255,255,.16)':'rgba(255,255,255,.13)'; rr(w[0]*u+u*0.05, Y(w[1])+u*0.04, w[2]*u-u*0.1, Math.min(u*0.14,w[3]*u*0.3), u*0.07); ctx.fill();
   }
   // the marble
   const b=S.ball;
   let scale=1, alpha=1;
   if(S.sinkT>=0){ const k=Math.min(1,S.sinkT/0.38); scale=1-k*0.92; alpha=1-k*0.4; }
-  const bx=b.x*u, by=b.y*u, br=BALL_R*u*scale;
+  const bx=b.x*u, by=Y(b.y), br=BALL_R*u*scale;
   const mg=ctx.createRadialGradient(bx-br*0.38, by-br*0.42, br*0.08, bx, by, br*1.05);
   mg.addColorStop(0,'#ffffff'); mg.addColorStop(0.28,'#e9eef4'); mg.addColorStop(0.55,'#aebccb');
   mg.addColorStop(0.8,'#5f7185'); mg.addColorStop(0.95,'#33404e'); mg.addColorStop(1,'#1c242e');
@@ -418,6 +462,17 @@ function draw(){
   ctx.fillStyle='rgba(255,255,255,.92)';
   ctx.beginPath(); ctx.ellipse(bx-br*0.38, by-br*0.46, br*0.20, br*0.12, -0.6, 0, 7); ctx.fill();
   ctx.globalAlpha=1;
+  // CLIMB progress rail: how far up the course you are
+  if(S.course==='climb'){
+    const rx=cv.width-u*0.42, yT=u*0.9, yB=cv.height-u*0.9;
+    const pr=Math.max(0, Math.min(1, (L.start[1]-b.y)/Math.max(0.001, L.start[1]-L.hole[1])));
+    ctx.strokeStyle=DARK?'rgba(255,255,255,.28)':'rgba(40,40,60,.28)'; ctx.lineWidth=Math.max(2,u*0.07);
+    ctx.beginPath(); ctx.moveTo(rx,yT); ctx.lineTo(rx,yB); ctx.stroke();
+    ctx.strokeStyle='#0aa06e'; ctx.lineWidth=Math.max(2,u*0.08);
+    ctx.beginPath(); ctx.arc(rx,yT,u*0.17,0,7); ctx.stroke();
+    ctx.fillStyle=DARK?'#f0f0f5':'#23232a';
+    ctx.beginPath(); ctx.arc(rx, yB-pr*(yB-yT), u*0.15, 0, 7); ctx.fill();
+  }
   if(S.sinkT>=0 && S.sinkKind==='death'){
     const k=Math.min(1,S.sinkT/0.38);
     ctx.fillStyle='rgba(255,255,255,'+(k*0.85)+')';
@@ -447,22 +502,30 @@ if(!window.__TILT_MANUAL__) requestAnimationFrame(loop);
 function showOv(el){ for(const o of [menuOv,calOv,doneOv,noSensorOv,deadOv]) o.classList.add('hidden'); if(el) el.classList.remove('hidden'); }
 function buildGrid(){
   lvlGrid.innerHTML='';
-  LEVELS.forEach((L,i)=>{
-    const book = S.hard ? save.hardBest : save.best;
+  const book = BOOK(), unl = UNL();
+  SET().forEach((L,i)=>{
     const c=document.createElement('button');
-    c.className='lvlCell'+(book[i]!=null?(S.hard?' harddone':' done'):'')+(i<save.unlocked?'':' locked');
-    c.innerHTML=(i+1)+'<span class="bt">'+(i<save.unlocked?fmtTime(book[i]):'🔒')+'</span>';
-    if(i<save.unlocked) c.addEventListener('click', ()=>pickLevel(i));
+    c.className='lvlCell'+(book[i]!=null?(S.hard?' harddone':' done'):'')+(i<unl?'':' locked');
+    c.innerHTML=(i+1)+'<span class="bt">'+(i<unl?fmtTime(book[i]):'🔒')+'</span>';
+    if(i<unl) c.addEventListener('click', ()=>pickLevel(i));
     lvlGrid.appendChild(c);
   });
   $('segNormal').className = S.hard ? '' : 'on';
   $('segHard').className = S.hard ? 'on hard' : '';
+  $('segMaze').className = S.course==='maze' ? 'on' : '';
+  $('segClimb').className = S.course==='climb' ? 'on' : '';
+  $('menuNote').textContent = S.course==='climb'
+    ? '🧗 CLIMB — start at the bottom, roll all the way UP to the hole at the top. Pits drop you back to the start.'
+    : 'Pick a level to start';
+}
+function setCourse(c){
+  S.course=c; S.mode='menu'; loadLevel(0); buildGrid(); showOv(menuOv);
 }
 function pickLevel(i){
   loadLevel(i);
   if(!('DeviceOrientationEvent' in window)){ S.mode='menu'; showOv(noSensorOv); return; }
   S.mode='cal';
-  $('calTitle').textContent='LEVEL '+(i+1)+' — '+LEVELS[i].name.toUpperCase()+(S.hard?' 💀':'');
+  $('calTitle').textContent=lvlLabel();
   $('calWarn').className = S.hard ? 'show' : '';
   showOv(calOv);
 }
@@ -474,10 +537,12 @@ function setHardMode(v){
   if(S.mode==='play' || S.mode==='dead' || S.mode==='done'){
     pickLevel(S.level); // restart the current level under the new mode, from the calibration screen
   } else if(S.mode==='cal'){
-    $('calTitle').textContent='LEVEL '+(S.level+1)+' — '+LEVELS[S.level].name.toUpperCase()+(S.hard?' 💀':'');
+    $('calTitle').textContent=lvlLabel();
     $('calWarn').className = S.hard ? 'show' : '';
   }
 }
+$('segMaze').addEventListener('click', ()=>setCourse('maze'));
+$('segClimb').addEventListener('click', ()=>setCourse('climb'));
 $('segNormal').addEventListener('click', ()=>setHardMode(false));
 $('segHard').addEventListener('click', ()=>setHardMode(true));
 $('btnMode').addEventListener('click', ()=>setHardMode(!S.hard));
@@ -489,9 +554,9 @@ $('calBtn').addEventListener('click', ()=>{
 });
 $('calBack').addEventListener('click', ()=>{ S.mode='menu'; buildGrid(); showOv(menuOv); });
 $('nextBtn').addEventListener('click', ()=>{
-  const n = S.level===LEVELS.length-1 ? 0 : S.level+1;
+  const n = S.level===SET().length-1 ? 0 : S.level+1;
   loadLevel(n); S.mode='cal';
-  $('calTitle').textContent='LEVEL '+(n+1)+' — '+LEVELS[n].name.toUpperCase()+(S.hard?' 💀':'');
+  $('calTitle').textContent=lvlLabel();
   $('calWarn').className = S.hard ? 'show' : '';
   showOv(calOv);
 });
@@ -504,7 +569,7 @@ loadLevel(0); buildGrid(); resize(); draw();
 if(!('DeviceOrientationEvent' in window)) showOv(noSensorOv);
 
 /* test hooks */
-window.__tilt={ S, LEVELS, physStep, loadLevel, save:()=>save,
+window.__tilt={ S, LEVELS, CLIMB, physStep, loadLevel, save:()=>save, setCourse, lvl:()=>LVL(), lh:()=>LH(),
   setTilt:(x,y)=>{ S.tilt.x=x; S.tilt.y=y; },
   setHard:(v)=>{ S.hard=v; },
   startPlay:(i)=>{ loadLevel(i); S.mode='play'; showOv(null); },
