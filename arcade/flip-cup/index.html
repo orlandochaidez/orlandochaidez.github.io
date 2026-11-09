@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="theme-color" content="#2a1a12" />
+<meta name="description" content="Flip Cup: a phone-only flick game. Lay your phone flat, flick your wrist, and stick the landing." />
+<title>Flip Cup · Phone Flick</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232a1a12'/%3E%3Cpath d='M18 14h28l-4 38H22z' fill='%23e3262f'/%3E%3Crect x='16' y='11' width='32' height='6' rx='3' fill='%23fff'/%3E%3C/svg%3E" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud" class="hidden">
+  <button id="backBtn" class="icon-btn" aria-label="Menu">
+    <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <div class="pill"><span class="lbl" id="l1">Cups</span><b id="v1">0/6</b></div>
+  <div class="pill"><span class="lbl" id="l2">Time</span><b id="v2">0.0</b></div>
+  <div class="pill"><span class="lbl" id="l3">Best</span><b id="v3">--</b></div>
+  <button id="muteBtn" class="icon-btn" aria-label="Mute">
+    <svg id="icoSound" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+    <svg id="icoMute" viewBox="0 0 24 24" class="hidden"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+  </button>
+</div>
+
+<div id="status" class="status hidden">
+  <div class="level"><div id="bubble" class="bubble"></div></div>
+  <span id="statusText">Lay your phone flat</span>
+</div>
+<div id="meter" class="meter hidden"><div class="zone" id="zone"></div><div class="needle" id="needle"></div></div>
+<div id="toast" class="toast"></div>
+<button id="tapFlick" class="tap-flick hidden">Tap to flick (no gyro)</button>
+
+<!-- Phone-only gate -->
+<div id="gate" class="modal">
+  <div class="card">
+    <div class="big">📱</div>
+    <h1>Phone only</h1>
+    <p>Flip Cup uses your phone's motion sensors. Open this page on your phone to play.</p>
+    <p class="small">orlandochaidez.com arcade</p>
+  </div>
+</div>
+
+<!-- Title / mode select -->
+<div id="title" class="modal">
+  <div class="card">
+    <svg class="logo" viewBox="0 0 120 120" aria-hidden="true">
+      <rect x="6" y="6" width="108" height="108" rx="26" fill="#3a2418"/>
+      <g transform="rotate(-18 60 62)">
+        <path d="M38 30h44l-6 62H44z" fill="#e3262f"/>
+        <path d="M40 48h40M41.6 64h36.8" stroke="#ff6a70" stroke-width="3"/>
+        <rect x="35" y="25" width="50" height="9" rx="4.5" fill="#fff"/>
+      </g>
+      <path d="M92 20c8 6 10 16 6 24" stroke="#ffcf5a" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <path d="M99 44l-1 -9 -7 5" stroke="#ffcf5a" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <h1>Flip Cup</h1>
+    <p class="sub">Lay your phone flat. Flick your wrist. Stick it.</p>
+    <button class="mode" data-mode="cup"><b>🥤 Flip Cup</b><span>Flip 6 cups off the table edge. Race the clock.</span></button>
+    <button class="mode" data-mode="bottle"><b>💧 Bottle Flip</b><span>Pancake-toss the bottle. Land it on its base.</span></button>
+    <p class="small" id="permNote">Your phone will ask to use motion. Tap Allow.</p>
+  </div>
+</div>
+
+<!-- How to -->
+<div id="howto" class="modal">
+  <div class="card">
+    <h2 id="howTitle">How to flip</h2>
+    <ol id="howList"></ol>
+    <button id="goBtn" class="primary">Let's go</button>
+  </div>
+</div>
+
+<!-- Finish -->
+<div id="finish" class="modal">
+  <div class="card">
+    <h2 id="finTitle">Done!</h2>
+    <p id="finText"></p>
+    <button id="againBtn" class="primary">Run it back</button>
+    <button id="menuBtn2" class="ghost">Menu</button>
+  </div>
+</div>
+
+<script src="js/audio.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
