@@ -112,6 +112,3 @@ ol li { margin: 6px 0; }
 .seg button { border: 0; background: transparent; font: inherit; font-weight: 800; font-size: 13px; color: #7a5a48; padding: 7px 11px; border-radius: 9px; }
 .seg button.on { background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.15); }
 
-.card .home-link { display: flex; width: fit-content; align-items: center; gap: 4px; margin: -6px 0 6px -6px; padding: 7px 12px 7px 8px; border-radius: 999px; background: rgba(58,36,24,.08); color: #3a2418; font-size: 14px; font-weight: 700; text-decoration: none; }
-.card .home-link svg { width: 18px; height: 18px; }
-.card .home-link:active { background: rgba(58,36,24,.16); }

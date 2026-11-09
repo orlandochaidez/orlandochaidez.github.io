@@ -10,7 +10,7 @@
 <meta name="description" content="Flip Cup: a phone-only flick game. Lay your phone flat, flick your wrist, and stick the landing." />
 <title>Flip Cup · Phone Flick</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232a1a12'/%3E%3Cpath d='M18 14h28l-4 38H22z' fill='%23e3262f'/%3E%3Crect x='16' y='11' width='32' height='6' rx='3' fill='%23fff'/%3E%3C/svg%3E" />
-<link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="style.css?v=3" />
 </head>
 <body>
 <canvas id="game"></canvas>
@@ -38,8 +38,8 @@
 
 <!-- Phone-only gate -->
 <div id="gate" class="modal">
+  <a class="home-link" href="https://orlandochaidez.com/directory/" style="position:absolute;top:calc(env(safe-area-inset-top,0px) + 14px);left:18px;color:#5ab4ff;font-size:17px;font-weight:700;text-decoration:none;z-index:5">&larr; All games</a>
   <div class="card">
-    <a class="home-link" href="https://orlandochaidez.com/directory/"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>Games &amp; stuff</a>
     <div class="big">📱</div>
     <h1>Phone only</h1>
     <p>Flip Cup uses your phone's motion sensors. Open this page on your phone to play.</p>
@@ -49,8 +49,8 @@
 
 <!-- Title / mode select -->
 <div id="title" class="modal">
+  <a class="home-link" href="https://orlandochaidez.com/directory/" style="position:absolute;top:calc(env(safe-area-inset-top,0px) + 14px);left:18px;color:#5ab4ff;font-size:17px;font-weight:700;text-decoration:none;z-index:5">&larr; All games</a>
   <div class="card">
-    <a class="home-link" href="https://orlandochaidez.com/directory/"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>Games &amp; stuff</a>
     <svg class="logo" viewBox="0 0 120 120" aria-hidden="true">
       <rect x="6" y="6" width="108" height="108" rx="26" fill="#3a2418"/>
       <g transform="rotate(-18 60 62)">
@@ -89,7 +89,7 @@
   </div>
 </div>
 
-<script src="js/audio.js"></script>
-<script src="js/game.js"></script>
+<script src="js/audio.js?v=3"></script>
+<script src="js/game.js?v=3"></script>
 </body>
 </html>
