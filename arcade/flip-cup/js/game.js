@@ -122,6 +122,8 @@
     set cup(v) { localStorage.setItem('flipcup.bestCup', String(v)); },
     get streak() { return parseInt(localStorage.getItem('flipcup.bestStreak') || '0', 10); },
     set streak(v) { localStorage.setItem('flipcup.bestStreak', String(v)); },
+    get bottle() { return parseFloat(localStorage.getItem('flipcup.bestBottle')) || null; },
+    set bottle(v) { localStorage.setItem('flipcup.bestBottle', String(v)); },
   };
 
   // ---------- UI ----------
@@ -141,17 +143,13 @@
     $('needle').style.left = (clamp(p, 0, P_MAX) / P_MAX * 100) + '%';
   }
   function updateHud() {
-    if (S.mode === 'cup') {
-      $('l1').textContent = 'Cups'; $('v1').textContent = `${S.cupsDone}/${CUPS_PER_ROUND}`;
-      $('l2').textContent = 'Time';
-      const t = S.running ? (performance.now() - S.tStart) / 1000 : (S.tEnd ? (S.tEnd - S.tStart) / 1000 : 0);
-      $('v2').textContent = t.toFixed(1);
-      $('l3').textContent = 'Best'; $('v3').textContent = best.cup ? best.cup.toFixed(1) : '--';
-    } else {
-      $('l1').textContent = 'Streak'; $('v1').textContent = S.streak;
-      $('l2').textContent = 'Landed'; $('v2').textContent = S.total;
-      $('l3').textContent = 'Best'; $('v3').textContent = best.streak;
-    }
+    const cup = S.mode === 'cup';
+    $('l1').textContent = cup ? 'Cups' : 'Bottles'; $('v1').textContent = `${Math.min(S.cupsDone, CUPS_PER_ROUND)}/${CUPS_PER_ROUND}`;
+    $('l2').textContent = 'Time';
+    const t = S.running ? (performance.now() - S.tStart) / 1000 : (S.tEnd ? (S.tEnd - S.tStart) / 1000 : 0);
+    $('v2').textContent = t.toFixed(1);
+    const b = cup ? best.cup : best.bottle;
+    $('l3').textContent = 'Best'; $('v3').textContent = b ? b.toFixed(1) : '--';
   }
   function setStatus() {
     const st = $('status'), tx = $('statusText');
@@ -173,7 +171,7 @@
     bottle: ['Hold your phone flat, screen up, like a pan with a pancake on it.',
       'When it turns green, do a pancake flip: swing your wrist so the bottom edge comes up and over. A slap won\'t do it, the swing is what counts.',
       'The bottle has to do a full flip and land on its base. The water slows its spin, so commit to it.',
-      'Land on the cap for a legendary flip.'],
+      'Land 6 bottles as fast as you can. Land one on its cap for a legendary flip that counts as 2.'],
   };
 
   // ---------- sensors ----------
@@ -262,7 +260,7 @@
     if (S.phase !== 'idle' || !S.mode) return;
     S.lastP = p; S.armed = false;
     S.body = launch(S.mode, p); S.phase = 'flying';
-    if (S.mode === 'cup' && !S.running && S.cupsDone === 0) { S.running = true; S.tStart = performance.now(); S.tEnd = 0; }
+    if (!S.running && S.cupsDone === 0) { S.running = true; S.tStart = performance.now(); S.tEnd = 0; }
     Sfx.whoosh(p);
     if (navigator.vibrate) navigator.vibrate(12);
     setMeter(p);
@@ -293,10 +291,12 @@
       if (good) {
         S.streak++; S.total++;
         if (S.streak > best.streak) best.streak = S.streak;
+        S.cupsDone += out.kind === 'cap' ? 2 : 1;          // cap flip counts double
+        const done = S.cupsDone >= CUPS_PER_ROUND;
         burst(b.x, 0.02, out.kind === 'win' ? 20 : 45);
-        if (out.kind === 'cap') { toast('CAP FLIP!!<small>Legendary</small>', 'good', 1600); Sfx.bigwin(); S.total += 2; }
-        else if (out.kind === 'double') { toast('DOUBLE FLIP!', 'good', 1300); Sfx.bigwin(); }
-        else { toast(S.streak > 2 ? `STUCK IT! x${S.streak}` : 'STUCK IT!', 'good', 1000); Sfx.win(); }
+        if (out.kind === 'cap') { toast('CAP FLIP!!<small>Legendary, counts as 2</small>', 'good', 1600); Sfx.bigwin(); }
+        else if (out.kind === 'double') { toast(done ? 'DONE!' : 'DOUBLE FLIP!', 'good', 1300); Sfx.bigwin(); }
+        else { toast(done ? 'DONE!' : S.streak > 2 ? `STUCK IT! x${S.streak}` : 'STUCK IT!', 'good', 1000); Sfx.win(); }
         if (navigator.vibrate) navigator.vibrate([20, 40, 20]);
       } else {
         S.streak = 0;
@@ -309,11 +309,12 @@
   }
   function afterResult() {
     const o = S.outcome; const good = o && (o.kind === 'win' || o.kind === 'double' || o.kind === 'cap');
-    if (S.mode === 'cup' && good && S.cupsDone >= CUPS_PER_ROUND) {
+    if (good && S.cupsDone >= CUPS_PER_ROUND) {
       S.running = false; S.tEnd = performance.now();
-      const t = (S.tEnd - S.tStart) / 1000, prev = best.cup, isBest = !prev || t < prev;
-      if (isBest) best.cup = t;
-      $('finTitle').textContent = isBest ? 'New best! 🏆' : 'All 6 flipped!';
+      const key = S.mode === 'cup' ? 'cup' : 'bottle';
+      const t = (S.tEnd - S.tStart) / 1000, prev = best[key], isBest = !prev || t < prev;
+      if (isBest) best[key] = t;
+      $('finTitle').textContent = isBest ? 'New best! 🏆' : (S.mode === 'cup' ? 'All 6 flipped!' : 'All 6 landed!');
       $('finText').textContent = `${t.toFixed(1)} seconds` + (prev && !isBest ? ` · best ${prev.toFixed(1)}` : '');
       Sfx.bigwin(); updateHud(); show('finish');
       S.phase = 'done'; return;
@@ -456,7 +457,7 @@
     }
   }
   function drawBottle(b, glow) {
-    const h = BOT.H / 2, w = BOT.W / 2;
+    const k = b.k || 1, h = BOT.H / 2 * k, w = BOT.W / 2 * k;
     const clear = { side: 'rgba(205,235,255,.55)', lite: 'rgba(255,255,255,.75)', dark: 'rgba(120,170,210,.6)' };
     const water = { side: '#3d9df0', lite: '#7cc4ff', dark: '#1a5fb0' };
     const label = { side: '#1f6fd1', lite: '#3d8be6', dark: '#123f82' };
@@ -508,6 +509,20 @@
       }
       const saveCX = CX; CX = saveCX + (p[0] - P(X, 0, 0)[0]);
       drawCup({ x: X, y: CUP.H / 2 * k, th: Math.PI, k }, false);
+      CX = saveCX;
+    }
+  }
+  function drawDoneBottles() {
+    const X = 0.8, k = 0.6;
+    for (let i = 0; i < CUPS_PER_ROUND; i++) {
+      const z = -0.16 + i * 0.064, p = P(X, 0, z);
+      if (i >= S.cupsDone) {
+        ctx.strokeStyle = 'rgba(255,235,200,.35)'; ctx.setLineDash([4, 4]); ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.ellipse(p[0], p[1], BOT.W / 2 * k * p[2], BOT.W / 2 * k * p[2] * SP * 0.9, 0, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+        continue;
+      }
+      const saveCX = CX; CX = saveCX + (p[0] - P(X, 0, 0)[0]);
+      drawBottle({ x: X, y: BOT.H / 2 * k, th: 0, k }, false);
       CX = saveCX;
     }
   }
@@ -569,6 +584,7 @@
       const m = P(0.43, 0, 0);
       ctx.strokeStyle = 'rgba(255,207,90,.45)'; ctx.setLineDash([6, 6]); ctx.lineWidth = 2;
       ctx.beginPath(); ctx.ellipse(m[0], m[1], 0.07 * m[2], 0.07 * m[2] * SP * 0.9, 0, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+      drawDoneBottles();
       drawHand();
       shadowAt(S.body.x, S.body.y);
       drawBottle(S.body, ready);
