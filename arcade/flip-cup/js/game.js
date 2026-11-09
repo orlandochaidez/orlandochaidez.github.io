@@ -166,12 +166,12 @@
   }
 
   const HOW = {
-    cup: ['Hold your phone flat in your palm, screen up, like the cup is sitting on it.',
-      'When the pill turns green, pop the bottom edge of your phone up (slap it or flick your wrist) so the cup flips away from you onto the table.',
-      'Soft flick = it won\'t turn over. Too hard = it over-rotates. Find the green zone on the meter.',
+    cup: ['Hold your phone flat, screen up. The cup is sitting on the edge of the table.',
+      'When the pill turns green, slap the back of your phone right behind the home button area, from underneath. The cup flips away from you onto the table.',
+      'Too soft = it won\'t turn over. A monster smack over-rotates. Still too soft? Set Power to More.',
       'Flip all 6 cups as fast as you can.'],
     bottle: ['Hold your phone flat, screen up, like a pan with a pancake on it.',
-      'When it turns green, pop the bottom edge up like flipping a pancake. The bottle flips away from you toward the table.',
+      'When it turns green, do a pancake flip: swing your wrist so the bottom edge comes up and over. A slap won\'t do it, the swing is what counts.',
       'The bottle has to do a full flip and land on its base. The water slows its spin, so commit to it.',
       'Land on the cap for a legendary flip.'],
   };
@@ -203,23 +203,48 @@
     S.flat = flat;
     if (S.phase === 'idle' && !S.armed && S.flat && now - S.flatSince > 350) { S.armed = true; Sfx.arm(); }
     if (!r) return;
-    const rate = Math.hypot(r.beta || 0, (r.gamma || 0) * 0.6);   // deg/s: pitch (bottom-edge slap) counts most
-    const lin = e.acceleration ? Math.abs(e.acceleration.z || 0) : 0;
-    if (S.capture) {
-      S.capture.peak = Math.max(S.capture.peak, rate);
-      S.capture.lin = Math.max(S.capture.lin, lin);
-      if (now - S.capture.t0 > 170) finishCapture();
+    const rate = Math.hypot(r.beta || 0, r.gamma || 0);        // deg/s, ignores spin flat on the table (alpha)
+    const rate3 = Math.hypot(r.alpha || 0, r.beta || 0, r.gamma || 0); // any-axis (iOS axis naming varies)
+    const ac = e.acceleration || { x: 0, y: 0, z: 0 };
+    // slap from underneath (behind the home button) = sharp kick along the screen normal
+    const kick = Math.abs(ac.z || 0) + 0.3 * Math.hypot(ac.x || 0, ac.y || 0);
+    const c = S.capture;
+    if (c) {
+      const dt = Math.min(0.05, (now - c.last) / 1000); c.last = now;
+      c.peak = Math.max(c.peak, c.mode === 'bottle' ? rate3 : rate); c.kick = Math.max(c.kick, kick);
+      // signed swing per axis, so the wrist coming back down doesn't double-count
+      c.ia += (r.alpha || 0) * dt; c.ib += (r.beta || 0) * dt; c.ig += (r.gamma || 0) * dt;
+      c.angle = Math.max(c.angle, Math.abs(c.ia), Math.abs(c.ib), Math.abs(c.ig));
+      if (c.mode === 'cup') { if (now - c.t0 > 140) finishCapture(); }
+      else {
+        if (rate3 < 60) c.calm++; else c.calm = 0;
+        if ((c.calm >= 2 && now - c.t0 > 90) || now - c.t0 > 450) finishCapture();
+      }
       return;
     }
-    if (S.phase === 'idle' && S.armed && rate > 230) {
-      S.capture = { t0: now, peak: rate, lin };
-    }
+    if (S.phase !== 'idle' || !S.armed) return;
+    if (S.mode === 'cup' && (kick > 5 || rate > 260)) S.capture = { mode: 'cup', t0: now, last: now, peak: rate, kick, angle: 0, calm: 0, ia: 0, ib: 0, ig: 0 };
+    else if (S.mode === 'bottle' && rate3 > 110) S.capture = { mode: 'bottle', t0: now, last: now, peak: rate3, kick, angle: 0, calm: 0, ia: 0, ib: 0, ig: 0 };
   }
+  const SENS_KEY = 'flipcup.sens';
+  let SENS = (() => { try { return JSON.parse(localStorage.getItem(SENS_KEY)) || {}; } catch (e) { return {}; } })();
+  const sensOf = (m) => SENS[m] || 1;
   function finishCapture() {
-    const c = S.capture; S.capture = null;
-    // ~150 deg/s is a twitch; ~1250 deg/s is a hard snap. Linear accel adds a little.
-    const p = clamp((c.peak - 150) / 1100 + Math.min(c.lin, 25) / 250, 0, P_MAX);
-    doFlick(p);
+    const c = S.capture; S.capture = null; S.lastSwing = { angle: c.angle, peak: c.peak, kick: c.kick };
+    const k = sensOf(c.mode);
+    let p;
+    if (c.mode === 'cup') {
+      // Power comes from how hard the back of the phone near the bottom gets smacked.
+      // log curve: a real slap (~20-35 m/s^2 on most phones) lands it; only a monster smack over-flips.
+      const kick = Math.max(c.kick * k, Math.max(0, c.peak * k - 200) / 25 + 3);
+      p = kick < 4 ? 0 : 0.1 + 0.5 * Math.log(kick / 5) / Math.log(5);
+    } else {
+      // Pancake: it's the swing that counts. Need a real wrist rotation, not just a smack.
+      if (c.angle < 16) { toast('Swing it<small>Pancake motion, not a slap</small>', 'bad', 1100); return; }
+      // ~70 deg of wrist swing at ~600 deg/s is a clean pancake flip.
+      p = 0.175 + 0.0035 * c.angle * k + 0.0003 * c.peak * k;
+    }
+    doFlick(clamp(p, 0, P_MAX));
   }
   // Swipe fallback (no gyro / ?desk)
   let sw = null;
@@ -256,7 +281,7 @@
     const good = out.kind === 'win' || out.kind === 'double' || out.kind === 'cap';
     if (out.kind !== 'miss') { good ? Sfx.clack() : Sfx.thud(); S.shake = good ? 0.12 : 0.2; }
     const z = ZONES[S.mode], p = S.lastP;
-    const hint = p < z.lo ? 'Flick harder' : p > z.hi ? 'Ease up a little' : 'So close';
+    const hint = p < z.lo ? (S.mode === 'cup' ? 'Slap harder' : 'Bigger swing') : p > z.hi ? 'Ease up a little' : 'So close';
     if (S.mode === 'cup') {
       if (good) {
         S.cupsDone++; burst(b.x, 0.02, 18); Sfx.win();
@@ -561,6 +586,9 @@
     $('howTitle').textContent = mode === 'cup' ? 'Flip Cup' : 'Bottle Flip';
     $('howList').innerHTML = HOW[mode].map((s) => `<li>${s}</li>`).join('');
     show('howto');
+    const setSeg = () => document.querySelectorAll('#sens button').forEach((b) => b.classList.toggle('on', +b.dataset.s === sensOf(mode)));
+    document.querySelectorAll('#sens button').forEach((b) => { b.onclick = () => { SENS[mode] = +b.dataset.s; try { localStorage.setItem(SENS_KEY, JSON.stringify(SENS)); } catch (e) {} setSeg(); }; });
+    setSeg();
     $('goBtn').onclick = () => { show('howto', false); startMode(mode); };
   }));
   $('backBtn').onclick = () => { S.mode = null; hud(false); $('meter').classList.add('hidden'); show('finish', false); show('title'); };

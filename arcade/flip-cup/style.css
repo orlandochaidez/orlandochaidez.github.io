@@ -106,3 +106,8 @@ ol li { margin: 6px 0; }
 .primary { background: var(--red); color: #fff; box-shadow: 0 3px 0 #9e1219; }
 .primary:active { transform: translateY(2px); box-shadow: 0 1px 0 #9e1219; }
 .ghost { background: transparent; color: #7a5a48; margin-top: 6px; font-size: 16px; }
+
+.sensrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 4px 0 14px; font-weight: 800; color: #7a5a48; font-size: 14px; }
+.seg { display: flex; background: #efe2d3; border-radius: 12px; padding: 3px; }
+.seg button { border: 0; background: transparent; font: inherit; font-weight: 800; font-size: 13px; color: #7a5a48; padding: 7px 11px; border-radius: 9px; }
+.seg button.on { background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.15); }
