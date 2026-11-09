@@ -164,7 +164,7 @@
     <button class="mini" id="btnMode">💀 HARD: OFF</button>
   </div>
 
-  <div id="hint">Tilt like you're balancing a tray of drinks. <b>◎ RE-CENTER</b> re-zeros the tilt to however you're holding the phone. Black pits send the ball back to the start. The <b>💀 HARD</b> button flips hard mode anytime — even mid-run (it restarts the level). <b>🧗 CLIMB</b> courses are long vertical climbs — start at the bottom, roll all the way up to the hole at the top.</div>
+  <div id="hint">Tilt like you're balancing a tray of drinks. <b>◎ RE-CENTER</b> re-zeros the tilt to however you're holding the phone. Black pits send the ball back to the start. The <b>💀 HARD</b> button flips hard mode anytime — even mid-run (it restarts the level). <b>🧗 CLIMB</b> courses are long vertical drops — start at the top, roll all the way down to the hole at the bottom.</div>
 
 <script>
 (()=>{ 'use strict';
@@ -219,7 +219,8 @@ const LEVELS=[
 
 
 /* CLIMB courses — tall vertical boards (width still 12 units, height = h).
-   Start at the bottom, goal hole at the top; the camera follows the ball up. */
+   Written bottom-up (start low, hole high), then flipped 180° at load below
+   so play runs DOWNHILL: ball starts at the top, hole waits at the bottom. */
 const CLIMB=[
  { name:'First Climb', h:26, start:[6,24.6], hole:[6,1.2], pits:[],
    walls:[[0,21,5,0.7],[7,21,5,0.7],[0,16.5,5,0.7],[7,16.5,5,0.7],[0,12,5,0.7],[7,12,5,0.7],[0,7.5,5,0.7],[7,7.5,5,0.7]] },
@@ -242,6 +243,17 @@ const CLIMB=[
  { name:"King's Climb", h:44, start:[1.4,42.6], hole:[11,1.2], pits:[[10.6,35],[1.5,29],[6,21.7],[10.6,9],[6,1.3],[4.5,42.6]],
    walls:[[0,38,9,0.65],[3,32,9,0.65],[2.2,24,2.2,2.2],[7.6,24,2.2,2.2],[4.9,18.5,2.2,2.2],[0,12,9,0.65],[3,6,9,0.65],[5.35,41,1.3,1.2]] },
 ];
+
+/* Orlando's flip (2026-11-08): rotate every climb course 180° — mirror all
+   y-coords within the board height so starts land at the top and holes at
+   the bottom. Same courses, same name, just running downhill now. */
+for(const L of CLIMB){
+  const fy=y=>L.h-y;
+  L.start=[L.start[0],fy(L.start[1])];
+  L.hole=[L.hole[0],fy(L.hole[1])];
+  L.pits=L.pits.map(p=>[p[0],fy(p[1])]);
+  L.walls=L.walls.map(w=>[w[0],L.h-w[1]-w[3],w[2],w[3]]);
+}
 
 /* ---------------- save ---------------- */
 const LS='tilt-v1';
@@ -462,16 +474,16 @@ function draw(){
   ctx.fillStyle='rgba(255,255,255,.92)';
   ctx.beginPath(); ctx.ellipse(bx-br*0.38, by-br*0.46, br*0.20, br*0.12, -0.6, 0, 7); ctx.fill();
   ctx.globalAlpha=1;
-  // CLIMB progress rail: how far up the course you are
+  // CLIMB progress rail: how far down the course you are (goal ring at the bottom)
   if(S.course==='climb'){
     const rx=cv.width-u*0.42, yT=u*0.9, yB=cv.height-u*0.9;
     const pr=Math.max(0, Math.min(1, (L.start[1]-b.y)/Math.max(0.001, L.start[1]-L.hole[1])));
     ctx.strokeStyle=DARK?'rgba(255,255,255,.28)':'rgba(40,40,60,.28)'; ctx.lineWidth=Math.max(2,u*0.07);
     ctx.beginPath(); ctx.moveTo(rx,yT); ctx.lineTo(rx,yB); ctx.stroke();
     ctx.strokeStyle='#0aa06e'; ctx.lineWidth=Math.max(2,u*0.08);
-    ctx.beginPath(); ctx.arc(rx,yT,u*0.17,0,7); ctx.stroke();
+    ctx.beginPath(); ctx.arc(rx,yB,u*0.17,0,7); ctx.stroke();
     ctx.fillStyle=DARK?'#f0f0f5':'#23232a';
-    ctx.beginPath(); ctx.arc(rx, yB-pr*(yB-yT), u*0.15, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(rx, yT+pr*(yB-yT), u*0.15, 0, 7); ctx.fill();
   }
   if(S.sinkT>=0 && S.sinkKind==='death'){
     const k=Math.min(1,S.sinkT/0.38);
@@ -515,7 +527,7 @@ function buildGrid(){
   $('segMaze').className = S.course==='maze' ? 'on' : '';
   $('segClimb').className = S.course==='climb' ? 'on' : '';
   $('menuNote').textContent = S.course==='climb'
-    ? '🧗 CLIMB — start at the bottom, roll all the way UP to the hole at the top. Pits drop you back to the start.'
+    ? '🧗 CLIMB — start at the top, roll all the way DOWN to the hole at the bottom. Pits drop you back to the start.'
     : 'Pick a level to start';
 }
 function setCourse(c){
