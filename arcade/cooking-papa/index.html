@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#ffb347">
+<title>Cooking Papa — Pizza Bible Edition</title>
+<style>
+:root{--red:#e63946;--cream:#fff4e0;--ink:#3b2314;--green:#2a9d55;--yellow:#ffd166;--orange:#ff9f1c;--blue:#3a86ff}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+html,body{margin:0;height:100%;font-family:"Trebuchet MS","Arial Rounded MT Bold",system-ui,sans-serif;color:var(--ink);overflow:hidden}
+body{background:repeating-conic-gradient(#ffe2b8 0 25%,#fff1da 0 50%) 0 0/48px 48px}
+#app{position:fixed;inset:0;display:flex;flex-direction:column;max-width:560px;margin:0 auto;padding:env(safe-area-inset-top) 12px env(safe-area-inset-bottom)}
+.top{display:flex;align-items:center;gap:8px;padding:10px 0 6px}
+.top a,.top button{background:#fff;border:3px solid var(--ink);border-radius:14px;padding:6px 10px;font-weight:bold;font-size:14px;color:var(--ink);text-decoration:none}
+.top .grow{flex:1;text-align:center;font-weight:900;font-size:15px}
+.bar{height:12px;background:#fff;border:3px solid var(--ink);border-radius:10px;overflow:hidden;margin-bottom:8px}
+.bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--orange),var(--red));width:0;transition:width .3s}
+.screen{flex:1;display:flex;flex-direction:column;overflow-y:auto;padding-bottom:12px}
+h1{font-size:40px;margin:8px 0 0;text-align:center;color:var(--red);text-shadow:3px 3px 0 #fff,5px 5px 0 var(--ink);letter-spacing:1px;line-height:1}
+.subt{text-align:center;font-weight:bold;margin:6px 0 10px}
+.papa{display:flex;align-items:flex-end;gap:8px;margin:6px 0 10px}
+.papa .face{font-size:58px;line-height:1;filter:drop-shadow(2px 3px 0 rgba(0,0,0,.2));animation:bob 2s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-4px) rotate(-3deg)}}
+.bubble{flex:1;background:#fff;border:3px solid var(--ink);border-radius:18px 18px 18px 4px;padding:10px 12px;font-weight:bold;font-size:16px;line-height:1.3;box-shadow:4px 4px 0 rgba(59,35,20,.25)}
+.card{background:var(--cream);border:3px solid var(--ink);border-radius:20px;padding:14px;box-shadow:5px 5px 0 rgba(59,35,20,.3);margin-bottom:12px}
+.btn{display:block;width:100%;border:3px solid var(--ink);border-radius:18px;padding:14px 12px;margin:8px 0;font-size:18px;font-weight:900;background:var(--yellow);color:var(--ink);box-shadow:0 5px 0 var(--ink);font-family:inherit;cursor:pointer}
+.btn:active{transform:translateY(4px);box-shadow:0 1px 0 var(--ink)}
+.btn.red{background:var(--red);color:#fff}.btn.green{background:var(--green);color:#fff}.btn.blue{background:var(--blue);color:#fff}.btn.white{background:#fff}
+.btn small{display:block;font-size:13px;font-weight:bold;opacity:.85;margin-top:2px}
+.btn.lock{opacity:.45}
+.row{display:flex;gap:8px}.row>*{flex:1}
+.stars{color:#f4a300;font-size:18px;letter-spacing:2px}
+.task{font-size:20px;font-weight:900;text-align:center;margin:4px 0 2px}
+.hint{text-align:center;font-weight:bold;opacity:.8;margin-bottom:6px;font-size:15px}
+.stage{position:relative;background:#fff;border:3px solid var(--ink);border-radius:22px;min-height:230px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;overflow:hidden}
+.scale{width:220px;background:#cfd8dc;border:4px solid var(--ink);border-radius:16px;padding:10px;margin-top:6px;text-align:center}
+.scale .lcd{background:#9fe3a0;border:3px solid var(--ink);border-radius:8px;font-family:"Courier New",monospace;font-weight:900;font-size:38px;padding:4px}
+.bowl{font-size:64px;line-height:1;position:relative}
+.stream{position:absolute;left:50%;top:-40px;width:10px;margin-left:-5px;height:0;border-radius:5px;background:#f3e5c0;transition:height .1s}
+.big{font-size:70px;line-height:1}
+.choices .btn{font-size:17px;text-align:left;background:#fff}
+.choices .btn.right{background:#8be0a4}.choices .btn.wrong{background:#ff9aa2}
+.thermo{width:56px;height:220px;border:4px solid var(--ink);border-radius:28px;background:#fff;position:relative;overflow:hidden}
+.thermo .fill{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(0deg,var(--red),#ff8a5b)}
+.thermo .zone{position:absolute;left:0;right:0;background:rgba(42,157,85,.35);border-top:2px dashed var(--green);border-bottom:2px dashed var(--green)}
+.tread{font-family:"Courier New",monospace;font-size:34px;font-weight:900}
+.tapzone{width:200px;height:200px;border-radius:50%;border:5px solid var(--ink);background:radial-gradient(circle at 40% 35%,#fff9ec,#f5deb3);display:flex;align-items:center;justify-content:center;font-size:80px;touch-action:manipulation}
+.tapzone:active{transform:scale(.95)}
+.meter{width:100%;height:18px;border:3px solid var(--ink);border-radius:10px;background:#fff;overflow:hidden;margin-top:10px}
+.meter i{display:block;height:100%;background:var(--green);width:0}
+.order{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.chip{border:3px solid var(--ink);border-radius:14px;background:#fff;padding:10px 12px;font-weight:900;font-size:16px;box-shadow:0 4px 0 var(--ink)}
+.chip.done{background:#8be0a4;box-shadow:none;transform:translateY(4px)}
+.chip.bad{background:#ff9aa2}
+.pop{position:fixed;left:50%;top:38%;transform:translate(-50%,-50%) scale(.3);font-size:44px;font-weight:900;color:#fff;text-shadow:3px 3px 0 var(--ink),-2px -2px 0 var(--ink),2px -2px 0 var(--ink),-2px 2px 0 var(--ink);pointer-events:none;opacity:0;z-index:9;text-align:center;white-space:nowrap}
+.pop.show{animation:pop 1.1s ease-out}
+@keyframes pop{15%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}30%{transform:translate(-50%,-50%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-80%) scale(1)}}
+.learnbox{background:#fff8d6;border:3px dashed var(--orange);border-radius:14px;padding:10px;margin-top:10px;font-weight:bold;font-size:15px;line-height:1.35}
+.recipe h3{margin:12px 0 4px;color:var(--red)}
+.recipe li{margin:3px 0;font-weight:bold}
+.recipe .g{font-family:"Courier New",monospace;background:#fff;border:2px solid var(--ink);border-radius:6px;padding:0 4px}
+.tag{display:inline-block;background:var(--ink);color:#fff;border-radius:8px;padding:2px 8px;font-size:12px;font-weight:900;margin-left:4px;vertical-align:middle}
+.timer{font-weight:900;font-size:15px;text-align:center}
+.result .grade{font-size:84px;text-align:center;font-weight:900;color:var(--red);text-shadow:4px 4px 0 var(--ink);line-height:1}
+.miss{font-size:14px;font-weight:bold;border-bottom:2px dotted #c9a98a;padding:6px 0}
+.foot{font-size:12px;text-align:center;opacity:.7;margin:8px 0}
+.confetti{position:fixed;top:-20px;font-size:26px;pointer-events:none;animation:fall linear forwards;z-index:8}
+@keyframes fall{to{transform:translateY(110vh) rotate(540deg)}}
+.shake{animation:shk .35s}
+@keyframes shk{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="top"><a href="/directory/">← All games</a><div class="grow" id="topTitle">Cooking Papa</div><button id="snd">🔊</button></div>
+  <div class="bar" id="barWrap" style="visibility:hidden"><i id="bar"></i></div>
+  <div class="screen" id="screen"></div>
+</div>
+<div class="pop" id="pop"></div>
+<script>
+/* ============ RECIPE DATA ============
+   Source: Tony Gemignani, The Pizza Bible (Ten Speed Press, 2014):
+   Master Dough without Starter, New York–New Jersey Tomato Sauce, New Yorker.
+   Add new recipes later by adding another entry to RECIPES. */
+const RECIPES = {
+  newyorker: {
+    name: "The New Yorker",
+    blurb: "Pizza Bible master class — no starter, made by hand or mixer",
+    chapters: [
+      { id:"day1", name:"Day 1 · The Dough", emoji:"🥣", steps:[
+        {type:"thermo", task:"Warm the water for the yeast", lo:80, hi:85, min:50, max:120, unit:"°F",
+         learn:"Yeast water goes in WARM: 80°F to 85°F. Hotter can hurt the yeast."},
+        {type:"pour", task:"Weigh the active dry yeast", item:"Active dry yeast", emoji:"🟫", target:4.5, tol:0.5, dec:1,
+         learn:"4.5 g active dry yeast (1½ tsp). No-starter dough uses double the 2.2 g in the starter version."},
+        {type:"pour", task:"Weigh the warm water", item:"Warm water (80–85°F)", emoji:"💧", target:70, tol:4,
+         learn:"70 g warm water (¼ cup + 1 Tbsp)."},
+        {type:"tap", task:"Whisk the yeast hard!", emoji:"🥄", taps:22, secs:8,
+         learn:"Whisk 30 seconds. It should dissolve and foam. If granules float, the yeast is dead. Toss it and start over."},
+        {type:"choice", task:"What flour does Tony call for?", q:"Pick the flour",
+         options:["13–14% protein high-gluten flour (All Trumps, Sir Lancelot…)","All-purpose flour, 10% protein","Cake flour","00 Neapolitan flour"], a:0,
+         learn:"High-gluten flour, 13–14% protein: All Trumps, Pendleton Power, Giusto's High Performer, King Arthur Sir Lancelot."},
+        {type:"pour", task:"Weigh the flour", item:"High-gluten flour", emoji:"🌾", target:453, tol:10,
+         learn:"453 g flour (3½ cups)."},
+        {type:"pour", task:"Weigh the diastatic malt", item:"Diastatic malt", emoji:"🍯", target:9, tol:1, dec:1,
+         learn:"9 g diastatic malt (1 Tbsp). Blend it into the flour."},
+        {type:"pour", task:"Weigh the ICE water", item:"Ice water", emoji:"🧊", target:225, tol:8,
+         learn:"225 g ice water, plus more as needed. Cold water slows fermentation for better flavor."},
+        {type:"order", task:"Mix it! Tap in the right order", items:["Flour + malt","Most of the ice water","Yeast water","Rinse yeast bowl w/ reserved water","Salt","Olive oil"],
+         learn:"Flour + malt, then most of the ice water (save about 2 Tbsp), then the yeast water. Swirl the saved water in the yeast bowl and add it. Mix till it comes together, then salt, then oil LAST."},
+        {type:"pour", task:"Weigh the fine sea salt", item:"Fine sea salt", emoji:"🧂", target:9, tol:1, dec:1,
+         learn:"9 g fine sea salt (2 tsp). Salt goes in after the dough comes together."},
+        {type:"pour", task:"Weigh the olive oil", item:"Extra-virgin olive oil", emoji:"🫒", target:5, tol:1, dec:1,
+         learn:"5 g olive oil (1 tsp), added last. Mix 1–2 minutes till absorbed. It won't look fully smooth yet."},
+        {type:"tap", task:"Knead on the counter!", emoji:"🫓", taps:30, secs:9,
+         learn:"Knead on an UNFLOURED surface for 2–3 minutes until smooth."},
+        {type:"choice", task:"How long does the no-starter dough rest?", q:"Rest at room temp, covered with a damp towel…",
+         options:["1 hour","20 minutes","5 minutes","Overnight on the counter"], a:0,
+         learn:"Rest 1 hour, covered with a damp towel. (The starter version only rests 20 minutes.)"},
+        {type:"choice", task:"Then what?", q:"After the rest…",
+         options:["Into a bowl, press down, wet the top, double plastic wrap, fridge 24 hours","Ball it and bake right away","Freeze it","Leave it on the counter 24 hours"], a:0,
+         learn:"Lift into a big bowl, press down slightly, rub a little water on top, wrap in 2 layers of plastic, and refrigerate 24 hours."}
+      ]},
+      { id:"day2", name:"Day 2 · Degas & Ball", emoji:"⚪", steps:[
+        {type:"choice", task:"Dough's out of the fridge. First move?", q:"Day 2 starts with…",
+         options:["Degas it: a quick mix on lowest speed (or press it down by hand)","Add more yeast","Bake it","Let it warm up 3 hours"], a:0,
+         learn:"Day 2 is all about the air. Degas the cold dough with a quick mix on the lowest speed, or press it down by hand."},
+        {type:"pour", task:"Cut and weigh a dough ball", item:"Dough ball", emoji:"⚪", target:370, tol:10,
+         learn:"Cut and weigh 13 oz (370 g) balls. The batch makes about 775 g, so 2 balls."},
+        {type:"tap", task:"Ball it up tight!", emoji:"⚪", taps:20, secs:7,
+         learn:"Ball it tight so the crust shapes and bakes even. Don't tear the skin."},
+        {type:"choice", task:"How long do the balls rest in the fridge?", q:"Covered in the fridge for…",
+         options:["24 to 48 hours","1 hour","1 week","No fridge, bake now"], a:0,
+         learn:"Cover the balls and refrigerate 24 to 48 hours."}
+      ]},
+      { id:"sauce", name:"Tomato Sauce", emoji:"🍅", steps:[
+        {type:"pour", task:"Weigh the ground tomatoes", item:"Ground tomatoes (7/11 or DiNapoli)", emoji:"🍅", target:120, tol:6,
+         learn:"120 g ground tomatoes (½ cup), ideally 7/11 or DiNapoli."},
+        {type:"pour", task:"Weigh the tomato paste", item:"Tomato paste (SuperDolce)", emoji:"🥫", target:65, tol:4,
+         learn:"65 g tomato paste (¼ cup), ideally SuperDolce."},
+        {type:"choice", task:"Season it", q:"How much oregano and salt?",
+         options:["A pinch of dried oregano + a pinch of fine sea salt","1 Tbsp oregano + 1 tsp salt","Fresh basil only","No seasoning"], a:0,
+         learn:"Just a pinch of dried oregano and a pinch of fine sea salt."},
+        {type:"pour", task:"Weigh the olive oil", item:"Extra-virgin olive oil", emoji:"🫒", target:5, tol:1, dec:1,
+         learn:"5 g olive oil (1 tsp)."},
+        {type:"tap", task:"Blend it smooth!", emoji:"🌀", taps:24, secs:8,
+         learn:"Immersion-blend the tomatoes, paste, oregano, salt and oil until smooth."},
+        {type:"pour", task:"Stir in hand-crushed tomatoes", item:"Hand-crushed tomatoes", emoji:"✊", target:55, tol:4,
+         learn:"Stir in 55 g hand-crushed tomatoes (¼ cup) AFTER blending, for texture. Makes 245 g (1 cup), enough for one pie."},
+        {type:"choice", task:"Sauce temp when it goes on the pizza?", q:"Use the sauce…",
+         options:["At room temperature","Straight from the fridge","Boiling hot","Frozen"], a:0,
+         learn:"Use the sauce at room temperature."}
+      ]},
+      { id:"day3", name:"Day 3 · Build & Bake", emoji:"🔥", steps:[
+        {type:"thermo", task:"Warm the dough ball (still wrapped)", lo:60, hi:65, min:35, max:90, unit:"°F",
+         learn:"Leave the ball wrapped at room temp until the dough hits 60°F to 65°F."},
+        {type:"thermo", task:"Preheat the oven", lo:495, hi:505, min:300, max:600, unit:"°F",
+         learn:"Two pizza stones or steels, preheated at 500°F for 1 hour."},
+        {type:"choice", task:"How long to preheat?", q:"Preheat the stones…",
+         options:["1 hour","10 minutes","Until the beep","3 hours"], a:0,
+         learn:"Preheat 1 hour so the stones are fully heat-soaked."},
+        {type:"choice", task:"Dusting mix?", q:"Dust the counter and peel with…",
+         options:["3 parts flour : 1 part semolina","All semolina","Cornmeal","Nothing"], a:0,
+         learn:"Dust with 3 parts flour mixed with 1 part semolina."},
+        {type:"choice", task:"How big do you open the dough?", q:"Open the dough to…",
+         options:["13-inch round, slightly raised edge","8 inches","18 inches, paper thin","Leave it a ball"], a:0,
+         learn:"Open it to a 13-inch round with a slightly raised edge, then move it to the dusted wooden peel."},
+        {type:"pour", task:"Lay down the mozzarella", item:"Low-moisture mozzarella, 7 slices", emoji:"🧀", target:140, tol:8,
+         learn:"140 g part-skim or dry mozzarella, thinly sliced (7 slices), leaving a ¾-inch border. On a New Yorker the cheese goes on FIRST."},
+        {type:"pour", task:"Spoon on the sauce", item:"NY–NJ tomato sauce", emoji:"🍅", target:245, tol:10,
+         learn:"245 g (1 cup) sauce on top of the cheese. Start in the center and spiral outward."},
+        {type:"order", task:"Top it in order", items:["Pepperoni","Fennel sausage","Calabrese sausage","Roasted garlic + garlic oil"],
+         learn:"Pepperoni (30 g), then sweet fennel sausage (85 g), then Calabrese honey sausage slices, then 5 roasted garlic cloves, with the garlic oil drizzled over."},
+        {type:"choice", task:"Bake it!", q:"The bake goes…",
+         options:["Top stone 6 min → rotate 180° → bottom stone 6 min","Bottom stone 20 min","Top stone 3 min","12 min, don't touch it"], a:0,
+         learn:"Top stone 6 minutes, rotate 180° onto the bottom stone, then 6 more minutes."},
+        {type:"choice", task:"Finish it like Tony", q:"After cutting into 6 slices…",
+         options:["Ricotta dollops, then Parmesan + dried oregano","Ranch","More raw sauce","Nothing"], a:0,
+         learn:"Cut into 6 wedges, pipe on dollops of ricotta (55 g), then dust with grated Parmesan and dried oregano."}
+      ]}
+    ]
+  }
+};
+
+const MODES = {
+  learn:{name:"Learn", desc:"Numbers shown, Papa coaches you", show:true, timer:false},
+  cook:{name:"Cook", desc:"Numbers hidden. Remember 'em!", show:false, timer:false},
+  master:{name:"Master Papa", desc:"Hidden numbers + the clock is ticking", show:false, timer:true}
+};
+
+const PAPA_GOOD=["Perfecto! I tell ya, that's how it's done!","Bellissimo, mijo!","Now THAT'S pizza math!","Tony would be proud!","Mama mia, chef-level!"];
+const PAPA_OK=["Close! The dough forgives… a little.","Not bad, keep at it!","Almost, compa!"];
+const PAPA_BAD=["Ay, dang it! Check the recipe card.","Whoa there! Let's remember that one.","Oof. Papa's mustache is drooping."];
+
+/* ============ STATE ============ */
+const LS="cookingPapa.v1";
+let save=JSON.parse(localStorage.getItem(LS)||"{}");
+save.best=save.best||{}; save.plays=save.plays||0; save.sound=save.sound!==false;
+function persist(){localStorage.setItem(LS,JSON.stringify(save))}
+let recipeKey="newyorker", run=null;
+const $=s=>document.querySelector(s);
+const screen=$("#screen");
+
+/* ============ AUDIO ============ */
+let AC=null;
+function beep(f=600,d=.08,type="square",v=.06){ if(!save.sound)return; try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.value=f;g.gain.value=v;o.connect(g);g.connect(AC.destination);const t=AC.currentTime;g.gain.exponentialRampToValueAtTime(.0001,t+d);o.start(t);o.stop(t+d)}catch(e){} }
+function jingle(good){ (good?[523,659,784,1046]:[330,262]).forEach((f,i)=>setTimeout(()=>beep(f,.12,"triangle",.08),i*90)) }
+$("#snd").onclick=()=>{save.sound=!save.sound;persist();$("#snd").textContent=save.sound?"🔊":"🔇";beep(800)};
+$("#snd").textContent=save.sound?"🔊":"🔇";
+
+function pop(t,c){const p=$("#pop");p.textContent=t;p.style.color=c||"#fff";p.classList.remove("show");void p.offsetWidth;p.classList.add("show")}
+function confetti(n=24){for(let i=0;i<n;i++){const e=document.createElement("div");e.className="confetti";e.textContent=["🍕","🍅","🧀","⭐","🌿"][i%5];e.style.left=Math.random()*100+"vw";e.style.animationDuration=(1.6+Math.random()*1.6)+"s";document.body.appendChild(e);setTimeout(()=>e.remove(),3500)}}
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function stars(s){return s>=90?3:s>=70?2:s>=45?1:0}
+function starStr(n){return "★".repeat(n)+"☆".repeat(3-n)}
+function setBar(p){$("#barWrap").style.visibility=p==null?"hidden":"visible";$("#bar").style.width=(p||0)+"%"}
+
+/* ============ MENUS ============ */
+function home(){
+  setBar(null); $("#topTitle").textContent="Cooking Papa";
+  const R=RECIPES[recipeKey];
+  let total=0,cnt=0;
+  R.chapters.forEach(c=>Object.keys(MODES).forEach(m=>{const b=save.best[c.id+":"+m];if(b!=null){total+=stars(b);}cnt+=3}));
+  screen.innerHTML=`
+  <h1>COOKING<br>PAPA</h1>
+  <div class="subt">🍕 Pizza Bible Edition 🍕</div>
+  <div class="papa"><div class="face">👨‍🍳</div><div class="bubble">Ayy! Papa's gonna teach you Tony's <b>${R.name}</b>, step by step, gram by gram. Play it enough and you'll know it by heart!</div></div>
+  <button class="btn red" id="play">▶ PLAY<small>${R.blurb}</small></button>
+  <div class="row"><button class="btn white" id="book">📖 Recipe Card</button><button class="btn white" id="quick">⚡ Speed Quiz</button></div>
+  <div class="card"><b>Papa Stars:</b> <span class="stars">${total} / ${cnt}</span><br><small>Plays: ${save.plays}. Get 3★ on every chapter in every mode to become a Master Papa.</small></div>
+  <div class="foot">Recipes from Tony Gemignani's <i>The Pizza Bible</i>. More recipes coming to Papa's kitchen soon.</div>`;
+  $("#play").onclick=()=>{beep(700);chapters()};
+  $("#book").onclick=()=>{beep(700);book()};
+  $("#quick").onclick=()=>{beep(700);startQuick()};
+}
+function chapters(){
+  const R=RECIPES[recipeKey];
+  $("#topTitle").textContent=R.name;
+  let h=`<div class="papa"><div class="face">👨‍🍳</div><div class="bubble">Pick a chapter. Tonight's Day 2? Start there, then hit the sauce!</div></div>`;
+  R.chapters.forEach((c,i)=>{
+    const s=Object.keys(MODES).map(m=>{const b=save.best[c.id+":"+m];return b==null?"☆☆☆":starStr(stars(b))});
+    h+=`<button class="btn ${["","blue","red","green"][i%4]}" data-c="${i}">${c.emoji} ${c.name}<small>${c.steps.length} steps · L ${s[0]} · C ${s[1]} · M ${s[2]}</small></button>`;
+  });
+  h+=`<button class="btn" data-c="all">🍕 FULL PIZZA (all 4 chapters)<small>The whole 3-day journey in one run</small></button><button class="btn white" id="back">← Back</button>`;
+  screen.innerHTML=h;
+  screen.querySelectorAll("[data-c]").forEach(b=>b.onclick=()=>{beep(700);modes(b.dataset.c)});
+  $("#back").onclick=home;
+}
+function modes(ci){
+  let h=`<div class="papa"><div class="face">👨‍🍳</div><div class="bubble">How tough you want it, chef?</div></div>`;
+  Object.entries(MODES).forEach(([k,m],i)=>h+=`<button class="btn ${["green","","red"][i]}" data-m="${k}">${m.name}<small>${m.desc}</small></button>`);
+  h+=`<button class="btn white" id="back">← Back</button>`;
+  screen.innerHTML=h;
+  screen.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{beep(700);start(ci,b.dataset.m)});
+  $("#back").onclick=chapters;
+}
+function book(){
+  const R=RECIPES[recipeKey];
+  setBar(null);
+  screen.innerHTML=`<div class="card recipe">
+  <h2 style="margin:0">📖 ${R.name}</h2><small>From <i>The Pizza Bible</i>. Makes 2 dough balls; sauce and toppings are for 1 pizza (13-inch, 6 slices).</small>
+  <h3>Day 1 · Master Dough without Starter</h3><ul>
+  <li><span class="g">4.5 g</span> active dry yeast (1½ tsp)</li>
+  <li><span class="g">70 g</span> warm water, 80–85°F</li>
+  <li><span class="g">453 g</span> 13–14% protein flour (3½ cups)</li>
+  <li><span class="g">9 g</span> diastatic malt (1 Tbsp)</li>
+  <li><span class="g">225 g</span> ice water, plus more as needed</li>
+  <li><span class="g">9 g</span> fine sea salt (2 tsp)</li>
+  <li><span class="g">5 g</span> extra-virgin olive oil (1 tsp)</li></ul>
+  <ol><li>Whisk the yeast into the warm water for 30 seconds until it foams.</li><li>Combine the flour and malt.</li><li>Add most of the ice water (save about 2 Tbsp), then the yeast water. Swirl the saved water in the yeast bowl and add it.</li><li>Mix until it comes together, then add the salt, then the oil last. Mix 1–2 minutes.</li><li>Knead on an unfloured counter for 2–3 minutes until smooth.</li><li>Rest 1 hour under a damp towel.</li><li>Put it in a bowl, press it down, wet the top, double-wrap it, and refrigerate 24 hours.</li></ol>
+  <h3>Day 2 · Degas &amp; Ball</h3><ol><li>Degas with a quick mix on the lowest speed, or press it down by hand.</li><li>Cut <span class="g">370 g</span> (13 oz) balls. Makes about 775 g total.</li><li>Ball them tight, cover, and refrigerate 24–48 hours.</li></ol>
+  <h3>NY–NJ Tomato Sauce <span class="tag">245 g</span></h3><ul>
+  <li><span class="g">120 g</span> ground tomatoes (7/11 or DiNapoli)</li><li><span class="g">65 g</span> tomato paste (SuperDolce)</li><li>Pinch of dried oregano and a pinch of fine sea salt</li><li><span class="g">5 g</span> olive oil</li><li><span class="g">55 g</span> hand-crushed tomatoes, stirred in after blending</li></ul>
+  <ol><li>Immersion-blend everything except the crushed tomatoes until smooth.</li><li>Stir in the hand-crushed tomatoes.</li><li>Use at room temperature.</li></ol>
+  <h3>Day 3 · Build &amp; Bake the New Yorker</h3><ol>
+  <li>Let the wrapped ball warm to 60–65°F.</li><li>Preheat two stones or steels at 500°F for 1 hour.</li><li>Dust with 3 parts flour to 1 part semolina. Open the dough to a 13-inch round and put it on the peel.</li>
+  <li>Lay down <span class="g">140 g</span> low-moisture mozzarella (7 slices) with a ¾-inch border.</li><li>Spoon <span class="g">245 g</span> sauce on top of the cheese.</li>
+  <li>Top with <span class="g">30 g</span> pepperoni, <span class="g">85 g</span> sweet fennel sausage, 1 Calabrese honey sausage link (115 g, sliced), 5 roasted garlic cloves, and a drizzle of garlic oil.</li>
+  <li>Bake 6 minutes on the top stone, rotate 180° onto the bottom stone, and bake 6 more.</li><li>Cut into 6. Add ricotta dollops (<span class="g">55 g</span>), Parmesan, and oregano.</li></ol>
+  </div><button class="btn red" id="back">← Back</button>`;
+  $("#back").onclick=home; screen.scrollTop=0;
+}
+
+/* ============ GAME RUN ============ */
+function start(ci,mode){
+  const R=RECIPES[recipeKey];
+  let steps=[], chId;
+  if(ci==="all"){R.chapters.forEach(c=>c.steps.forEach(s=>steps.push({...s,ch:c.name})));chId="all"}
+  else{const c=R.chapters[+ci];steps=c.steps.map(s=>({...s,ch:c.name}));chId=c.id}
+  run={steps,i:0,scores:[],mode,chId,misses:[]};
+  save.plays++;persist();
+  next();
+}
+function startQuick(){
+  const R=RECIPES[recipeKey];let all=[];
+  R.chapters.forEach(c=>c.steps.forEach(s=>{if(s.type==="pour"||s.type==="choice"||s.type==="thermo")all.push({...s,ch:c.name,quick:true})}));
+  run={steps:shuffle(all).slice(0,12),i:0,scores:[],mode:"cook",chId:"quick",misses:[],quick:true};
+  run.steps=run.steps.map(s=>s.type==="choice"?s:{...s,type:"recall"});
+  save.plays++;persist();next();
+}
+function next(){
+  if(run.i>=run.steps.length) return finish();
+  const s=run.steps[run.i];
+  setBar(run.i/run.steps.length*100);
+  $("#topTitle").textContent=`${s.ch} · ${run.i+1}/${run.steps.length}`;
+  ({pour:gPour,choice:gChoice,thermo:gThermo,tap:gTap,order:gOrder,recall:gRecall})[s.type](s);
+}
+function header(s,hint){return `<div class="task">${s.task}</div><div class="hint">${hint||""}</div>`}
+function done(score,s,detail){
+  score=Math.max(0,Math.min(100,Math.round(score)));
+  run.scores.push(score);
+  if(score<70) run.misses.push(s);
+  const msg=score>=90?pick(PAPA_GOOD):score>=60?pick(PAPA_OK):pick(PAPA_BAD);
+  pop(score>=90?"PERFECTO!":score>=60?"GOOD!":"OOPS!",score>=90?"#ffd166":score>=60?"#8be0a4":"#ff9aa2");
+  jingle(score>=60);
+  if(score>=90) confetti(10);
+  setTimeout(()=>{
+    screen.innerHTML=`<div class="papa"><div class="face">${score>=60?"👨‍🍳":"😬"}</div><div class="bubble">${msg}</div></div>
+    <div class="card"><div class="task">${score} pts</div>${detail?`<div class="hint">${detail}</div>`:""}<div class="learnbox">📌 ${s.learn}</div></div>
+    <button class="btn red" id="nx">NEXT ▶</button>`;
+    $("#nx").onclick=()=>{beep(700);run.i++;next()};
+  },700);
+}
+function clock(secs,onOut){
+  if(!MODES[run.mode].timer) return {stop(){},el:""};
+  let t=secs;const id="clk"+Date.now();
+  const h=setInterval(()=>{t--;const e=document.getElementById(id);if(e)e.textContent="⏱ "+t+"s";if(t<=3&&t>0)beep(1200,.05);if(t<=0){clearInterval(h);onOut()}},1000);
+  return {stop(){clearInterval(h)},el:`<div class="timer" id="${id}">⏱ ${secs}s</div>`};
+}
+
+/* --- Scale pour --- */
+function gPour(s){
+  const show=MODES[run.mode].show, dec=s.dec||0;
+  const rate=s.target/2.4; // units per second
+  let val=0,holding=false,last=0,finished=false;
+  const ck=clock(12,()=>finish1(true));
+  screen.innerHTML=header(s,show?`Target: <b>${s.target} g</b> · Hold to pour, let go to stop`:`How many grams? Hold to pour, let go on the number`)+ck.el+`
+   <div class="stage"><div style="font-weight:900;margin-bottom:4px">${s.item}</div>
+   <div class="bowl"><div class="stream" id="stream"></div>${s.emoji}</div>
+   <div class="scale"><div class="lcd" id="lcd">${val.toFixed(dec)} g</div></div></div>
+   <div class="row"><button class="btn green" id="hold" style="touch-action:none">⬇ HOLD TO POUR</button></div>
+   <div class="row"><button class="btn white" id="minus">− tap</button><button class="btn white" id="plus">+ tap</button><button class="btn red" id="ok">✔ DONE</button></div>`;
+  const lcd=$("#lcd"),st=$("#stream"),step=dec?0.1:1;
+  function draw(){lcd.textContent=val.toFixed(dec)+" g"}
+  function loop(t){ if(finished)return; if(holding){const dt=(t-last)/1000;val+=rate*dt*(val>s.target*1.6?1.5:1);draw();if(Math.random()<.25)beep(200+val%200,.02,"sine",.02)} last=t; requestAnimationFrame(loop)}
+  requestAnimationFrame(t=>{last=t;loop(t)});
+  const hb=$("#hold");
+  const down=e=>{e.preventDefault();holding=true;st.style.height="40px"};
+  const up=e=>{holding=false;st.style.height="0"};
+  hb.addEventListener("pointerdown",down);hb.addEventListener("pointerup",up);hb.addEventListener("pointerleave",up);hb.addEventListener("pointercancel",up);
+  $("#plus").onclick=()=>{val+=step;draw();beep(900,.03)};
+  $("#minus").onclick=()=>{val=Math.max(0,val-step);draw();beep(500,.03)};
+  $("#ok").onclick=()=>finish1(false);
+  function finish1(timeout){
+    if(finished)return;finished=true;ck.stop();
+    const err=Math.abs(val-s.target);
+    let sc=timeout?0:err<=s.tol*0.25?100:err<=s.tol?95-((err-s.tol*0.25)/(s.tol*0.75))*20:Math.max(0,75-(err-s.tol)/s.target*300);
+    done(sc,s,`You poured <b>${val.toFixed(dec)} g</b> · Tony says <b>${s.target} g</b>`);
+  }
+}
+
+/* --- Recall (speed quiz typed number) --- */
+function gRecall(s){
+  if(s.lo!=null){ // thermo -> choice of ranges
+    const opts=shuffle([`${s.lo}–${s.hi}${s.unit}`,`${s.lo-20}–${s.hi-20}${s.unit}`,`${s.lo+25}–${s.hi+25}${s.unit}`,`${s.lo+60}–${s.hi+60}${s.unit}`]);
+    return gChoice({...s,q:"What's the target?",options:opts,a:opts.indexOf(`${s.lo}–${s.hi}${s.unit}`)});
+  }
+  const t=s.target, d=s.dec?1:0;
+  const fakes=new Set();const mult=[.5,.75,1.25,1.5,2,.8,1.2];
+  while(fakes.size<3){let f=+(t*pick(mult)).toFixed(d);if(f!==t&&f>0)fakes.add(f)}
+  const opts=shuffle([t,...fakes]);
+  gChoice({...s,task:s.task.replace("Weigh","How much"),q:`${s.item}: how many grams?`,options:opts.map(o=>o+" g"),a:opts.indexOf(t)});
+}
+
+/* --- Multiple choice --- */
+function gChoice(s){
+  const order=shuffle(s.options.map((o,i)=>i));
+  const ck=clock(10,()=>answer(-1));
+  screen.innerHTML=header(s,s.q)+ck.el+`<div class="stage" style="min-height:90px"><div class="big">🤔</div></div><div class="choices">${order.map(i=>`<button class="btn" data-i="${i}">${s.options[i]}</button>`).join("")}</div>`;
+  let locked=false;
+  screen.querySelectorAll("[data-i]").forEach(b=>b.onclick=()=>answer(+b.dataset.i,b));
+  function answer(i,b){
+    if(locked)return;locked=true;ck.stop();
+    screen.querySelectorAll("[data-i]").forEach(x=>{if(+x.dataset.i===s.a)x.classList.add("right")});
+    if(b&&i!==s.a){b.classList.add("wrong");b.classList.add("shake")}
+    setTimeout(()=>done(i===s.a?100:0,s),600);
+  }
+}
+
+/* --- Thermometer --- */
+function gThermo(s){
+  const show=MODES[run.mode].show;
+  const span=s.max-s.min;let v=s.min,dir=1,stopped=false;
+  const speed=span/1.6;
+  const ck=clock(10,()=>stop(true));
+  const zb=(s.lo-s.min)/span*100, zh=(s.hi-s.lo)/span*100;
+  screen.innerHTML=header(s,show?`Stop it between <b>${s.lo}–${s.hi}${s.unit}</b>`:`Stop it at the right temp!`)+ck.el+`
+   <div class="stage"><div style="display:flex;align-items:center;gap:22px">
+   <div class="thermo"><div class="zone" style="bottom:${zb}%;height:${Math.max(zh,2)}%;${show?"":"opacity:0"}"></div><div class="fill" id="fill"></div></div>
+   <div><div class="tread" id="tr">${s.min}${s.unit}</div><div style="font-weight:bold">${s.min}${s.unit} to ${s.max}${s.unit}</div></div></div></div>
+   <button class="btn red" id="stop">✋ STOP!</button>`;
+  let last=performance.now();
+  function loop(t){if(stopped)return;const dt=(t-last)/1000;last=t;v+=dir*speed*dt;if(v>=s.max){v=s.max;dir=-1}if(v<=s.min){v=s.min;dir=1}
+    $("#fill").style.height=((v-s.min)/span*100)+"%";$("#tr").textContent=Math.round(v)+s.unit;requestAnimationFrame(loop)}
+  requestAnimationFrame(loop);
+  $("#stop").onclick=()=>stop(false);
+  function stop(to){if(stopped)return;stopped=true;ck.stop();
+    const r=Math.round(v),mid=(s.lo+s.hi)/2,half=(s.hi-s.lo)/2;
+    const sc=to?0:(r>=s.lo&&r<=s.hi)?100-Math.abs(r-mid)/Math.max(half,1)*10:Math.max(0,70-(Math.abs(r-mid)-half)/span*400);
+    done(sc,s,`You stopped at <b>${r}${s.unit}</b> · target <b>${s.lo}–${s.hi}${s.unit}</b>`)}
+}
+
+/* --- Tap frenzy --- */
+function gTap(s){
+  let n=0,over=false,t=s.secs;
+  screen.innerHTML=header(s,`Tap ${s.taps} times in ${s.secs} seconds!`)+`<div class="stage"><div class="tapzone" id="tz">${s.emoji}</div><div class="meter"><i id="mt"></i></div><div class="timer" id="tt">${t}s</div></div>`;
+  const tz=$("#tz");
+  const h=setInterval(()=>{t--;$("#tt").textContent=t+"s";if(t<=0)end()},1000);
+  tz.addEventListener("pointerdown",e=>{e.preventDefault();if(over)return;n++;beep(300+n*15,.03,"triangle");$("#mt").style.width=Math.min(100,n/s.taps*100)+"%";tz.style.transform=`rotate(${(n%2?1:-1)*12}deg) scale(.95)`;setTimeout(()=>tz.style.transform="",80);if(n>=s.taps)end()});
+  function end(){if(over)return;over=true;clearInterval(h);done(Math.min(100,n/s.taps*100),s,`${n} / ${s.taps} taps`)}
+}
+
+/* --- Ordering --- */
+function gOrder(s){
+  const ck=clock(20,()=>fin());
+  let k=0,mist=0,over=false;
+  screen.innerHTML=header(s,"Tap them in Tony's order")+ck.el+`<div class="stage" style="min-height:120px"><div class="big" id="ob">🥣</div><div id="seq" style="font-weight:bold;text-align:center;margin-top:6px"></div></div><div class="order" style="margin-top:12px">${shuffle(s.items).map(x=>`<button class="chip" data-x="${x}">${x}</button>`).join("")}</div>`;
+  screen.querySelectorAll("[data-x]").forEach(b=>b.onclick=()=>{
+    if(over||b.classList.contains("done"))return;
+    if(b.dataset.x===s.items[k]){b.classList.add("done");k++;beep(500+k*80,.08,"triangle");$("#seq").textContent=s.items.slice(0,k).join(" → ");if(k===s.items.length)fin()}
+    else{mist++;b.classList.add("bad","shake");beep(150,.15,"sawtooth");setTimeout(()=>b.classList.remove("bad","shake"),400)}
+  });
+  function fin(){if(over)return;over=true;ck.stop();const sc=k<s.items.length?k/s.items.length*60:Math.max(0,100-mist*20);done(sc,s,mist?`${mist} mix-up${mist>1?"s":""}`:"Flawless order!")}
+}
+
+/* ============ RESULTS ============ */
+function finish(){
+  setBar(100);
+  const avg=run.scores.reduce((a,b)=>a+b,0)/run.scores.length;
+  const st=stars(avg);
+  const key=run.chId+":"+run.mode;
+  let nb=false;
+  if(!run.quick&&run.chId!=="all"){if(save.best[key]==null||avg>save.best[key]){save.best[key]=Math.round(avg);nb=true}persist()}
+  const grade=avg>=95?"S":avg>=85?"A":avg>=70?"B":avg>=50?"C":"D";
+  if(st>=2)confetti(40);jingle(st>=2);
+  const lines=st===3?"I tell ya what, that's a PIZZA, chef! Tony'd hire you on the spot!":st===2?"Real good! A couple more runs and you got it memorized.":st===1?"We're getting there, compa. Review the card and run it back!":"Ay ay ay… Papa believes in you. Learn mode, let's go!";
+  screen.innerHTML=`<div class="result"><div class="grade">${grade}</div><div style="text-align:center" class="stars">${starStr(st)}</div>
+   <div class="papa"><div class="face">👨‍🍳</div><div class="bubble">${lines}${nb?"<br>🏆 New best!":""}</div></div>
+   <div class="card"><b>Score: ${Math.round(avg)} / 100</b> · ${MODES[run.mode].name}${run.misses.length?`<br><br><b>Papa's study list:</b>${run.misses.map(m=>`<div class="miss">❌ ${m.learn}</div>`).join("")}`:"<br>No misses. Chef's kiss! 🤌"}</div>
+   <button class="btn red" id="again">🔁 Run it back</button><button class="btn white" id="menu">🏠 Kitchen</button></div>`;
+  $("#again").onclick=()=>{beep(700); if(run.quick)return startQuick(); const R=RECIPES[recipeKey];start(run.chId==="all"?"all":R.chapters.findIndex(c=>c.id===run.chId),run.mode)};
+  $("#menu").onclick=()=>{beep(700);home()};
+}
+home();
+</script>
+</body>
+</html>
