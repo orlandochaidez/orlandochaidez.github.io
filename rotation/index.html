@@ -414,7 +414,7 @@
     <div class="sectrow"><span class="sname">Top Albums</span><span class="sstate" id="sectState-albums"></span><button class="viswitch" data-vtoggle="albums" aria-label="Toggle Top Albums visibility"></button></div>
     <div class="sectrow"><span class="sname">Top Songs</span><span class="sstate" id="sectState-songs"></span><button class="viswitch" data-vtoggle="songs" aria-label="Toggle Top Songs visibility"></button></div>
     <div class="sectrow"><span class="sname">Top Artists</span><span class="sstate" id="sectState-artists"></span><button class="viswitch" data-vtoggle="artists" aria-label="Toggle Top Artists visibility"></button></div>
-    <div class="sectnote" id="sectNote">⚠️ Visibility isn't saving yet — paste the settings SQL (supabase-settings-setup.sql) in Supabase to make these switches stick for visitors.</div>
+    <div class="sectnote" id="sectNote">⚠️ Visibility isn't saving right now — connection trouble. Your switches will save once it clears.</div>
   </div>
 
   <div id="slotAlbums"></div>
@@ -491,7 +491,7 @@ var SB_KEY = "sb_publishable_-siKrI5IZ3TjXC_TWcRbDw_9cbY6NaB";
 var LS_DEMO = "rotation-demo-v1";
 var LS_SESS = "rotation-admin-v1";
 
-/* ============ SEED (mirrors the SQL seed — the current live lists) ============ */
+/* ============ SEED (mirrors the database seed — the current live lists) ============ */
 var W = "https://upload.wikimedia.org/wikipedia/en/c/ca/Born-like-this.jpg";
 var SEED = {
   album: [
@@ -554,16 +554,85 @@ function sbHeaders(extra){
   if(extra) for(var k in extra) h[k]=extra[k];
   return h;
 }
-function fetchItems(){
-  return fetch(SB_URL + "/rest/v1/rotation_items?select=id,section,position,title,artist,album,year,cover_url&order=section.asc,position.asc", { headers: sbHeaders() })
-    .then(function(r){ if(!r.ok) throw new Error("http "+r.status); return r.json(); })
-    .then(function(rows){
-      if(!rows || !rows.length) throw new Error("empty");
-      var out = { album:[], song:[], artist:[] };
-      rows.forEach(function(row){ if(out[row.section]) out[row.section].push(row); });
-      ["album","song","artist"].forEach(function(s){ out[s].sort(function(a,b){ return a.position-b.position; }); });
-      return out;
+/* ============ SHARED READ RECOVERY ============
+   Reads heal themselves around a rotten stored session:
+   - if the stored token is expired (or about to be), refresh once first;
+   - on a 401, refresh once and retry with the new token;
+   - if the refresh grant is dead, drop the session properly (state +
+     localStorage + admin mode) and retry once as a visitor — these
+     tables are publicly readable, so viewing still goes live and
+     editing just needs a fresh sign-in;
+   - a plain network failure (no response at all) NEVER clears the
+     session; the read simply fails and the retry loops keep trying. */
+var itemsLiveOnce = false;
+function clearSession(){
+  state.session = null;
+  try{ localStorage.removeItem(LS_SESS); }catch(e){}
+  if(state.admin){
+    state.admin = false;
+    document.body.classList.remove("admin");
+    var ab = $("adminBtn");
+    if(ab){ ab.textContent = "🔒 Admin"; ab.classList.remove("on"); }
+    render(); renderLibrary();
+  }
+}
+function sbRead(doFetch){
+  var refreshed = false;
+  function attempt(){
+    return doFetch().catch(function(err){
+      if(!err || err.status !== 401 || !state.session) throw err;
+      if(!refreshed){
+        refreshed = true;
+        return refreshSession().then(function(ok){
+          if(ok) return attempt();
+          if(refreshState.definitiveFail){ clearSession(); return attempt(); }
+          throw err;
+        });
+      }
+      /* still 401 with a session attached: the token itself is no good */
+      clearSession();
+      return attempt();
     });
+  }
+  var pre = Promise.resolve();
+  if(state.session && state.session.expires_at && Date.now() > state.session.expires_at - 60000){
+    refreshed = true;
+    pre = refreshSession().then(function(){}, function(){});
+  }
+  return pre.then(attempt);
+}
+var authRefetchBusy = false;
+function afterAuthImproved(){
+  if(authRefetchBusy) return;
+  var jobs = [];
+  if(state.mode !== "live"){
+    jobs.push(fetchItems().then(function(items){ state.mode = "live"; state.items = items; render(); }).catch(function(){}));
+  }
+  if(!state.visLive){
+    jobs.push(fetchSettings().then(function(vis){ applySettings(vis); }).catch(function(){}));
+  }
+  if(!jobs.length) return;
+  authRefetchBusy = true;
+  Promise.all(jobs).then(function(){ authRefetchBusy = false; }, function(){ authRefetchBusy = false; });
+}
+function fetchItems(){
+  return sbRead(function(){
+    return fetch(SB_URL + "/rest/v1/rotation_items?select=id,section,position,title,artist,album,year,cover_url&order=section.asc,position.asc", { headers: sbHeaders() })
+      .then(function(r){ if(!r.ok){ var e = new Error("http "+r.status); e.status = r.status; throw e; } return r.json(); })
+      .then(function(rows){
+        if(!rows || !rows.length) throw new Error("empty");
+        var out = { album:[], song:[], artist:[] };
+        rows.forEach(function(row){ if(out[row.section]) out[row.section].push(row); });
+        ["album","song","artist"].forEach(function(s){ out[s].sort(function(a,b){ return a.position-b.position; }); });
+        return out;
+      });
+  }).then(function(out){
+    if(!itemsLiveOnce){
+      itemsLiveOnce = true;
+      try{ localStorage.removeItem(LS_DEMO); }catch(e){}
+    }
+    return out;
+  });
 }
 function patchItem(id, body){
   return fetch(SB_URL + "/rest/v1/rotation_items?id=eq." + id, { method:"PATCH", headers: sbHeaders({"Prefer":"return=minimal"}), body: JSON.stringify(body) })
@@ -581,14 +650,16 @@ function insertItem(row){
 /* ============ SECTION VISIBILITY (page_settings) ============ */
 function visShown(key){ return state.admin || state.vis[key] !== false; }
 function fetchSettings(){
-  return fetch(SB_URL + "/rest/v1/page_settings?select=value&key=eq.section_visibility", { headers: sbHeaders() })
-    .then(function(r){ if(!r.ok) throw new Error("settings "+r.status); return r.json(); })
-    .then(function(rows){
-      if(!rows || !rows.length || !rows[0].value) throw new Error("no settings row");
-      var v = rows[0].value, out = {};
-      ["library","albums","songs","artists"].forEach(function(k){ out[k] = v[k] !== false; });
-      return out;
-    });
+  return sbRead(function(){
+    return fetch(SB_URL + "/rest/v1/page_settings?select=value&key=eq.section_visibility", { headers: sbHeaders() })
+      .then(function(r){ if(!r.ok){ var e = new Error("settings "+r.status); e.status = r.status; throw e; } return r.json(); })
+      .then(function(rows){
+        if(!rows || !rows.length || !rows[0].value) throw new Error("no settings row");
+        var v = rows[0].value, out = {};
+        ["library","albums","songs","artists"].forEach(function(k){ out[k] = v[k] !== false; });
+        return out;
+      });
+  });
 }
 function saveSettings(){
   return ensureFresh().then(function(){
@@ -624,7 +695,7 @@ document.addEventListener("click", function(e){
     toast(state.vis[k] ? "Section showing for visitors ✓" : "Section hidden from visitors ✓");
   }).catch(function(){
     state.visLive = false; renderSectPanel();
-    toast("Couldn't save visibility — paste the settings SQL first");
+    toast("Couldn't save visibility — connection hiccup, try again");
   });
 });
 
@@ -646,19 +717,27 @@ function signIn(email, password){
   }).then(function(r){ return r.json().then(function(j){ if(!r.ok) throw new Error(j.error_description || j.msg || "Login failed"); return j; }); })
     .then(function(j){
       saveSession({ access_token:j.access_token, refresh_token:j.refresh_token, expires_at: Date.now() + (j.expires_in||3600)*1000, email: email });
+      afterAuthImproved();
       return j;
     });
 }
+var refreshState = { definitiveFail: false };
+var refreshInFlight = null;
 function refreshSession(){
+  if(refreshInFlight) return refreshInFlight;
+  refreshState.definitiveFail = false;
   if(!state.session || !state.session.refresh_token) return Promise.resolve(false);
-  return fetch(SB_URL + "/auth/v1/token?grant_type=refresh_token", {
+  var p = fetch(SB_URL + "/auth/v1/token?grant_type=refresh_token", {
     method:"POST", headers:{ "apikey": SB_KEY, "Content-Type":"application/json" },
     body: JSON.stringify({ refresh_token: state.session.refresh_token })
-  }).then(function(r){ if(!r.ok) throw new Error("refresh"); return r.json(); })
+  }).then(function(r){ if(!r.ok){ refreshState.definitiveFail = true; throw new Error("refresh"); } return r.json(); })
     .then(function(j){
       saveSession({ access_token:j.access_token, refresh_token:j.refresh_token, expires_at: Date.now() + (j.expires_in||3600)*1000, email: state.session.email });
+      afterAuthImproved();
       return true;
     }).catch(function(){ return false; });
+  refreshInFlight = p.then(function(v){ refreshInFlight = null; return v; });
+  return refreshInFlight;
 }
 function ensureFresh(){
   if(state.session && state.session.expires_at && Date.now() > state.session.expires_at - 60000) return refreshSession();
@@ -1010,7 +1089,7 @@ function saveAdd(section, row){
   if(state.mode !== "live"){
     row.position = state.items[section].length + 1;
     state.items[section].push(row); persistDemo(); render();
-    toast("Added (demo — goes public after the SQL paste)");
+    toast("Added (saving on this phone only — connection hiccup)");
     return Promise.resolve();
   }
   row.position = state.items[section].length + 1;
@@ -1155,7 +1234,7 @@ function enterAdmin(){
   $("adminBtn").textContent = "✓ Done"; $("adminBtn").classList.add("on");
   render();
   renderLibrary();
-  toast(state.mode==="live" ? "Admin mode — edits save live" : "Admin mode (demo — edits save on this phone only)");
+  toast(state.mode==="live" ? "Admin mode — edits save live" : "Admin mode (phone-only for now — connection hiccup; edits aren't public yet)");
 }
 $("loginCancel").addEventListener("click", function(){ $("loginBk").classList.remove("open"); $("loginErr").textContent=""; });
 $("loginGo").addEventListener("click", function(){
@@ -1282,13 +1361,22 @@ fetchItems().then(function(items){
   state.mode = "live"; state.items = items; render();
 }).catch(function(){
   state.mode = "demo"; render();
-  var iv = setInterval(function(){
-    fetchItems().then(function(items){
-      state.mode = "live"; state.items = items; render(); clearInterval(iv);
-      toast("Rotation is LIVE 🎉");
-    }).catch(function(){});
-  }, 45000);
+  var iv = setInterval(function(){ bootRetry(iv); }, 45000);
+  /* quick heals while still in demo: 5s and 15s after the failed boot,
+     plus whenever the page returns to the foreground or the connection
+     comes back — the 45s poll above keeps running as the backstop */
+  setTimeout(function(){ bootRetry(iv); }, 5000);
+  setTimeout(function(){ bootRetry(iv); }, 15000);
+  document.addEventListener("visibilitychange", function(){ if(!document.hidden) bootRetry(iv); });
+  window.addEventListener("online", function(){ bootRetry(iv); });
 });
+function bootRetry(iv){
+  if(state.mode === "live") return;
+  fetchItems().then(function(items){
+    state.mode = "live"; state.items = items; render(); clearInterval(iv);
+    toast("Rotation is LIVE 🎉");
+  }).catch(function(){});
+}
 /* pick up edits made on another device (only when not editing) */
 setInterval(function(){
   if(state.mode==="live" && !state.admin) fetchItems().then(function(items){ state.items = items; render(); }).catch(function(){});
@@ -1356,9 +1444,11 @@ function libNodes(){
   return order.map(function(n){ return map[n]; });
 }
 function fetchLibrary(){
-  return fetch(SB_URL + "/rest/v1/library_albums?select=slug,artist_node,title,credit,year,cover_url,tracks,sort_key&order=sort_key.asc&limit=1000", { headers: sbHeaders() })
-    .then(function(r){ if(!r.ok) throw new Error("lib http "+r.status); return r.json(); })
-    .then(function(rows){ if(!rows || !rows.length) throw new Error("lib empty"); return rows; });
+  return sbRead(function(){
+    return fetch(SB_URL + "/rest/v1/library_albums?select=slug,artist_node,title,credit,year,cover_url,tracks,sort_key&order=sort_key.asc&limit=1000", { headers: sbHeaders() })
+      .then(function(r){ if(!r.ok){ var e = new Error("lib http "+r.status); e.status = r.status; throw e; } return r.json(); })
+      .then(function(rows){ if(!rows || !rows.length) throw new Error("lib empty"); return rows; });
+  });
 }
 function libOpenAlbum(nodeName, slug, hl){
   lib.openArtist = nodeName; lib.openAlbum = slug; lib.hl = hl || null;
