@@ -6,21 +6,21 @@
 <title>Snake — Clean Arcade</title>
 <style>
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0f1115;color:#f5f5f5;display:flex;justify-content:center;touch-action:manipulation}
-  .wrap{width:min(560px,100%);padding:18px 16px 24px}
-  header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
-  h1{font-size:28px;margin:0}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0f1115;color:#f5f5f5;display:flex;justify-content:center;touch-action:manipulation;overscroll-behavior:none}
+  .wrap{width:min(560px,100%);padding:10px 12px calc(12px + env(safe-area-inset-bottom));min-height:100dvh;display:flex;flex-direction:column}
+  header{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px}
+  h1{font-size:24px;margin:0}
   a.back{color:#9ecbff;text-decoration:none;font-weight:700;font-size:14px}
-  .score{display:flex;justify-content:center;gap:28px;font-weight:900;font-size:24px;margin:8px 0}
+  .score{display:flex;justify-content:center;gap:22px;font-weight:900;font-size:20px;margin:4px 0}
   .score small{display:block;font-size:11px;letter-spacing:1px;color:#aaa;text-align:center}
-  canvas{width:100%;aspect-ratio:1;background:#101820;border:2px solid #2a6b46;border-radius:14px;display:block;touch-action:none}
-  .bar{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
-  button{flex:1;min-width:120px;border:0;border-radius:10px;padding:13px;font-weight:800;font-size:16px;cursor:pointer;background:#35c759;color:#07130a;touch-action:manipulation}
+  canvas{width:min(100%,calc(100dvh - 312px));aspect-ratio:1;background:#101820;border:2px solid #2a6b46;border-radius:14px;display:block;touch-action:none;align-self:center}
+  .bar{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+  button{flex:1;min-width:120px;border:0;border-radius:10px;padding:10px;font-weight:800;font-size:16px;cursor:pointer;background:#35c759;color:#07130a;touch-action:manipulation}
   button.secondary{background:#232733;color:#fff;border:1px solid #3a4050}
-  .pad{display:grid;grid-template-columns:64px 64px 64px;gap:8px;justify-content:center;margin:14px auto 0;width:max-content}
-  .pad button{min-width:0;height:56px;font-size:22px;background:#232733;color:#fff;border:1px solid #3a4050}
+  .pad{display:grid;grid-template-columns:60px 60px 60px;gap:6px;justify-content:center;margin:10px auto 0;width:max-content}
+  .pad button{min-width:0;height:48px;font-size:22px;background:#232733;color:#fff;border:1px solid #3a4050}
   .pad .spacer{visibility:hidden}
-  .hint{color:#9aa3b2;font-size:13px;line-height:1.5;text-align:center;margin-top:10px}
+  .hint{color:#9aa3b2;font-size:12px;line-height:1.5;text-align:center;margin:6px 0 0}
   #board{display:none;background:#171b23;border:1px solid #2a3040;border-radius:12px;padding:12px 16px;margin-top:12px}
   #board h3{margin:0 0 8px;font-size:13px;letter-spacing:1.5px;color:#ffd60a;text-align:center}
   #board .brow{display:flex;justify-content:space-between;font-size:15px;font-weight:700;padding:3px 2px;color:#dfe5ee}
@@ -43,7 +43,7 @@
     <span class="spacer"></span><button data-dir="up">↑</button><span class="spacer"></span>
     <button data-dir="left">←</button><button data-dir="down">↓</button><button data-dir="right">→</button>
   </div>
-  <p class="hint">Arrow keys / WASD, swipe, or use the pad. Eat the apple 🍎 to grow. Don’t hit the walls or yourself. Speeds up as you eat.</p>
+  <p class="hint">Swipe, arrow keys, or the pad. Eat 🍎 to grow — don’t hit the walls or yourself!</p>
 </div>
 <script>
 (() => {
@@ -151,6 +151,9 @@
     if(Math.abs(dx)<20&&Math.abs(dy)<20) return;
     Math.abs(dx)>Math.abs(dy)?setDir(Math.sign(dx),0):setDir(0,Math.sign(dy));
   },{passive:true});
+  /* while a run is live, swallow every touch-drag page-wide so a direction
+     swipe can never grab the page and scroll it (Orlando, 2026-11-10) */
+  addEventListener('touchmove',e=>{ if(running&&!paused) e.preventDefault(); },{passive:false});
   function start(){ reset(); running=true; paused=false; document.getElementById('board').style.display='none'; restartTimer(); draw(); }
   document.getElementById('startBtn').onclick=start;
   document.getElementById('pauseBtn').onclick=()=>{ if(running){ paused=!paused; if(paused) draw('Paused'); else draw(); }};
