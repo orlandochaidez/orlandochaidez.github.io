@@ -1309,7 +1309,15 @@ function doSearch(){
     var seen = {}, out = [];
     both[0].concat(both[1]).forEach(function(r){
       var key = (r.title + "|" + r.artist).toLowerCase();
-      if(seen[key]) return; seen[key] = 1;
+      if(seen[key]){
+        // Merge: a later source may carry the cover the first lacked
+        // (iTunes artist results never have artwork; Deezer does).
+        // Fill an empty cover only — never overwrite an existing one.
+        var kept = seen[key];
+        if(kept && kept !== 1 && !kept.cover_url && r.cover_url) kept.cover_url = r.cover_url;
+        return;
+      }
+      seen[key] = r.title ? r : 1;
       if(r.title) out.push(r);
     });
     if(!out.length){ box.innerHTML = '<div class="empty">Nothing found — try the manual add below.</div>'; return; }
