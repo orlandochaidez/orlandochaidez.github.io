@@ -94,6 +94,11 @@
     .song .s-alb{display:none}
     .song .s-title,.song .s-artist{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;white-space:normal;overflow:hidden}
     .song .s-alb-m{display:block;color:#a08c66;font-family:system-ui,sans-serif;font-size:12px;font-weight:600;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    /* phones, ADMIN only: the ✕ + ↑↓ + grip eat the whole row, so the text
+       block drops to a full-width line of its own underneath (visitors
+       untouched — their rows have no admin tools) */
+    body.admin .song{flex-wrap:wrap}
+    body.admin .song a.s-main{flex:1 1 100%;order:10;margin-top:10px}
   }
   .wrap{max-width:680px;margin:0 auto;padding:28px 18px 40px}
   h1{
